@@ -17,6 +17,8 @@ export type Conversation = {
 }
 
 export const conversationsKey = ['conversations'] as const
+export const conversationKey = (id: string | null | undefined) =>
+  ['conversation', id ?? null] as const
 
 export function useConversations() {
   const session = useAuth((s) => s.session)
@@ -41,7 +43,7 @@ export function useConversations() {
 export function useConversation(conversationId: string | null | undefined) {
   const session = useAuth((s) => s.session)
   return useQuery<Conversation | null>({
-    queryKey: ['conversation', conversationId ?? null],
+    queryKey: conversationKey(conversationId),
     enabled: !!session && !!conversationId,
     queryFn: async () => {
       const { data, error } = await supabase

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { messagesKey, type Message, type MessagePages } from './useMessages'
-import { conversationsKey } from './useConversations'
+import { conversationsKey, conversationKey } from './useConversations'
 
 /**
  * Subscribes to messages in a single conversation:
@@ -44,6 +44,10 @@ export function useChatRealtime(conversationId: string | null | undefined) {
             return { ...old, pages: [[incoming, ...first], ...rest] }
           })
           qc.invalidateQueries({ queryKey: conversationsKey })
+          // The first message in a brand-new DM makes the conversation appear
+          // in my_conversations — refetch the header so the other person's
+          // name + avatar populate (it was null before any message existed).
+          qc.invalidateQueries({ queryKey: conversationKey(conversationId) })
         },
       )
       .on(

@@ -8,6 +8,7 @@ import {
   type MessageMediaKind,
   type MessagePages,
 } from './useMessages'
+import { conversationKey, conversationsKey } from './useConversations'
 
 type SendVars = {
   /** Caption / text. Optional when media is present; required otherwise. */
@@ -95,6 +96,10 @@ export function useSendMessage(conversationId: string) {
       qc.setQueryData<MessagePages>(key, (old) =>
         patchPages(old, (m) => (m.id === ctx?.optimisticId ? sent : m)),
       )
+      // First message in a new DM populates my_conversations — refresh the
+      // header (name/avatar) and the conversations list.
+      qc.invalidateQueries({ queryKey: conversationKey(conversationId) })
+      qc.invalidateQueries({ queryKey: conversationsKey })
     },
   })
 }
