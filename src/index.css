@@ -1,0 +1,249 @@
+@import "tailwindcss";
+
+/*
+ * Sensual Plum palette — mirrored from src/theme.ts.
+ * Tailwind 4 generates utilities from any `--color-*` declared here:
+ *   `--color-rose` → `bg-rose`, `text-rose`, `border-rose`, etc.
+ */
+@theme {
+  /* ===========================================================
+     Cosmic Midnight palette — deep navy-blue glassmorphism with
+     a pink → purple → azure → cyan accent family. One source of
+     truth: every screen reads these tokens, so changing a value
+     here re-themes the whole app. Keep buttons/accents inside
+     this family — don't introduce off-palette colors.
+     =========================================================== */
+
+  /* Surfaces — deep navy, never pure black */
+  --color-surface: #070A16;
+  --color-surface-2: #0D1430;
+  --color-surface-3: #1A2348;
+
+  /* Brand / accent family (cool):
+       rose    = vivid pink   (primary)
+       magenta = electric purple
+       coral   = azure blue
+       gold    = cyan / teal
+     The names are historical; the gradients/glows below compose
+     them into the cool look automatically. */
+  --color-rose: #FF3D8E;
+  --color-magenta: #9B4DFF;
+  --color-coral: #4D7CFF;
+  --color-gold: #35CDE8;
+
+  /* Ink — cool whites with a faint blue tint */
+  --color-ink: #F1F5FF;
+  --color-ink-2: #C6D1EC;
+  --color-ink-muted: #8A96BD;
+
+  /* Semantic */
+  --color-success: #3DDC97;
+  --color-danger: #FF5A7A;
+  --color-warning: #FFC861;
+}
+
+/* ---- Custom utilities ---- */
+
+@utility text-gradient-brand {
+  background-image: linear-gradient(135deg, var(--color-rose) 0%, var(--color-magenta) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@utility text-gradient-warm {
+  background-image: linear-gradient(135deg, var(--color-gold) 0%, var(--color-coral) 50%, var(--color-magenta) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@utility bg-gradient-brand {
+  background-image: linear-gradient(135deg, var(--color-rose) 0%, var(--color-magenta) 100%);
+}
+
+@utility bg-gradient-warm {
+  background-image: linear-gradient(135deg, var(--color-gold) 0%, var(--color-coral) 50%, var(--color-magenta) 100%);
+}
+
+/* Frosted glass surface used on nav + cards. */
+@utility glass {
+  background-color: color-mix(in oklab, var(--color-surface-2) 60%, transparent);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid color-mix(in oklab, white 6%, transparent);
+}
+
+/* Hairline gradient border. Apply to a wrapper div with `position: relative`. */
+@utility ring-brand {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-rose) 50%, transparent),
+    0 8px 32px color-mix(in oklab, var(--color-rose) 25%, transparent);
+}
+
+/* Soft ambient glow used behind feature elements. */
+@utility glow-rose {
+  box-shadow:
+    0 0 24px color-mix(in oklab, var(--color-rose) 45%, transparent),
+    0 0 64px color-mix(in oklab, var(--color-rose) 20%, transparent);
+}
+
+@utility glow-magenta {
+  box-shadow:
+    0 0 24px color-mix(in oklab, var(--color-magenta) 45%, transparent),
+    0 0 64px color-mix(in oklab, var(--color-magenta) 20%, transparent);
+}
+
+/* Hide native scrollbar but keep wheel/touch scrolling. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar { display: none; width: 0; height: 0; }
+}
+
+/* Shared form-input look, used by Edit profile + similar settings forms. */
+@utility lm-input {
+  width: 100%;
+  background-color: color-mix(in oklab, var(--color-surface-2) 60%, transparent);
+  border: 1px solid color-mix(in oklab, white 8%, transparent);
+  border-radius: 0.875rem;
+  padding: 0.625rem 0.875rem;
+  color: var(--color-ink);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  outline: none;
+  &:focus,
+  &:focus-within {
+    border-color: color-mix(in oklab, var(--color-rose) 70%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-rose) 25%, transparent);
+  }
+}
+
+/* ---- Base ---- */
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  /* Vivid glow backdrop — hot-pink (top-right) + purple (bottom-left) +
+     azure (right) over deep navy, anchored to the viewport (fixed) so it
+     stays put while content scrolls. App containers above are transparent
+     so this shows through — that's the glassmorphism in the reference. */
+  background:
+    radial-gradient(1000px 760px at 84% -8%, color-mix(in oklab, var(--color-rose) 48%, transparent), transparent 56%),
+    radial-gradient(980px 820px at 4% 108%, color-mix(in oklab, var(--color-magenta) 44%, transparent), transparent 56%),
+    radial-gradient(720px 560px at 118% 68%, color-mix(in oklab, var(--color-coral) 30%, transparent), transparent 60%),
+    var(--color-surface);
+  background-attachment: fixed;
+  color: var(--color-ink);
+  font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Disable iOS tap highlight, looks cheap. */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scroll inside the app. */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ---- Landing-page keyframes (ported from _archive/web/src/index.css) ---- */
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+    opacity: 1;
+  }
+}
+
+@keyframes floatParticles {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-30px) translateX(20px) rotate(180deg);
+    opacity: 1;
+  }
+}
+
+@keyframes logoGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 18px rgba(255, 61, 142, 0.55));
+  }
+  50% {
+    filter: drop-shadow(0 0 28px rgba(155, 77, 255, 0.7));
+  }
+}
+
+@utility animate-logo-glow {
+  animation: logoGlow 3s ease-in-out infinite;
+}
+
+/* ---- App spinner ----
+   Lightweight gradient-arc ring (one element, GPU-only transform). Used by
+   LoadingShell + per-screen loaders. The pre-React preloader in index.html
+   inlines an equivalent so it paints before this stylesheet even loads. */
+@keyframes lm-spin { to { transform: rotate(1turn); } }
+
+@utility lm-spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from 90deg,
+    color-mix(in oklab, white 6%, transparent),
+    var(--color-rose),
+    var(--color-magenta),
+    color-mix(in oklab, white 6%, transparent)
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+  animation: lm-spin 0.85s linear infinite;
+}
+
+/* ---- Landing ambient (cheap: transform-only on pre-rasterized blur) ---- */
+@keyframes lm-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(4%, -3%, 0) scale(1.07); }
+}
+@keyframes lm-floaty {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+.lm-orb {
+  position: absolute;
+  width: 46vmax;
+  height: 46vmax;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.45;
+  will-change: transform;
+}
+.lm-orb-a {
+  top: -14vmax;
+  right: -10vmax;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-rose) 55%, transparent), transparent 65%);
+  animation: lm-drift 15s ease-in-out infinite;
+}
+.lm-orb-b {
+  bottom: -16vmax;
+  left: -12vmax;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-magenta) 50%, transparent), transparent 65%);
+  animation: lm-drift 19s ease-in-out infinite reverse;
+}
+.lm-float { animation: lm-floaty 6s ease-in-out infinite; will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lm-orb, .lm-float { animation: none; }
+}

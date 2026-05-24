@@ -1,0 +1,11 @@
+# Netlify build + SPA routing. The repo root is this app, so no base dir.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Single-page app: every path falls back to index.html so client-side
+# routes (React Router) and OAuth redirects don't 404 on refresh/deep-link.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

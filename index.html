@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#070A16" />
+    <title>Love meet</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet" />
+    <!-- Telegram WebApp SDK. No-op outside Telegram; provides window.Telegram.WebApp when launched from a bot. -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Critical-CSS preloader. Inlined so it paints the instant the HTML
+         arrives — before the JS/CSS bundle downloads — then React's first
+         render replaces #root's contents and it's gone. Zero JS, no deps. -->
+    <style>
+      #lm-preloader {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(900px 720px at 84% -8%, rgba(255, 61, 142, 0.22), transparent 56%),
+          radial-gradient(900px 760px at 4% 108%, rgba(155, 77, 255, 0.20), transparent 56%),
+          #070a16;
+      }
+      #lm-preloader .ring {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: conic-gradient(
+          from 90deg,
+          rgba(255, 255, 255, 0.06),
+          #ff3d8e,
+          #9b4dff,
+          rgba(255, 255, 255, 0.06)
+        );
+        -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+                mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+        animation: lm-preload-spin 0.85s linear infinite;
+      }
+      @keyframes lm-preload-spin { to { transform: rotate(1turn); } }
+      @media (prefers-reduced-motion: reduce) {
+        #lm-preloader .ring { animation-duration: 2s; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div id="lm-preloader"><div class="ring"></div></div>
+    </div>
+    <div id="modal-root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
