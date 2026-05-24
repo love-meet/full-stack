@@ -37,7 +37,7 @@ export default function AdminLayout() {
             <NavLink
               key={t.to}
               to={t.to}
-              end={t.end ?? false}
+              end={'end' in t ? t.end : false}
               className={({ isActive }) =>
                 [
                   'relative shrink-0 px-3 py-2 text-sm font-semibold transition-colors',
