@@ -55,14 +55,8 @@ export default function LandingScreen() {
     if (ready && session) navigate('/feed', { replace: true })
   }, [ready, session, navigate])
 
-  useEffect(() => {
-    if (surface !== 'telegram' || busy || session || !ready) return
-    setBusy(true)
-    signInWithTelegram().catch((e: Error) => {
-      setError(e.message)
-      setBusy(false)
-    })
-  }, [surface, busy, session, ready])
+  // Telegram sign-in is triggered ONLY by the button (onTelegramClick) —
+  // never automatically — so users tap to connect.
 
   async function onGoogleClick() {
     setBusy(true)
