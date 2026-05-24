@@ -6,6 +6,7 @@ import { useFeed, type FeedPost } from '../hooks/useFeed'
 import { useToggleLike } from '../hooks/usePostMutations'
 import { useFeedRealtime } from '../hooks/useFeedRealtime'
 import { useUnreadNotifications, useNotificationsRealtime } from '../hooks/useNotifications'
+import { useConversations } from '../hooks/useConversations'
 import { useAuth } from '../stores/auth'
 import { getSurface } from '../lib/surface'
 import { avatarUrlOr } from '../lib/avatar'
@@ -17,6 +18,7 @@ export default function FeedScreen() {
   useFeedRealtime()
   useNotificationsRealtime()
   const unread = useUnreadNotifications().data ?? 0
+  const unreadChats = (useConversations().data ?? []).filter((c) => c.unread_count > 0).length
   const feed = useFeed()
   const headerY = useMotionValue(0)
   const lastScrollY = useRef(0)
@@ -76,6 +78,18 @@ export default function FeedScreen() {
               {unread > 0 && (
                 <span className="absolute top-1 right-1 min-w-[1.05rem] h-[1.05rem] px-1 rounded-full bg-rose text-white text-[10px] font-bold grid place-items-center">
                   {unread > 99 ? '99+' : unread}
+                </span>
+              )}
+            </Link>
+            <Link
+              to="/chat"
+              className="relative w-10 h-10 grid place-items-center text-ink-2 hover:text-rose transition-colors"
+              aria-label="Chats"
+            >
+              <span className="text-xl">✉</span>
+              {unreadChats > 0 && (
+                <span className="absolute top-1 right-1 min-w-[1.05rem] h-[1.05rem] px-1 rounded-full bg-rose text-white text-[10px] font-bold grid place-items-center">
+                  {unreadChats > 99 ? '99+' : unreadChats}
                 </span>
               )}
             </Link>
