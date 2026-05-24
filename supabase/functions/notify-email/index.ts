@@ -65,9 +65,12 @@ serve(async (req: Request) => {
     const tgOn = profile?.telegram_notifications === true
     const tgChatId = profile?.telegram_user_id ?? null
 
-    // Recipient email lives on the auth user.
+    // Recipient email lives on the auth user. Telegram sign-ups have a
+    // SYNTHETIC placeholder address (tg_<id>@telegram.lovemeet.invalid) that
+    // can never receive mail — never try to email it (it just bounces).
     const { data: userRes } = await admin.auth.admin.getUserById(n.user_id)
-    const email = userRes?.user?.email ?? null
+    const rawEmail = userRes?.user?.email ?? null
+    const email = rawEmail && !/\.invalid$/i.test(rawEmail) ? rawEmail : null
 
     // Actor name for the message.
     let actor = 'Someone'
