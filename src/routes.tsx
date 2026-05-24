@@ -14,6 +14,7 @@ import PostScreen from './screens/post/PostScreen'
 import ChatScreen from './screens/ChatScreen'
 import ChatDetailScreen from './screens/ChatDetailScreen'
 import SearchScreen from './screens/SearchScreen'
+import GamesScreen from './screens/GamesScreen'
 import NotificationsScreen from './screens/NotificationsScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import PostDetailScreen from './screens/PostDetailScreen'
@@ -76,6 +77,7 @@ export const router = createBrowserRouter([
               { path: 'g/:slug/manage',        element: <GroupManageScreen /> },
               { path: 'groups/new',            element: <CreateGroupScreen /> },
               { path: 'post',                  element: <PostScreen /> },
+              { path: 'games',                 element: <GamesScreen /> },
               { path: 'chat',                  element: <ChatScreen /> },
               { path: 'search',                element: <SearchScreen /> }, // header-link, not a bottom-nav tab
               { path: 'notifications',         element: <NotificationsScreen /> },

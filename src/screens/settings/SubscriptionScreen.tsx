@@ -7,7 +7,10 @@ import {
   type SubscriptionPlan,
 } from '../../hooks/usePayments'
 import { useWallet } from '../../hooks/useWallet'
+import { useUserCurrency } from '../../hooks/useFx'
 import ConfirmDialog from '../../components/ConfirmDialog'
+
+const MONTH_OPTIONS = [1, 3, 6, 12] as const
 
 export default function SubscriptionScreen() {
   const navigate = useNavigate()
@@ -15,17 +18,19 @@ export default function SubscriptionScreen() {
   const sub = useMySubscription()
   const wallet = useWallet()
   const subscribe = useSubscribe()
-  const [picking, setPicking] = useState<SubscriptionPlan | null>(null)
+  const fx = useUserCurrency()
+  const [picking, setPicking] = useState<{ plan: SubscriptionPlan; months: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const balance = wallet.data?.balance_usdt ?? 0
   const active = sub.data
+  const onFree = !active
 
   async function confirm() {
     if (!picking) return
     setError(null)
     try {
-      await subscribe.mutateAsync(picking.id)
+      await subscribe.mutateAsync({ planId: picking.plan.id, months: picking.months })
       setPicking(null)
     } catch (e) {
       setError((e as Error).message)
@@ -46,12 +51,19 @@ export default function SubscriptionScreen() {
           >
             ←
           </button>
-          <div className="flex-1 text-center text-ink font-bold">Subscription</div>
+          <div className="flex-1 text-center text-ink font-bold">Plans</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-5 sm:px-8 py-6 space-y-6">
+      <main className="max-w-2xl mx-auto px-5 sm:px-8 py-6 space-y-5">
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl font-extrabold text-gradient-warm">Find your person, faster</h1>
+          <p className="text-sm text-ink-2">
+            Upgrade to be seen by the right people — pay monthly, or save by paying ahead.
+          </p>
+        </div>
+
         {active && (
           <div className="glass rounded-3xl p-5 border border-rose/30">
             <div className="text-[10px] uppercase tracking-[0.18em] text-rose font-bold">
@@ -61,31 +73,37 @@ export default function SubscriptionScreen() {
               {plans.data?.find((p) => p.id === active.plan_id)?.name ?? active.plan_id}
             </div>
             <div className="text-sm text-ink-muted">
-              Expires {new Date(active.expires_at).toLocaleDateString()}
+              Renews / expires {new Date(active.expires_at).toLocaleDateString()}
             </div>
           </div>
         )}
 
         <p className="text-sm text-ink-2">
-          Subscriptions are paid from your wallet balance. To top up,
-          go to <button onClick={() => navigate('/wallet/deposit')} className="text-rose hover:underline font-semibold">Add funds</button>.
+          Paid from your wallet balance. To top up, go to{' '}
+          <button onClick={() => navigate('/wallet/deposit')} className="text-rose hover:underline font-semibold">
+            Add funds
+          </button>.
         </p>
 
         <div className="space-y-3">
+          {/* Free — the default for everyone. */}
+          <FreeCard isCurrent={onFree} />
+
           {plans.status === 'pending' && (
             <>
-              <div className="glass rounded-2xl h-32 animate-pulse" />
-              <div className="glass rounded-2xl h-32 animate-pulse" />
-              <div className="glass rounded-2xl h-32 animate-pulse" />
+              <div className="glass rounded-2xl h-40 animate-pulse" />
+              <div className="glass rounded-2xl h-40 animate-pulse" />
             </>
           )}
+
           {plans.data?.map((p) => (
             <PlanCard
               key={p.id}
               plan={p}
               balance={balance}
               isCurrent={active?.plan_id === p.id}
-              onPick={() => setPicking(p)}
+              format={fx.ready || fx.code === 'USD' ? fx.format : (u) => `$${u.toFixed(2)}`}
+              onPick={(months) => setPicking({ plan: p, months })}
             />
           ))}
         </div>
@@ -95,8 +113,12 @@ export default function SubscriptionScreen() {
 
       <ConfirmDialog
         open={picking != null}
-        title={`Subscribe to ${picking?.name}?`}
-        message={`${picking?.price_usdt.toFixed(2)} USDT will be debited from your wallet immediately. Your subscription stays active for ${picking?.duration_days} days.`}
+        title={`Subscribe to ${picking?.plan.name}?`}
+        message={
+          picking
+            ? `${(fx.ready || fx.code === 'USD' ? fx.format(picking.plan.price_usdt * picking.months) : `$${(picking.plan.price_usdt * picking.months).toFixed(2)}`)} will be debited from your wallet now for ${picking.months} month${picking.months === 1 ? '' : 's'} of ${picking.plan.name}.`
+            : ''
+        }
         confirmLabel="Subscribe"
         busy={subscribe.isPending}
         onCancel={() => setPicking(null)}
@@ -106,63 +128,120 @@ export default function SubscriptionScreen() {
   )
 }
 
+function FreeCard({ isCurrent }: { isCurrent: boolean }) {
+  return (
+    <div className={['glass rounded-3xl p-5', isCurrent ? 'ring-1 ring-white/15' : ''].join(' ')}>
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-xl font-extrabold text-ink">Free</h3>
+        <div className="text-right">
+          <div className="text-2xl font-extrabold text-ink">$0</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">forever</div>
+        </div>
+      </div>
+      <ul className="mt-3 space-y-1">
+        {['3 posts a week', 'Default chat & privacy settings', 'Join groups & games others host'].map((f) => (
+          <li key={f} className="text-sm text-ink-2 flex items-center gap-2">
+            <span className="text-ink-muted">•</span>
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4 w-full rounded-full py-2.5 text-sm font-bold text-center bg-surface-3 text-ink-muted">
+        {isCurrent ? 'Your current plan' : 'Default plan'}
+      </div>
+    </div>
+  )
+}
+
 function PlanCard({
-  plan, balance, isCurrent, onPick,
+  plan, balance, isCurrent, format, onPick,
 }: {
   plan: SubscriptionPlan
   balance: number
   isCurrent: boolean
-  onPick: () => void
+  format: (usd: number) => string
+  onPick: (months: number) => void
 }) {
-  const canAfford = balance >= plan.price_usdt
+  const [months, setMonths] = useState(1)
+  const total = plan.price_usdt * months
+  const canAfford = balance >= total
+
   return (
     <div
       className={[
-        'glass rounded-3xl p-5 transition-shadow',
+        'relative overflow-hidden glass rounded-3xl p-5 transition-shadow',
         isCurrent ? 'ring-1 ring-rose/40' : '',
+        plan.coming_soon ? 'border border-white/10' : 'border border-rose/20',
       ].join(' ')}
     >
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="text-xl font-extrabold text-gradient-warm">{plan.name}</h3>
         <div className="text-right">
-          <div className="text-2xl font-extrabold text-ink">
-            {plan.price_usdt.toLocaleString()}
-          </div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">
-            USDT / {plan.duration_days}d
-          </div>
+          <div className="text-2xl font-extrabold text-ink">{format(plan.price_usdt)}</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">/ month</div>
         </div>
       </div>
 
+      {plan.description && <p className="mt-2 text-sm text-ink-2">{plan.description}</p>}
+
       {plan.features.length > 0 && (
-        <ul className="mt-3 space-y-1">
+        <ul className="mt-3 space-y-1.5">
           {plan.features.map((f) => (
-            <li key={f} className="text-sm text-ink-2 flex items-center gap-2">
-              <span className="text-rose">✓</span>
+            <li key={f} className="text-sm text-ink-2 flex items-start gap-2">
+              <span className="text-rose mt-0.5">✓</span>
               <span>{f}</span>
             </li>
           ))}
         </ul>
       )}
 
-      <button
-        onClick={onPick}
-        disabled={!canAfford || isCurrent}
-        className={[
-          'mt-4 w-full rounded-full py-2.5 text-sm font-bold transition-opacity',
-          isCurrent
-            ? 'bg-surface-3 text-ink-muted cursor-default'
-            : canAfford
-              ? 'bg-gradient-brand text-white glow-rose'
-              : 'bg-surface-3 text-ink-muted',
-        ].join(' ')}
-      >
-        {isCurrent
-          ? 'Active'
-          : canAfford
-            ? `Subscribe for ${plan.price_usdt} USDT`
-            : `Need ${(plan.price_usdt - balance).toFixed(2)} more`}
-      </button>
+      {!plan.coming_soon && !isCurrent && (
+        <>
+          {/* Months selector — pay for more than a month up front. */}
+          <div className="mt-4 flex gap-2">
+            {MONTH_OPTIONS.map((m) => (
+              <button
+                key={m}
+                onClick={() => setMonths(m)}
+                className={[
+                  'flex-1 rounded-xl py-2 text-xs font-bold transition-colors',
+                  months === m ? 'bg-rose/20 text-rose ring-1 ring-rose/40' : 'bg-surface-3 text-ink-muted',
+                ].join(' ')}
+              >
+                {m} mo
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => onPick(months)}
+            disabled={!canAfford}
+            className={[
+              'mt-3 w-full rounded-full py-2.5 text-sm font-bold transition-opacity',
+              canAfford ? 'bg-gradient-brand text-white glow-rose' : 'bg-surface-3 text-ink-muted',
+            ].join(' ')}
+          >
+            {canAfford
+              ? `Subscribe — ${format(total)}${months > 1 ? ` (${months} mo)` : ''}`
+              : `Need ${format(total - balance)} more`}
+          </button>
+        </>
+      )}
+
+      {isCurrent && (
+        <div className="mt-4 w-full rounded-full py-2.5 text-sm font-bold text-center bg-surface-3 text-ink-muted">
+          Active
+        </div>
+      )}
+
+      {/* Coming-soon lock */}
+      {plan.coming_soon && (
+        <div className="absolute top-4 right-4">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-2 bg-black/45 rounded-full px-3 py-1.5">
+            🔒 Coming soon
+          </span>
+        </div>
+      )}
     </div>
   )
 }

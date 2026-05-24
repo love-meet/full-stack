@@ -62,6 +62,7 @@ export type SubscriptionPlan = {
   price_usdt: number
   features: string[]
   active: boolean
+  coming_soon: boolean
   sort_order: number
 }
 
@@ -120,9 +121,9 @@ export function useSubscribe() {
   const qc = useQueryClient()
   const session = useAuth((s) => s.session)
   return useMutation({
-    mutationFn: async (planId: string) => {
+    mutationFn: async (vars: { planId: string; months?: number }) => {
       const { data, error } = await supabase
-        .rpc('subscribe', { plan_id: planId })
+        .rpc('subscribe', { plan_id: vars.planId, months: vars.months ?? 1 })
         .select('*')
         .single()
       if (error) throw error

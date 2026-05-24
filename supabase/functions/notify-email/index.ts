@@ -139,6 +139,8 @@ function linkFor(n: Notification, appUrl: string): string {
   if (n.type === 'support_reply') return `${appUrl}/support`
   if (n.post_id) return `${appUrl}/p/${n.post_id}`
   if (n.type === 'deposit') return `${appUrl}/wallet`
+  if (n.type === 'launch_bonus') return `${appUrl}/wallet`
+  if (n.type === 'subscription_expired') return `${appUrl}/subscription`
   if (n.type.startsWith('withdrawal')) return `${appUrl}/earnings`
   return `${appUrl}/notifications`
 }
@@ -210,6 +212,12 @@ function content(n: Notification, actor: string): EmailContent {
     case 'support_reply':
       return { subject: `Support replied to you 🛟`, title: 'Support replied', icon: '🛟', accent: ROSE, cta: 'View reply',
         message: `Our support team replied${n.body ? `: “${n.body}”` : '.'}` }
+    case 'launch_bonus':
+      return { subject: `🎁 We added $3 to your balance`, title: 'Welcome gift unlocked 🎁', icon: '🎁', accent: ROSE, cta: 'Open wallet',
+        message: n.body ?? "We've added $3 to your balance to celebrate our launch. Send a gift, go premium, or spread the love!" }
+    case 'subscription_expired':
+      return { subject: `Your plan has ended 💔`, title: 'Back on Free', icon: '💔', accent: GOLD, cta: 'Resubscribe',
+        message: n.body ?? "Your plan has ended — you're back on the Free plan. Resubscribe anytime to keep your perks. 💕" }
     default:
       return { subject: 'New activity on Love meet', title: 'New activity', icon: '🔔', accent: ROSE, cta: 'Open Love meet',
         message: n.body ?? 'You have new activity on Love meet.' }

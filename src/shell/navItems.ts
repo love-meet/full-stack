@@ -14,6 +14,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/feed',    label: 'Home',    glyph: '⌂', kind: 'tab' },
   { to: '/explore', label: 'Explore', glyph: '⌘', kind: 'tab' },
   { to: '/post',    label: 'Create',  glyph: '+', kind: 'post' },
+  { to: '/games',   label: 'Games',   glyph: '🎮', kind: 'tab' },
   { to: '/chat',    label: 'Chats',   glyph: '✉', kind: 'tab' },
   { to: '/profile', label: 'Profile', glyph: '☻', kind: 'profile' },
 ] as const
