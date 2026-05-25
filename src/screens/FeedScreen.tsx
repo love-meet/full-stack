@@ -74,7 +74,7 @@ export default function FeedScreen() {
   return (
     <>
       {/* Floating top bar — transparent over the media, icons stay tappable. */}
-      <div className="fixed top-0 left-0 right-0 lg:left-64 z-30 pointer-events-none">
+      <div className="fixed top-0 left-0 right-0 lg:left-64 xl:right-[22rem] z-30 pointer-events-none">
         <div className="bg-gradient-to-b from-black/55 to-transparent">
           <div className="max-w-xl mx-auto px-4 h-14 flex items-center justify-between">
             <Link to="/feed" className="flex items-center gap-2 lg:hidden pointer-events-auto">
@@ -96,7 +96,7 @@ export default function FeedScreen() {
       <div
         ref={scrollerRef}
         onScroll={onScroll}
-        className="fixed top-0 left-0 right-0 bottom-[calc(4rem_+_env(safe-area-inset-bottom))] lg:left-64 lg:bottom-0 bg-black overflow-y-scroll snap-y snap-mandatory overscroll-contain no-scrollbar"
+        className="fixed top-0 left-0 right-0 bottom-[calc(4rem_+_env(safe-area-inset-bottom))] lg:left-64 lg:bottom-0 xl:right-[22rem] bg-black overflow-y-scroll snap-y snap-mandatory overscroll-contain no-scrollbar"
       >
         {feed.status === 'pending' && (
           <div className="h-full grid place-items-center">

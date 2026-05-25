@@ -25,6 +25,22 @@ type ComposerMode =
 export default function ChatDetailScreen() {
   const { conversationId } = useParams<{ conversationId: string }>()
   const navigate = useNavigate()
+  return <ChatPane conversationId={conversationId ?? null} onBack={() => navigate(-1)} className="h-screen" />
+}
+
+/**
+ * The conversation UI, reusable in two places: the full-screen mobile route
+ * (ChatDetailScreen) and the desktop right-rail panel (ConversationRail).
+ */
+export function ChatPane({
+  conversationId,
+  onBack,
+  className = 'h-screen',
+}: {
+  conversationId: string | null
+  onBack: () => void
+  className?: string
+}) {
   const myId = useAuth((s) => s.session?.user.id ?? null)
 
   const conv = useConversation(conversationId)
@@ -83,15 +99,15 @@ export default function ChatDetailScreen() {
     mode.kind === 'reply' ? byId.get(mode.replyToId) ?? null : null
 
   return (
-    /* h-screen + flex column so the messages list is height-bounded —
-       only then will overflow-y-auto on the inner div actually scroll. */
-    <div className="h-screen flex flex-col text-ink">
+    /* bounded flex column so the messages list (overflow-y-auto) scrolls.
+       className sets the height: h-screen on mobile, h-full in the rail. */
+    <div className={`${className} flex flex-col text-ink min-h-0`}>
       <header
         className="shrink-0 glass border-b border-white/5 px-4 py-3 flex items-center gap-3"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
       >
         <button
-          onClick={() => navigate(-1)}
+          onClick={onBack}
           className="text-ink-2 hover:text-ink text-2xl leading-none px-1"
           aria-label="Back"
         >

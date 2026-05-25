@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useLocation, useOutlet } from 'react-router-dom'
 import BottomNav from './BottomNav'
 import Sidebar from './Sidebar'
+import ConversationRail from './ConversationRail'
 import NotifPermissionBanner from './NotifPermissionBanner'
 import { usePresenceInit } from '../hooks/usePresenceInit'
 import { useEnsureBrowserNotifications } from '../hooks/useBrowserNotifications'
@@ -48,6 +49,9 @@ export default function Shell() {
           </motion.div>
         </AnimatePresence>
       </main>
+      {/* Right rail (xl+): persistent conversations panel. Its presence shrinks
+          `main`, centering the main content between the two rails. */}
+      <ConversationRail />
       {!immersive && <BottomNav />}
     </div>
   )
