@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, Fragment, useCallback } from 'react'
+import { useEffect, useRef, useState, Fragment, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useFeed, type FeedPost } from '../hooks/useFeed'
@@ -16,9 +16,32 @@ import FeedAd from '../components/FeedAd'
 import PostMoreDropdown from '../components/PostMoreDropdown'
 import { IconComment, IconShare, IconMore, IconPlay } from '../components/icons'
 
-// Show a sponsored slide every N posts for free-mode users (subscribers see
-// an ad-free feed).
-const AD_EVERY = 6
+// Sponsored slides appear at RANDOM gaps (not a fixed count) for free-mode
+// users, so an ad can surface as the next post at any time. Gaps stay within
+// these bounds so it's neither too rare nor spammy.
+const AD_MIN_GAP = 3
+const AD_MAX_GAP = 7
+
+// Deterministic per-session ad positions: a seeded PRNG gives varied,
+// unpredictable gaps that stay stable across re-renders (and as more posts
+// load), so slides don't reshuffle while scrolling.
+function computeAdPositions(count: number, seed: number): Set<number> {
+  let a = seed >>> 0
+  const rand = () => {
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  const gap = () => AD_MIN_GAP + Math.floor(rand() * (AD_MAX_GAP - AD_MIN_GAP + 1))
+  const positions = new Set<number>()
+  let i = gap() - 1 // index after which the first ad shows
+  while (i < count) {
+    positions.add(i)
+    i += gap()
+  }
+  return positions
+}
 
 export default function FeedScreen() {
   useFeedRealtime()
@@ -29,10 +52,15 @@ export default function FeedScreen() {
   const showAds = !isSubscriber
   const feed = useFeed()
   const scrollerRef = useRef<HTMLDivElement>(null)
+  const adSeed = useRef(Math.floor(Math.random() * 1e9))
 
   const pages = feed.data?.pages ?? []
   const posts = pages.flat()
   const isEmpty = feed.status === 'success' && posts.length === 0
+  const adAfter = useMemo(
+    () => (showAds ? computeAdPositions(posts.length, adSeed.current) : new Set<number>()),
+    [showAds, posts.length],
+  )
 
   // Load the next page as the viewer nears the end of the current one.
   const onScroll = useCallback(() => {
@@ -97,7 +125,7 @@ export default function FeedScreen() {
         {posts.map((post, i) => (
           <Fragment key={post.id}>
             <FeedSlide post={post} />
-            {showAds && (i + 1) % AD_EVERY === 0 && <AdSlide />}
+            {adAfter.has(i) && <AdSlide />}
           </Fragment>
         ))}
 
