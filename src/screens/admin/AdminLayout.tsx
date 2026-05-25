@@ -23,7 +23,7 @@ export default function AdminLayout() {
     <div className="min-h-full pb-24">
       <header
         className="sticky top-0 z-10 glass border-b border-white/5"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        style={{ paddingTop: 'var(--lm-top-inset)' }}
       >
         <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-3">
           <h1 className="text-2xl font-extrabold text-gradient-warm">Admin</h1>

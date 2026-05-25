@@ -39,7 +39,7 @@ export default function SupportScreen() {
     <div className="min-h-screen text-ink pb-28">
       <header
         className="sticky top-0 z-10 glass border-b border-white/5"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        style={{ paddingTop: 'var(--lm-top-inset)' }}
       >
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
           <button

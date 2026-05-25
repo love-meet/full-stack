@@ -42,6 +42,13 @@
   --color-warning: #FFC861;
 }
 
+/* Top safe-area inset. Defaults to the browser notch; in the Telegram
+   Mini-App, JS (lib/telegram.ts) overrides it to clear Telegram's overlay
+   controls in fullscreen. Headers pad with var(--lm-top-inset). */
+:root {
+  --lm-top-inset: env(safe-area-inset-top);
+}
+
 /* ---- Custom utilities ---- */
 
 @utility text-gradient-brand {

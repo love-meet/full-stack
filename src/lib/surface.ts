@@ -13,6 +13,12 @@ declare global {
         ready?: () => void
         expand?: () => void
         platform?: string
+        isExpanded?: boolean
+        // Bot API 8.0+ safe areas (present in newer Telegram clients).
+        safeAreaInset?: { top?: number; bottom?: number; left?: number; right?: number }
+        contentSafeAreaInset?: { top?: number; bottom?: number; left?: number; right?: number }
+        onEvent?: (event: string, cb: () => void) => void
+        requestFullscreen?: () => void
       }
     }
   }

@@ -223,7 +223,7 @@ function Header({ step, canNext, submitting, onCancel, onBack, onNext, onShare }
   return (
     <header
       className="sticky top-0 z-20 glass border-b border-white/5"
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      style={{ paddingTop: 'var(--lm-top-inset)' }}
     >
       <div className="h-14 grid grid-cols-3 items-center px-2">
         <div className="justify-self-start">

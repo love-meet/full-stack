@@ -265,7 +265,7 @@ export default function CapturePane({
         {recording && (
           <div
             className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/55 rounded-full px-3 py-1.5"
-            style={{ top: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
+            style={{ top: 'calc(var(--lm-top-inset) + 0.75rem)' }}
           >
             <span className="w-2.5 h-2.5 rounded-full bg-danger animate-pulse" />
             <span className="text-white text-sm font-bold tabular-nums">
@@ -277,7 +277,7 @@ export default function CapturePane({
         {!cameraBlocked && !recording && (
           <div
             className="absolute right-3 flex flex-col gap-2.5"
-            style={{ top: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
+            style={{ top: 'calc(var(--lm-top-inset) + 0.75rem)' }}
           >
             {hasMultipleCameras && (
               <CtrlIcon label="Flip camera" onClick={() => setFacing((f) => (f === 'environment' ? 'user' : 'environment'))}>

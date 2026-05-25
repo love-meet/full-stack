@@ -83,7 +83,7 @@ export default function SupportTicketScreen() {
     <div className="h-screen flex flex-col text-ink">
       <header
         className="shrink-0 glass border-b border-white/5 px-3 py-3 flex items-center gap-2"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
+        style={{ paddingTop: 'calc(var(--lm-top-inset) + 0.75rem)' }}
       >
         <button
           onClick={() => navigate(-1)}

@@ -85,7 +85,7 @@ export default function ProfileScreen() {
       >
         <div
           className="flex items-center justify-between px-4 pt-3"
-          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.5rem)' }}
+          style={{ paddingTop: 'calc(var(--lm-top-inset) + 0.5rem)' }}
         >
           <button
             onClick={() => navigate(-1)}
@@ -148,7 +148,7 @@ export default function ProfileScreen() {
         >
           <div
             className="flex items-center justify-between px-4 pt-3 pointer-events-auto"
-            style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.5rem)' }}
+            style={{ paddingTop: 'calc(var(--lm-top-inset) + 0.5rem)' }}
           >
             <button
               onClick={() => navigate(-1)}

@@ -75,7 +75,7 @@ export default function FeedScreen() {
     <>
       {/* Floating top bar — transparent over the media, icons stay tappable. */}
       <div className="fixed top-0 left-0 right-0 lg:left-64 xl:right-[22rem] z-30 pointer-events-none">
-        <div className="bg-gradient-to-b from-black/55 to-transparent">
+        <div className="bg-gradient-to-b from-black/55 to-transparent" style={{ paddingTop: 'var(--lm-top-inset)' }}>
           <div className="max-w-xl mx-auto px-4 h-14 flex items-center justify-between">
             <Link to="/feed" className="flex items-center gap-2 lg:hidden pointer-events-auto">
               <img src="/logo.png" alt="" className="h-7 w-auto" />

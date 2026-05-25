@@ -586,7 +586,7 @@ function Header({ onBack }: { onBack: () => void }) {
   return (
     <header
       className="sticky top-0 z-20 glass border-b border-white/5"
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      style={{ paddingTop: 'var(--lm-top-inset)' }}
     >
       <div className="max-w-xl mx-auto h-14 px-3 flex items-center">
         <button

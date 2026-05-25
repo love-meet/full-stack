@@ -104,7 +104,7 @@ export function ChatPane({
     <div className={`${className} flex flex-col text-ink min-h-0`}>
       <header
         className="shrink-0 glass border-b border-white/5 px-4 py-3 flex items-center gap-3"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
+        style={{ paddingTop: 'calc(var(--lm-top-inset) + 0.75rem)' }}
       >
         <button
           onClick={onBack}
