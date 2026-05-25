@@ -10,7 +10,7 @@ export type NotificationType =
   | 'deposit' | 'withdrawal' | 'withdrawal_sent' | 'withdrawal_rejected'
   | 'password_changed' | 'chat_reminder' | 'chat_message'
   | 'support_user_msg' | 'support_reply'
-  | 'launch_bonus' | 'subscription_expired' | 'referral_joined'
+  | 'launch_bonus' | 'subscription_expired' | 'referral_joined' | 'follow'
 
 export type AppNotification = {
   id: string

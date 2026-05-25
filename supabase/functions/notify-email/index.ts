@@ -164,6 +164,7 @@ function linkFor(n: Notification, appUrl: string): string {
   if (n.type === 'launch_bonus') return `${appUrl}/wallet`
   if (n.type === 'subscription_expired') return `${appUrl}/subscription`
   if (n.type === 'referral_joined') return `${appUrl}/affiliate`
+  if (n.type === 'follow' && n.actor_id) return `${appUrl}/profile/${n.actor_id}`
   if (n.type.startsWith('withdrawal')) return `${appUrl}/earnings`
   return `${appUrl}/notifications`
 }
@@ -247,6 +248,9 @@ function content(n: Notification, actor: string): EmailContent {
     case 'referral_joined':
       return { subject: `🎉 ${actor} joined with your invite`, title: 'Your invite converted 🎉', icon: '🤝', accent: GREEN, cta: 'View affiliate',
         message: `${actor} just joined Love meet using your invite. You'll earn 5% of everything they spend on subscriptions — for life.` }
+    case 'follow':
+      return { subject: `${actor} started following you`, title: 'New follower 👤', icon: '👤', accent: ROSE, cta: 'View profile',
+        message: `${actor} started following you on Love meet.` }
     default:
       return { subject: 'New activity on Love meet', title: 'New activity', icon: '🔔', accent: ROSE, cta: 'Open Love meet',
         message: n.body ?? 'You have new activity on Love meet.' }

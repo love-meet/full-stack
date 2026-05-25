@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../stores/auth'
 import { useProfile, useProfileById } from '../hooks/useProfile'
 import { useStartDM } from '../hooks/useStartDM'
+import { useProfileSocial, useToggleFollow, type ProfileSocial } from '../hooks/useFollow'
 import { avatarFor } from '../lib/avatar'
 import UserDetails from './profile/UserDetails'
 import ProfileTabs from './profile/ProfileTabs'
@@ -24,6 +25,7 @@ export default function ProfileScreen() {
   const myProfileQ = useProfile()
   const otherProfileQ = useProfileById(routeUserId ?? null)
   const profileQ = routeUserId ? otherProfileQ : myProfileQ
+  const profileSocial = useProfileSocial(routeUserId ?? myProfileQ.data?.id ?? null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [imageOpen, setImageOpen] = useState(false)
 
@@ -75,6 +77,7 @@ export default function ProfileScreen() {
   const isMe = session?.user.id === profile.id
   const avatar = avatarFor(profile)
   const username = profile.handle ?? profile.display_name ?? 'you'
+  const social = profileSocial.data
 
   return (
     <div className="relative">
@@ -110,8 +113,14 @@ export default function ProfileScreen() {
             alt=""
             className="w-[130px] h-[130px] rounded-full object-cover border-[3px] border-magenta"
           />
-          <div className="mt-2 text-xl font-extrabold text-ink">@{username}</div>
-          <div className="mt-1 text-sm font-bold text-ink">Online</div>
+          <div className="mt-2 flex items-center gap-1.5 text-xl font-extrabold text-ink">
+            @{username}
+            {social?.is_subscriber && <BlueTick size={16} />}
+          </div>
+          <div className="mt-1 flex items-center gap-4 text-sm text-ink-2">
+            <span><b className="text-ink">{social?.followers ?? 0}</b> followers</span>
+            <span><b className="text-ink">{social?.following ?? 0}</b> following</span>
+          </div>
         </div>
       </motion.div>
 
@@ -168,19 +177,25 @@ export default function ProfileScreen() {
             )}
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 p-5 flex items-end justify-between pointer-events-auto bg-gradient-to-t from-black/70 via-black/10 to-transparent">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-white text-2xl font-extrabold drop-shadow">
+          <div className="absolute inset-x-0 bottom-0 p-5 flex items-end justify-between gap-3 pointer-events-auto bg-gradient-to-t from-black/70 via-black/10 to-transparent">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-white text-2xl font-extrabold drop-shadow truncate">
                   {username}
                 </span>
-                {/* verified badge placeholder */}
+                {social?.is_subscriber && <BlueTick />}
               </div>
-              <div className="text-white text-sm font-bold mt-1">
-                Online
+              <div className="flex items-center gap-4 mt-1.5 text-white drop-shadow">
+                <span className="text-sm"><b className="font-extrabold">{social?.followers ?? 0}</b> <span className="text-white/80">followers</span></span>
+                <span className="text-sm"><b className="font-extrabold">{social?.following ?? 0}</b> <span className="text-white/80">following</span></span>
               </div>
             </div>
-            {!isMe && <ChatLinkButton otherId={profile.id} />}
+            {!isMe && (
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <FollowButton targetId={profile.id} social={social} />
+                <ChatLinkButton otherId={profile.id} />
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
@@ -204,6 +219,33 @@ export default function ProfileScreen() {
       )}
 
     </div>
+  )
+}
+
+/** Blue verified tick — shown for paying subscribers. */
+function BlueTick({ size = 18 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-label="Verified" className="shrink-0">
+      <circle cx="12" cy="12" r="11" fill="#1D9BF6" />
+      <path d="M16.8 9.2l-6 6L7.2 12" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function FollowButton({ targetId, social }: { targetId: string; social?: ProfileSocial }) {
+  const toggle = useToggleFollow(targetId)
+  const following = social?.is_following ?? false
+  return (
+    <button
+      onClick={() => toggle.mutate(!following)}
+      disabled={toggle.isPending}
+      className={[
+        'inline-flex items-center justify-center px-5 py-2 rounded-full font-bold text-sm shadow-lg disabled:opacity-70 transition-colors',
+        following ? 'glass text-ink' : 'bg-gradient-brand text-white glow-rose',
+      ].join(' ')}
+    >
+      {following ? 'Following' : 'Follow'}
+    </button>
   )
 }
 
