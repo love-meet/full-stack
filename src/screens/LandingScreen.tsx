@@ -42,11 +42,18 @@ export default function LandingScreen() {
   const [error, setError] = useState<string | null>(null)
   const particles = useHeartParticles()
 
-  // Capture a referral code from the invite link (/?ref=LM-XXXXXX) so we can
-  // attribute the referral once the user finishes onboarding.
+  // Capture a referral code so we can attribute it once the user finishes
+  // onboarding. Two sources:
+  //   • Web/PWA invite link:  /?ref=LM-XXXXXX
+  //   • Telegram Mini App deep link:  t.me/<bot>/<app>?startapp=LM-XXXXXX
+  //     (surfaced as Telegram.WebApp.initDataUnsafe.start_param)
+  // Stored in localStorage so it survives the URL changing through login +
+  // onboarding before /feed.
   useEffect(() => {
-    const ref = new URLSearchParams(window.location.search).get('ref')
-    if (ref && /^LM-[A-Za-z0-9]{4,}$/.test(ref)) {
+    const fromUrl = new URLSearchParams(window.location.search).get('ref')
+    const fromTelegram = window.Telegram?.WebApp?.initDataUnsafe?.start_param ?? null
+    const ref = fromUrl || fromTelegram
+    if (ref && /^LM-[A-Za-z0-9]{4,}$/i.test(ref)) {
       localStorage.setItem('lm_ref', ref.toUpperCase())
     }
   }, [])

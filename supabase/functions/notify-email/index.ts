@@ -163,6 +163,7 @@ function linkFor(n: Notification, appUrl: string): string {
   if (n.type === 'deposit') return `${appUrl}/wallet`
   if (n.type === 'launch_bonus') return `${appUrl}/wallet`
   if (n.type === 'subscription_expired') return `${appUrl}/subscription`
+  if (n.type === 'referral_joined') return `${appUrl}/affiliate`
   if (n.type.startsWith('withdrawal')) return `${appUrl}/earnings`
   return `${appUrl}/notifications`
 }
@@ -243,6 +244,9 @@ function content(n: Notification, actor: string): EmailContent {
     case 'subscription_expired':
       return { subject: `Your plan has ended 💔`, title: 'Back on Free', icon: '💔', accent: GOLD, cta: 'Resubscribe',
         message: n.body ?? "Your plan has ended — you're back on the Free plan. Resubscribe anytime to keep your perks. 💕" }
+    case 'referral_joined':
+      return { subject: `🎉 ${actor} joined with your invite`, title: 'Your invite converted 🎉', icon: '🤝', accent: GREEN, cta: 'View affiliate',
+        message: `${actor} just joined Love meet using your invite. You'll earn 5% of everything they spend on subscriptions — for life.` }
     default:
       return { subject: 'New activity on Love meet', title: 'New activity', icon: '🔔', accent: ROSE, cta: 'Open Love meet',
         message: n.body ?? 'You have new activity on Love meet.' }

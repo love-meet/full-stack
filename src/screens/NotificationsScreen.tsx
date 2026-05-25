@@ -36,6 +36,7 @@ export default function NotificationsScreen() {
     else if (n.type === 'welcome' || n.type === 'welcome_signup') navigate('/guide')
     else if (n.type === 'launch_bonus') navigate('/wallet')
     else if (n.type === 'subscription_expired') navigate('/subscription')
+    else if (n.type === 'referral_joined') navigate('/affiliate')
     else if (n.type === 'deposit') navigate('/wallet')
     else if (n.type.startsWith('withdrawal')) navigate('/earnings')
     else if (n.type === 'password_changed') navigate('/security')
@@ -127,6 +128,7 @@ function message(n: AppNotification): React.ReactNode {
     case 'reply_like': return <>{who} liked your reply.</>
     case 'gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁 Tap to accept or decline.</>
     case 'chat_message': return <>{who} sent you a message{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : '.'}</>
+    case 'referral_joined': return <>{who} joined using your invite 🎉 You'll earn 5% of their subscriptions for life.</>
     case 'gift_accepted': return <>{who} accepted your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎉</>
     case 'gift_rejected': return <>{who} declined your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''}.</>
     case 'match_post': return <>{who} — who matches your preferences — just posted. ✨</>
@@ -170,6 +172,7 @@ function glyph(type: AppNotification['type']): string {
     case 'support_reply': return '🛟'
     case 'launch_bonus': return '🎁'
     case 'subscription_expired': return '💔'
+    case 'referral_joined': return '🤝'
     default: return '🔔'
   }
 }
