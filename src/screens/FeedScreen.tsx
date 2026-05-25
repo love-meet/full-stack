@@ -6,19 +6,27 @@ import { useToggleLike } from '../hooks/usePostMutations'
 import { useFeedRealtime } from '../hooks/useFeedRealtime'
 import { useUnreadNotifications, useNotificationsRealtime } from '../hooks/useNotifications'
 import { useConversations } from '../hooks/useConversations'
+import { useMySubscription } from '../hooks/usePayments'
 import { useAuth } from '../stores/auth'
 import { useFeedPrefs } from '../stores/feedPrefs'
 import { getSurface } from '../lib/surface'
 import { avatarUrlOr } from '../lib/avatar'
 import GiftSheet from '../components/GiftSheet'
+import FeedAd from '../components/FeedAd'
 import PostMoreDropdown from '../components/PostMoreDropdown'
 import { IconComment, IconShare, IconMore, IconPlay } from '../components/icons'
+
+// Show a sponsored slide every N posts for free-mode users (subscribers see
+// an ad-free feed).
+const AD_EVERY = 6
 
 export default function FeedScreen() {
   useFeedRealtime()
   useNotificationsRealtime()
   const unread = useUnreadNotifications().data ?? 0
   const unreadChats = (useConversations().data ?? []).filter((c) => c.unread_count > 0).length
+  const isSubscriber = !!useMySubscription().data
+  const showAds = !isSubscriber
   const feed = useFeed()
   const scrollerRef = useRef<HTMLDivElement>(null)
 
@@ -86,11 +94,10 @@ export default function FeedScreen() {
           </div>
         )}
 
-        {pages.map((page, i) => (
-          <Fragment key={i}>
-            {page.map((post) => (
-              <FeedSlide key={post.id} post={post} />
-            ))}
+        {posts.map((post, i) => (
+          <Fragment key={post.id}>
+            <FeedSlide post={post} />
+            {showAds && (i + 1) % AD_EVERY === 0 && <AdSlide />}
           </Fragment>
         ))}
 
@@ -118,6 +125,24 @@ function TopIcon({ to, label, glyph, badge }: { to: string; label: string; glyph
         </span>
       )}
     </Link>
+  )
+}
+
+// A sponsored slide — same full-screen footprint as a post. Renders nothing
+// if no Adsterra key is configured, so the feed just skips it.
+function AdSlide() {
+  return (
+    <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center">
+      <div className="relative h-full w-full max-w-md mx-auto grid place-items-center">
+        <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-wider text-white/70 bg-black/45 rounded-full px-2 py-1">
+          Sponsored
+        </span>
+        <div className="grid place-items-center gap-4 px-6 text-center">
+          <FeedAd />
+          <p className="text-xs text-white/50">Ads keep Love meet free — go premium to remove them.</p>
+        </div>
+      </div>
+    </section>
   )
 }
 

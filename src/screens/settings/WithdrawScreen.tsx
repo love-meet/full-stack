@@ -5,6 +5,7 @@ import {
   useMyPayoutAccount,
   useRequestWithdrawal,
   useWithdrawable,
+  useMySubscription,
   type WithdrawalRequest,
 } from '../../hooks/usePayments'
 import { useUserCurrency } from '../../hooks/useFx'
@@ -16,6 +17,9 @@ export default function WithdrawScreen() {
   const withdrawable = useWithdrawable()
   const request = useRequestWithdrawal()
   const history = useMyWithdrawals()
+  const subscription = useMySubscription()
+  // Free-mode users can accrue earnings but must subscribe to cash out.
+  const isSubscriber = !!subscription.data
   const [amount, setAmount] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [okFlash, setOkFlash] = useState(false)
@@ -69,8 +73,23 @@ export default function WithdrawScreen() {
           <div className="text-xs text-ink-muted">{cur.pending ? '' : cur.code}</div>
         </div>
 
-        {/* Gate: no payout details yet → prompt to add them. */}
-        {account.status === 'success' && !account.data ? (
+        {/* Gate: free-mode users must subscribe before they can withdraw. */}
+        {!subscription.isPending && !isSubscriber ? (
+          <section className="glass rounded-2xl p-6 text-center space-y-3 border border-rose/30">
+            <div className="text-3xl">👑</div>
+            <h2 className="text-lg font-extrabold text-gradient-warm">Withdrawals are for members</h2>
+            <p className="text-sm text-ink-2">
+              You can keep earning gifts on the free plan, but cashing out to your bank
+              is a subscriber feature. Upgrade to unlock withdrawals.
+            </p>
+            <button
+              onClick={() => navigate('/subscription')}
+              className="rounded-full px-5 py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose"
+            >
+              See plans
+            </button>
+          </section>
+        ) : account.status === 'success' && !account.data ? (
           <section className="glass rounded-2xl p-6 text-center space-y-3">
             <div className="text-3xl">🏦</div>
             <p className="text-sm text-ink-2">
