@@ -26,12 +26,20 @@ export default function NotificationsScreen() {
   }, [list.status])
 
   function open(n: AppNotification) {
-    if (n.post_id) navigate(`/p/${n.post_id}`)
-    else if (n.type === 'welcome' || n.type === 'welcome_signup') navigate('/profile/edit')
+    // Gift + chat deep-links take precedence over post_id (gifts carry a
+    // post_id for context but should open the gift, not the post).
+    if ((n.type === 'gift' || n.type === 'gift_accepted' || n.type === 'gift_rejected') && n.gift_id) {
+      navigate(`/gift/${n.gift_id}`)
+    } else if ((n.type === 'chat_message' || n.type === 'chat_reminder') && n.conversation_id) {
+      navigate(`/chat/${n.conversation_id}`)
+    } else if (n.post_id) navigate(`/p/${n.post_id}`)
+    else if (n.type === 'welcome' || n.type === 'welcome_signup') navigate('/guide')
+    else if (n.type === 'launch_bonus') navigate('/wallet')
+    else if (n.type === 'subscription_expired') navigate('/subscription')
     else if (n.type === 'deposit') navigate('/wallet')
     else if (n.type.startsWith('withdrawal')) navigate('/earnings')
     else if (n.type === 'password_changed') navigate('/security')
-    else if (n.type === 'chat_reminder') navigate('/chat')
+    else if (n.type === 'chat_reminder' || n.type === 'chat_message') navigate('/chat')
     else if (n.type === 'support_user_msg') navigate('/admin/support')
     else if (n.type === 'support_reply') navigate('/support')
   }
@@ -117,7 +125,8 @@ function message(n: AppNotification): React.ReactNode {
     case 'reply': return <>{who} replied: <span className="text-ink-2">“{n.body}”</span></>
     case 'comment_like': return <>{who} liked your comment.</>
     case 'reply_like': return <>{who} liked your reply.</>
-    case 'gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁</>
+    case 'gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁 Tap to accept or decline.</>
+    case 'chat_message': return <>{who} sent you a message{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : '.'}</>
     case 'gift_accepted': return <>{who} accepted your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎉</>
     case 'gift_rejected': return <>{who} declined your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''}.</>
     case 'match_post': return <>{who} — who matches your preferences — just posted. ✨</>
@@ -156,8 +165,11 @@ function glyph(type: AppNotification['type']): string {
     case 'withdrawal_rejected': return '⚠️'
     case 'password_changed': return '🔒'
     case 'chat_reminder': return '💬'
+    case 'chat_message': return '✉️'
     case 'support_user_msg': return '🛟'
     case 'support_reply': return '🛟'
+    case 'launch_bonus': return '🎁'
+    case 'subscription_expired': return '💔'
     default: return '🔔'
   }
 }

@@ -30,6 +30,8 @@ type Notification = {
   actor_id: string | null
   type: string
   post_id: string | null
+  conversation_id: string | null
+  gift_id: string | null
   body: string | null
 }
 
@@ -91,8 +93,12 @@ serve(async (req: Request) => {
     const result: Record<string, unknown> = { ok: true }
     const errors: string[] = []
 
+    // Per-message chat pings would flood the inbox — deliver those via
+    // in-app + Telegram only (the chat_reminder handles the email nudge).
+    const emailAllowedForType = n.type !== 'chat_message'
+
     // ----- Email (Gmail SMTP) -----
-    if (emailOn && email) {
+    if (emailOn && email && emailAllowedForType) {
       try {
         const html = renderEmail({ firstName, appUrl, link, icon: c.icon, accent: c.accent, title: c.title, message: c.message, cta: c.cta })
         const host = Deno.env.get('SMTP_HOST') ?? 'smtp.gmail.com'
@@ -138,8 +144,15 @@ serve(async (req: Request) => {
 
 /** Where the CTA/notification points, per type. */
 function linkFor(n: Notification, appUrl: string): string {
+  if ((n.type === 'gift' || n.type === 'gift_accepted' || n.type === 'gift_rejected') && n.gift_id) {
+    return `${appUrl}/gift/${n.gift_id}`
+  }
+  if ((n.type === 'chat_message' || n.type === 'chat_reminder') && n.conversation_id) {
+    return `${appUrl}/chat/${n.conversation_id}`
+  }
   if (n.type === 'support_user_msg') return `${appUrl}/admin/support`
   if (n.type === 'support_reply') return `${appUrl}/support`
+  if (n.type === 'welcome' || n.type === 'welcome_signup') return `${appUrl}/guide`
   if (n.post_id) return `${appUrl}/p/${n.post_id}`
   if (n.type === 'deposit') return `${appUrl}/wallet`
   if (n.type === 'launch_bonus') return `${appUrl}/wallet`
@@ -209,6 +222,9 @@ function content(n: Notification, actor: string): EmailContent {
     case 'chat_reminder':
       return { subject: `You have an unread message 💬`, title: 'Unread message', icon: '💬', accent: ROSE, cta: 'Reply now',
         message: n.body ?? 'You have an unread message waiting for a reply on Love meet.' }
+    case 'chat_message':
+      return { subject: `${actor} sent you a message 💬`, title: 'New message', icon: '✉️', accent: ROSE, cta: 'Open chat',
+        message: `${actor} sent you a message${n.body ? `: “${n.body}”` : '.'}` }
     case 'support_user_msg':
       return { subject: `New live-support message`, title: 'New support message 🛟', icon: '🛟', accent: GOLD, cta: 'Open support inbox',
         message: `${actor} sent a message to live support${n.body ? `: “${n.body}”` : '.'}` }

@@ -20,6 +20,8 @@ export type LedgerKind =
 
 export type LedgerDirection = 'credit' | 'debit'
 
+export type GiftStatus = 'pending' | 'accepted' | 'rejected' | 'failed'
+
 export type LedgerEntry = {
   id: string
   user_id: string
@@ -30,6 +32,8 @@ export type LedgerEntry = {
   ref_id: string | null
   note: string | null
   created_at: string
+  /** When this entry is tied to a gift, the gift's current status. */
+  gift_status: GiftStatus | null
 }
 
 export type Wallet = {
@@ -112,7 +116,7 @@ export function useLedger(filter: LedgerFilter = {}) {
     initialPageParam: null,
     queryFn: async ({ pageParam }) => {
       let q = supabase
-        .from('ledger_entries')
+        .from('my_transactions')
         .select('*')
         .eq('user_id', userId!)
         .order('created_at', { ascending: false })

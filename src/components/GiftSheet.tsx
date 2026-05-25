@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Drawer } from 'vaul'
+import { useNavigate } from 'react-router-dom'
 import { useDrawerLock } from '../stores/ui'
 import { GIFT_CATALOGUE, type CatalogueGift } from '../lib/gifts'
 import { useSendGift } from '../hooks/useSendGift'
+import { useWallet } from '../hooks/useWallet'
+import { useUserCurrency } from '../hooks/useFx'
 
 type Props = {
   postId: string
@@ -16,10 +19,17 @@ type Phase = 'pick' | 'confirm' | 'sent'
 
 export default function GiftSheet({ postId, recipientId, recipientLabel, onClose }: Props) {
   useDrawerLock()
+  const navigate = useNavigate()
   const send = useSendGift()
+  const wallet = useWallet()
+  const cur = useUserCurrency()
   const [phase, setPhase] = useState<Phase>('pick')
   const [selected, setSelected] = useState<CatalogueGift | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const balance = wallet.data?.balance_usdt ?? 0
+  const price = (usd: number) => (cur.ready || cur.code === 'USD' ? cur.format(usd) : `$${usd}`)
+  const canAfford = selected ? balance >= selected.price : true
 
   function pickGift(g: CatalogueGift) {
     setSelected(g)
@@ -69,7 +79,9 @@ export default function GiftSheet({ postId, recipientId, recipientLabel, onClose
               >
                 <header className="px-5 pb-3 flex items-baseline justify-between shrink-0">
                   <h2 className="text-lg font-extrabold text-gradient-warm">Send a gift</h2>
-                  <span className="text-xs text-ink-muted">to @{recipientLabel}</span>
+                  <span className="text-xs text-ink-muted">
+                    Balance <span className="text-ink font-semibold">{price(balance)}</span>
+                  </span>
                 </header>
                 <div className="flex-1 overflow-y-auto px-3 pb-5 grid grid-cols-3 sm:grid-cols-4 gap-3 content-start">
                   {GIFT_CATALOGUE.map((g) => (
@@ -85,7 +97,7 @@ export default function GiftSheet({ postId, recipientId, recipientLabel, onClose
                         {g.name}
                       </div>
                       <div className="text-[11px] font-bold text-gradient-warm mt-0.5">
-                        ${g.price}
+                        {price(g.price)}
                       </div>
                     </button>
                   ))}
@@ -107,30 +119,52 @@ export default function GiftSheet({ postId, recipientId, recipientLabel, onClose
                 </div>
                 <h2 className="mt-4 text-xl font-extrabold text-ink">{selected.name}</h2>
                 <p className="mt-1 text-sm text-ink-muted">
-                  Send <span className="text-gradient-warm font-bold">${selected.price}</span> to{' '}
+                  Send <span className="text-gradient-warm font-bold">{price(selected.price)}</span> to{' '}
                   <span className="text-ink font-semibold">@{recipientLabel}</span>?
+                </p>
+                <p className="mt-1 text-[11px] text-ink-muted">
+                  Your balance: <span className="text-ink font-semibold">{price(balance)}</span>
                 </p>
                 {error && <p className="mt-3 text-sm text-danger">{error}</p>}
 
-                <div className="mt-6 flex gap-3">
-                  <button
-                    onClick={() => { setPhase('pick'); setSelected(null); setError(null) }}
-                    disabled={send.isPending}
-                    className="flex-1 rounded-full py-3 text-sm font-semibold glass text-ink-2 hover:text-ink disabled:opacity-60"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={confirm}
-                    disabled={send.isPending}
-                    className="flex-1 rounded-full py-3 text-sm font-semibold bg-gradient-brand text-white glow-rose disabled:opacity-60"
-                  >
-                    {send.isPending ? 'Sending…' : 'Send gift'}
-                  </button>
-                </div>
+                {!canAfford ? (
+                  <div className="mt-6 space-y-3">
+                    <p className="text-sm text-danger">
+                      Not enough balance to send this gift.
+                    </p>
+                    <button
+                      onClick={() => { onClose(); navigate('/wallet/deposit') }}
+                      className="w-full rounded-full py-3 text-sm font-semibold bg-gradient-brand text-white glow-rose"
+                    >
+                      Add funds
+                    </button>
+                    <button
+                      onClick={() => { setPhase('pick'); setSelected(null); setError(null) }}
+                      className="w-full rounded-full py-3 text-sm font-semibold glass text-ink-2 hover:text-ink"
+                    >
+                      Pick another gift
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-6 flex gap-3">
+                    <button
+                      onClick={() => { setPhase('pick'); setSelected(null); setError(null) }}
+                      disabled={send.isPending}
+                      className="flex-1 rounded-full py-3 text-sm font-semibold glass text-ink-2 hover:text-ink disabled:opacity-60"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={confirm}
+                      disabled={send.isPending}
+                      className="flex-1 rounded-full py-3 text-sm font-semibold bg-gradient-brand text-white glow-rose disabled:opacity-60"
+                    >
+                      {send.isPending ? 'Sending…' : 'Send gift'}
+                    </button>
+                  </div>
+                )}
                 <p className="mt-3 text-[11px] text-ink-muted">
-                  Balance debit will activate when wallet ships. For now the recipient just sees a
-                  pending gift.
+                  The amount is held until @{recipientLabel} accepts. If they decline, you're refunded.
                 </p>
               </motion.div>
             )}

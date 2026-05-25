@@ -8,8 +8,9 @@ export type NotificationType =
   | 'gift' | 'gift_accepted' | 'gift_rejected' | 'match_post'
   | 'welcome' | 'welcome_signup'
   | 'deposit' | 'withdrawal' | 'withdrawal_sent' | 'withdrawal_rejected'
-  | 'password_changed' | 'chat_reminder'
+  | 'password_changed' | 'chat_reminder' | 'chat_message'
   | 'support_user_msg' | 'support_reply'
+  | 'launch_bonus' | 'subscription_expired'
 
 export type AppNotification = {
   id: string
@@ -18,6 +19,8 @@ export type AppNotification = {
   type: NotificationType
   post_id: string | null
   comment_id: string | null
+  conversation_id: string | null
+  gift_id: string | null
   body: string | null
   read_at: string | null
   created_at: string

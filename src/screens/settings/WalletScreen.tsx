@@ -66,7 +66,10 @@ export default function WalletScreen() {
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="text-base shrink-0">{iconFor(e.kind)}</span>
                       <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-ink truncate">{labelFor(e.kind)}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-sm font-semibold text-ink truncate">{labelFor(e.kind)}</span>
+                          {e.gift_status && <GiftStatusBadge status={e.gift_status} />}
+                        </span>
                         <span className="block sm:hidden text-[11px] text-ink-muted">{shortDate(e.created_at)}</span>
                       </span>
                     </span>
@@ -252,6 +255,7 @@ function TxDetailSheet({
           <Row label="Date" value={new Date(entry.created_at).toLocaleString()} />
           <Row label="Reference" value={`LM-${entry.id.slice(0, 8).toUpperCase()}`} mono />
           {entry.ref_table && <Row label="Linked to" value={`${entry.ref_table}${entry.ref_id ? ` · ${entry.ref_id.slice(0, 8)}` : ''}`} mono />}
+          {entry.gift_status && <Row label="Gift status" value={giftStatusLabel(entry.gift_status)} />}
           {entry.note && <Row label="Note" value={entry.note} />}
         </dl>
       </motion.div>
@@ -265,6 +269,28 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
       <dt className="text-[11px] uppercase tracking-[0.16em] text-ink-muted font-bold pt-0.5 shrink-0">{label}</dt>
       <dd className={`text-right text-ink ${mono ? 'font-mono text-[13px] break-all' : ''}`}>{value}</dd>
     </div>
+  )
+}
+
+function giftStatusLabel(s: NonNullable<LedgerEntry['gift_status']>): string {
+  switch (s) {
+    case 'pending': return 'Pending'
+    case 'accepted': return 'Accepted'
+    case 'rejected': return 'Declined'
+    case 'failed': return 'Failed'
+  }
+}
+
+function GiftStatusBadge({ status }: { status: NonNullable<LedgerEntry['gift_status']> }) {
+  const tone =
+    status === 'accepted' ? 'bg-success/15 text-success'
+    : status === 'rejected' ? 'bg-rose/15 text-rose'
+    : status === 'failed' ? 'bg-rose/15 text-rose'
+    : 'bg-gold/15 text-gold'
+  return (
+    <span className={`shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${tone}`}>
+      {giftStatusLabel(status)}
+    </span>
   )
 }
 
