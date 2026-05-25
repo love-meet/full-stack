@@ -140,8 +140,13 @@ function FeedSlide({ post }: { post: FeedPost }) {
   }
 
   return (
-    <section className="relative h-full w-full snap-start snap-always grid place-items-center overflow-hidden">
-      {/* Media — contained within the screen (whole media visible), centered. */}
+    <section className="relative h-full w-full snap-start snap-always bg-black overflow-hidden">
+      {/* Centered column — the post keeps a phone-ish max width (like before)
+          instead of stretching across a wide desktop. Everything (media,
+          caption, action rail) lives inside it. */}
+      <div className="relative h-full w-full max-w-md mx-auto">
+      {/* Media — full HEIGHT of the screen, whole image/video visible (never
+          cropped); width follows. object-contain on a definite box. */}
       {post.kind === 'image' ? (
         <img src={post.media_url} alt={post.alt_text ?? ''} className="w-full h-full object-contain" />
       ) : (
@@ -217,6 +222,7 @@ function FeedSlide({ post }: { post: FeedPost }) {
         {menuOpen && (
           <PostMoreDropdown post={post} isMine={isMine} anchorRef={moreBtnRef} onClose={() => setMenuOpen(false)} />
         )}
+      </div>
       </div>
 
       <AnimatePresence>
