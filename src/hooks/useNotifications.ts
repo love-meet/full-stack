@@ -39,6 +39,8 @@ export function useNotifications() {
       const { data, error } = await supabase
         .from('notifications_with_actor')
         .select('*')
+        // Chat messages are push-only — they don't belong in the bell list.
+        .neq('type', 'chat_message')
         .order('created_at', { ascending: false })
         .limit(100)
       if (error) throw error
