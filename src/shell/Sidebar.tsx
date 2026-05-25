@@ -2,11 +2,14 @@ import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { NAV_ITEMS } from './navItems'
 import { useProfile } from '../hooks/useProfile'
+import { useMySubscription } from '../hooks/usePayments'
 import { avatarFor } from '../lib/avatar'
+import { SidebarAd } from '../components/FeedAd'
 
 export default function Sidebar() {
   const profile = useProfile()
   const avatarUrl = avatarFor(profile.data)
+  const isSubscriber = !!useMySubscription().data
   const displayName =
     profile.data?.handle ?? profile.data?.display_name ?? 'you'
 
@@ -67,7 +70,15 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      <div className="mt-auto px-3 pt-6 text-[10px] text-ink-muted">
+      {/* Sponsored skyscraper — free users only; renders nothing until the
+          160x600 key is configured. */}
+      {!isSubscriber && (
+        <div className="mt-auto pt-6 grid place-items-center">
+          <SidebarAd />
+        </div>
+      )}
+
+      <div className={`${isSubscriber ? 'mt-auto' : 'mt-4'} px-3 pt-6 text-[10px] text-ink-muted`}>
         @{displayName}
       </div>
     </aside>

@@ -161,7 +161,7 @@ function TopIcon({ to, label, glyph, badge }: { to: string; label: string; glyph
 function AdSlide() {
   return (
     <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center">
-      <div className="relative h-full w-full max-w-md mx-auto grid place-items-center">
+      <div className="relative h-full w-full max-w-3xl mx-auto grid place-items-center">
         <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-wider text-white/70 bg-black/45 rounded-full px-2 py-1">
           Sponsored
         </span>
