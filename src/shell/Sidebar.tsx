@@ -15,7 +15,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="hidden lg:flex flex-col w-64 shrink-0 glass border-r border-white/5 px-4 py-6 gap-1 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto"
+      className="hidden lg:flex flex-col w-64 shrink-0 glass border-r border-white/5 px-4 py-6 gap-1 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto no-scrollbar"
       aria-label="Primary"
     >
       <div className="flex items-center gap-2 px-3 pb-8">

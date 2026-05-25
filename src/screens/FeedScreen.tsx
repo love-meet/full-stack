@@ -414,32 +414,35 @@ function FeedVideo({ src }: { src: string }) {
         }}
       />
 
-      {/* Center tap target: play / pause. */}
+      {/* Center tap target: play / pause. The control group (sound toggle +
+          play/pause) shows when paused or buffering and hides while playing. */}
       <button
         onClick={togglePlay}
         aria-label={playing ? 'Pause' : 'Play'}
         className="absolute inset-0 grid place-items-center"
       >
-        {/* Big control shows when paused or buffering; hidden while playing. */}
         {(!playing || buffering) && (
-          <span className="relative grid place-items-center w-16 h-16">
-            {buffering && (
-              <span className="absolute inset-0 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-            )}
-            <span className="w-16 h-16 rounded-full bg-black/45 grid place-items-center text-white">
-              {playing ? <PauseGlyph /> : <IconPlay size={30} className="ml-0.5" />}
+          <span className="flex flex-col items-center gap-4">
+            {/* Sound toggle — sits above the play button, monochrome white to
+                match it. stopPropagation so it doesn't also play/pause. */}
+            <span
+              role="button"
+              aria-label={muted ? 'Unmute' : 'Mute'}
+              onClick={(e) => { e.stopPropagation(); setMuted(!muted) }}
+              className="w-10 h-10 rounded-full bg-black/45 grid place-items-center text-white"
+            >
+              {muted ? <IconMuted /> : <IconSound />}
+            </span>
+            <span className="relative grid place-items-center w-16 h-16">
+              {buffering && (
+                <span className="absolute inset-0 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              )}
+              <span className="w-16 h-16 rounded-full bg-black/45 grid place-items-center text-white">
+                {playing ? <PauseGlyph /> : <IconPlay size={30} className="ml-0.5" />}
+              </span>
             </span>
           </span>
         )}
-      </button>
-
-      {/* Sound toggle — top-right of the post column. */}
-      <button
-        onClick={() => setMuted(!muted)}
-        aria-label={muted ? 'Unmute' : 'Mute'}
-        className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/45 grid place-items-center text-white text-base"
-      >
-        {muted ? '🔇' : '🔊'}
       </button>
 
       {/* Bottom progress bar — view + scrub. */}
@@ -465,6 +468,26 @@ function PauseGlyph() {
     <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
       <rect x="6" y="5" width="4" height="14" rx="1" />
       <rect x="14" y="5" width="4" height="14" rx="1" />
+    </svg>
+  )
+}
+
+function IconSound() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
+      <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
+      <path d="M16 8.5a4 4 0 0 1 0 7M18.5 6a7.5 7.5 0 0 1 0 12"
+        fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function IconMuted() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
+      <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
+      <path d="M16.5 9.5l5 5M21.5 9.5l-5 5"
+        fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }
