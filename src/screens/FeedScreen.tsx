@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState, Fragment } from 'react'
-import { motion, useMotionValue, animate, AnimatePresence } from 'framer-motion'
+import { useEffect, useRef, useState, Fragment, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { stagger, itemUp } from '../shell/motion'
 import { useFeed, type FeedPost } from '../hooks/useFeed'
 import { useToggleLike } from '../hooks/usePostMutations'
 import { useFeedRealtime } from '../hooks/useFeedRealtime'
@@ -12,7 +11,7 @@ import { getSurface } from '../lib/surface'
 import { avatarUrlOr } from '../lib/avatar'
 import GiftSheet from '../components/GiftSheet'
 import PostMoreDropdown from '../components/PostMoreDropdown'
-import { IconComment, IconShare, IconMore } from '../components/icons'
+import { IconComment, IconShare, IconMore, IconPlay } from '../components/icons'
 
 export default function FeedScreen() {
   useFeedRealtime()
@@ -20,147 +19,117 @@ export default function FeedScreen() {
   const unread = useUnreadNotifications().data ?? 0
   const unreadChats = (useConversations().data ?? []).filter((c) => c.unread_count > 0).length
   const feed = useFeed()
-  const headerY = useMotionValue(0)
-  const lastScrollY = useRef(0)
-
-  useEffect(() => {
-    function onScroll() {
-      const y = window.scrollY
-      const dy = y - lastScrollY.current
-      if (y > 50 && dy > 0) {
-        animate(headerY, -80, { duration: 0.25, ease: [0.22, 1, 0.36, 1] })
-      } else if (dy < 0 || y <= 0) {
-        animate(headerY, 0, { duration: 0.25, ease: [0.22, 1, 0.36, 1] })
-      }
-      lastScrollY.current = y
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [headerY])
+  const scrollerRef = useRef<HTMLDivElement>(null)
 
   const pages = feed.data?.pages ?? []
-  const isEmpty = feed.status === 'success' && pages.every((p) => p.length === 0)
+  const posts = pages.flat()
+  const isEmpty = feed.status === 'success' && posts.length === 0
+
+  // Load the next page as the viewer nears the end of the current one.
+  const onScroll = useCallback(() => {
+    const el = scrollerRef.current
+    if (!el || !feed.hasNextPage || feed.isFetchingNextPage) return
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - el.clientHeight * 1.5) {
+      feed.fetchNextPage()
+    }
+  }, [feed])
 
   return (
-    // pt-14 pushes content below the fixed (h-14) navbar so the first
-    // post doesn't slide under it.
-    <div className="min-h-full relative pt-14">
-      {/* Fixed top app bar — pinned to viewport regardless of scroll.
-          lg:left-64 clears the desktop sidebar (w-64). */}
-      <motion.header
-        style={{ y: headerY }}
-        className="fixed top-0 left-0 right-0 lg:left-64 z-20 glass border-b border-white/5"
+    <>
+      {/* Floating top bar — transparent over the media, icons stay tappable. */}
+      <div className="fixed top-0 left-0 right-0 lg:left-64 z-30 pointer-events-none">
+        <div className="bg-gradient-to-b from-black/55 to-transparent">
+          <div className="max-w-xl mx-auto px-4 h-14 flex items-center justify-between">
+            <Link to="/feed" className="flex items-center gap-2 lg:hidden pointer-events-auto">
+              <img src="/logo.png" alt="" className="h-7 w-auto" />
+              <span className="font-extrabold tracking-tight text-white text-lg drop-shadow">Meet</span>
+            </Link>
+            <div className="hidden lg:block" />
+            <div className="flex items-center gap-1 pointer-events-auto">
+              <TopIcon to="/search" label="Search" glyph="⌕" />
+              <TopIcon to="/notifications" label="Notifications" glyph="🔔" badge={unread} />
+              <TopIcon to="/chat" label="Chats" glyph="✉" badge={unreadChats} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Full-screen vertical snap feed: one post per screen. Sits above the
+          mobile bottom-nav (bottom-16) and clears the desktop sidebar. */}
+      <div
+        ref={scrollerRef}
+        onScroll={onScroll}
+        className="fixed top-0 left-0 right-0 bottom-16 lg:left-64 lg:bottom-0 bg-black overflow-y-scroll snap-y snap-mandatory overscroll-contain no-scrollbar"
       >
-        <div className="max-w-xl mx-auto px-5 sm:px-8 h-14 flex items-center justify-between">
-          {/* Brand lives in the sidebar on desktop; show it in the navbar
-              only on mobile where there is no sidebar. */}
-          <Link to="/feed" className="flex items-center gap-2 lg:hidden">
-            <img src="/logo.png" alt="" className="h-7 w-auto" />
-            <span className="font-extrabold tracking-tight text-gradient-warm text-lg">
-              Meet
-            </span>
-          </Link>
-          <div className="hidden lg:block" />{/* spacer so right-aligned icons stay anchored */}
-          <div className="flex items-center gap-1">
-            <Link
-              to="/search"
-              className="w-10 h-10 grid place-items-center text-ink-2 hover:text-rose transition-colors"
-              aria-label="Search"
-            >
-              <span className="text-xl">⌕</span>
-            </Link>
-            <Link
-              to="/notifications"
-              className="relative w-10 h-10 grid place-items-center text-ink-2 hover:text-rose transition-colors"
-              aria-label="Notifications"
-            >
-              <span className="text-xl">🔔</span>
-              {unread > 0 && (
-                <span className="absolute top-1 right-1 min-w-[1.05rem] h-[1.05rem] px-1 rounded-full bg-rose text-white text-[10px] font-bold grid place-items-center">
-                  {unread > 99 ? '99+' : unread}
-                </span>
-              )}
-            </Link>
-            <Link
-              to="/chat"
-              className="relative w-10 h-10 grid place-items-center text-ink-2 hover:text-rose transition-colors"
-              aria-label="Chats"
-            >
-              <span className="text-xl">✉</span>
-              {unreadChats > 0 && (
-                <span className="absolute top-1 right-1 min-w-[1.05rem] h-[1.05rem] px-1 rounded-full bg-rose text-white text-[10px] font-bold grid place-items-center">
-                  {unreadChats > 99 ? '99+' : unreadChats}
-                </span>
-              )}
-            </Link>
+        {feed.status === 'pending' && (
+          <div className="h-full grid place-items-center">
+            <div className="w-10 h-10 rounded-full border-2 border-white/20 border-t-white animate-spin" />
           </div>
-        </div>
-      </motion.header>
+        )}
 
-      {feed.status === 'pending' && (
-        <div className="max-w-xl mx-auto px-5 sm:px-8 pt-5 space-y-5">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="glass rounded-3xl h-[420px] animate-pulse" />
-          ))}
-        </div>
-      )}
-
-      {feed.status === 'error' && (
-        <div className="max-w-xl mx-auto px-5 sm:px-8 pt-5">
-          <div className="glass rounded-2xl p-5 text-sm text-danger">
-            Couldn't load the feed: {(feed.error as Error).message}
+        {feed.status === 'error' && (
+          <div className="h-full grid place-items-center px-8">
+            <div className="glass rounded-2xl p-5 text-sm text-danger text-center">
+              Couldn't load the feed: {(feed.error as Error).message}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {isEmpty && (
-        <div className="max-w-xl mx-auto px-5 sm:px-8 pt-5">
-          <div className="glass rounded-3xl p-8 text-center">
-            <div className="text-4xl mb-3">📭</div>
-            <p className="text-ink font-semibold mb-1">Nothing here yet</p>
-            <p className="text-sm text-ink-muted">Tap the + tab to share your first post.</p>
+        {isEmpty && (
+          <div className="h-full grid place-items-center px-8">
+            <div className="text-center">
+              <div className="text-5xl mb-3">📭</div>
+              <p className="text-white font-semibold mb-1">Nothing here yet</p>
+              <p className="text-sm text-white/60">Tap the + tab to share your first post.</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <motion.div
-        className="max-w-xl mx-auto px-5 sm:px-8 pt-5 pb-28 space-y-5"
-        variants={stagger}
-        initial="hidden"
-        animate="visible"
-      >
         {pages.map((page, i) => (
           <Fragment key={i}>
             {page.map((post) => (
-              <motion.div key={post.id} variants={itemUp}>
-                <PostCard post={post} />
-              </motion.div>
+              <FeedSlide key={post.id} post={post} />
             ))}
           </Fragment>
         ))}
-      </motion.div>
 
-      {feed.hasNextPage && (
-        <div className="max-w-xl mx-auto px-5 sm:px-8 pb-10">
-          <button
-            onClick={() => feed.fetchNextPage()}
-            disabled={feed.isFetchingNextPage}
-            className="w-full glass rounded-full py-3 text-sm font-semibold text-ink-2 hover:text-rose transition-colors disabled:opacity-60"
-          >
-            {feed.isFetchingNextPage ? 'Loading…' : 'Load more'}
-          </button>
-        </div>
-      )}
-    </div>
+        {feed.isFetchingNextPage && (
+          <div className="h-16 grid place-items-center">
+            <div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 
-function PostCard({ post }: { post: FeedPost }) {
+function TopIcon({ to, label, glyph, badge }: { to: string; label: string; glyph: string; badge?: number }) {
+  return (
+    <Link
+      to={to}
+      aria-label={label}
+      className="relative w-10 h-10 grid place-items-center text-white/90 hover:text-white transition-colors drop-shadow"
+    >
+      <span className="text-xl">{glyph}</span>
+      {!!badge && badge > 0 && (
+        <span className="absolute top-1 right-1 min-w-[1.05rem] h-[1.05rem] px-1 rounded-full bg-rose text-white text-[10px] font-bold grid place-items-center">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
+    </Link>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// One full-screen post.
+// ---------------------------------------------------------------------------
+function FeedSlide({ post }: { post: FeedPost }) {
   const myId = useAuth((s) => s.session?.user.id ?? null)
   const toggleLike = useToggleLike()
   const [popKey, setPopKey] = useState(0)
   const [giftOpen, setGiftOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const moreBtnRef = useRef<HTMLButtonElement>(null)
 
   const isMine = myId === post.author_id
@@ -171,130 +140,84 @@ function PostCard({ post }: { post: FeedPost }) {
   }
 
   return (
-    <article className="glass rounded-3xl overflow-hidden">
-      {/* Header — avatar/name link to that user's profile */}
-      <header className="flex items-center justify-between px-4 pt-4">
-        <Link
-          to={`/profile/${post.author_id}`}
-          className="flex items-center gap-3 min-w-0 active:opacity-70 transition-opacity"
-        >
+    <section className="relative h-full w-full snap-start snap-always grid place-items-center overflow-hidden">
+      {/* Media — contained within the screen (whole media visible), centered. */}
+      {post.kind === 'image' ? (
+        <img src={post.media_url} alt={post.alt_text ?? ''} className="max-h-full max-w-full w-auto h-auto object-contain" />
+      ) : (
+        <FeedVideo src={post.media_url} />
+      )}
+
+      {/* Top + bottom scrims for legibility. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/70 to-transparent" />
+
+      {/* Caption + author — bottom-left, above the action rail. */}
+      <div className="absolute left-0 right-16 bottom-0 p-4 pb-5">
+        <Link to={`/profile/${post.author_id}`} className="flex items-center gap-2.5 mb-2 active:opacity-70">
           <img
             src={avatarUrlOr(post.author_avatar_url, post.author_gender)}
             alt=""
-            className="w-12 h-12 rounded-full object-cover shrink-0"
+            className="w-10 h-10 rounded-full object-cover ring-2 ring-white/40 shrink-0"
           />
-          <div className="flex flex-col leading-tight min-w-0">
-            <span className="text-sm font-bold text-ink truncate flex items-center gap-1">
-              @{post.author_handle ?? post.author_display_name ?? 'unknown'}
-              {post.author_is_verified && <VerifiedBadge />}
-            </span>
-            <span className="text-[11px] text-ink-muted">{timeAgo(post.created_at)}</span>
-          </div>
+          <span className="text-sm font-bold text-white drop-shadow flex items-center gap-1 min-w-0">
+            <span className="truncate">@{post.author_handle ?? post.author_display_name ?? 'unknown'}</span>
+            {post.author_is_verified && <VerifiedBadge />}
+          </span>
+          <span className="text-[11px] text-white/70 drop-shadow">· {timeAgo(post.created_at)}</span>
         </Link>
-        <div className="shrink-0">
-          <button
-            ref={moreBtnRef}
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label="More options"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="text-ink-muted hover:text-ink leading-none p-2 -mr-1 rounded-full hover:bg-white/[0.06] transition-colors"
-          >
-            <IconMore />
-          </button>
-          {menuOpen && (
-            <PostMoreDropdown
-              post={post}
-              isMine={isMine}
-              anchorRef={moreBtnRef}
-              onClose={() => setMenuOpen(false)}
-            />
-          )}
-        </div>
-      </header>
-
-      {/* Caption + media — single tap surface that opens the post detail */}
-      <Link to={`/p/${post.id}`} className="block">
         {post.caption && (
-          <p className="px-4 pt-2 pb-3 text-ink text-sm leading-relaxed">{post.caption}</p>
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            className="text-left text-white text-sm leading-relaxed drop-shadow block"
+          >
+            <span className={expanded ? '' : 'line-clamp-2'}>{post.caption}</span>
+          </button>
         )}
+      </div>
 
-        <div
-          className="mx-4 mt-1 mb-4 rounded-2xl overflow-hidden"
-          style={{ aspectRatio: String(post.media_aspect ?? 0.8) }}
-        >
-          {post.kind === 'image' ? (
-            <img src={post.media_url} alt={post.alt_text ?? ''} className="w-full h-full object-cover" />
-          ) : (
-            <video
-              src={post.media_url}
-            className="w-full h-full object-cover"
-            playsInline
-            muted
-            loop
-            controls
-            controlsList="nodownload noplaybackrate"
-            disablePictureInPicture
-            onContextMenu={(e) => e.preventDefault()}
-          />
-        )}
-        </div>
-      </Link>
-
-      {/* Actions row — mirrors mobile: pink-bg pill when liked, gift hidden for own post */}
-      <footer className="flex items-center justify-around border-t border-white/8 py-2.5 px-2">
-        <motion.button
-          onClick={onLike}
-          whileTap={{ scale: 0.9 }}
-          className={[
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors',
-            post.liked_by_me
-              ? 'bg-rose/15 text-rose'
-              : 'text-ink-muted hover:text-rose',
-          ].join(' ')}
-        >
+      {/* Action rail — vertical, bottom-right. */}
+      <div className="absolute right-2 bottom-4 flex flex-col items-center gap-5">
+        <RailButton onClick={onLike} label={post.hide_like_count ? undefined : formatCount(post.like_count)} active={post.liked_by_me}>
           <motion.span
             key={popKey}
-            initial={popKey ? { scale: 1.5 } : false}
+            initial={popKey ? { scale: 1.6 } : false}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 500, damping: 16 }}
-            className="text-base leading-none"
+            className="text-[26px] leading-none"
           >
-            {post.liked_by_me ? '❤' : '♡'}
+            {post.liked_by_me ? '❤️' : '🤍'}
           </motion.span>
-          {!post.hide_like_count && <span>{formatCount(post.like_count)}</span>}
-        </motion.button>
+        </RailButton>
 
         {!post.comments_disabled && (
-          <Link
-            to={`/p/${post.id}`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-ink-muted hover:text-magenta transition-colors"
-          >
-            <IconComment />
-            <span>{formatCount(post.comment_count)}</span>
+          <Link to={`/p/${post.id}`} className="flex flex-col items-center gap-1 text-white drop-shadow">
+            <IconComment size={28} className="text-white" />
+            <span className="text-[11px] font-semibold">{formatCount(post.comment_count)}</span>
           </Link>
         )}
 
-        <button
-          onClick={() => shareToTelegram(post)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-ink-muted hover:text-coral transition-colors"
-        >
-          <IconShare />
-          <span className="hidden sm:inline">Share</span>
-        </button>
+        <RailButton onClick={() => shareToTelegram(post)}>
+          <IconShare size={28} className="text-white" />
+        </RailButton>
 
         {!isMine && (
-          <button
-            onClick={() => setGiftOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-ink-muted hover:text-gold transition-colors"
-          >
-            <span className="text-base leading-none">🎁</span>
-            <span className="hidden sm:inline">
-              Gift{post.gift_count > 0 ? ` ${formatCount(post.gift_count)}` : ''}
-            </span>
-          </button>
+          <RailButton onClick={() => setGiftOpen(true)} label={post.gift_count > 0 ? formatCount(post.gift_count) : undefined}>
+            <span className="text-[26px] leading-none">🎁</span>
+          </RailButton>
         )}
-      </footer>
+
+        <button
+          ref={moreBtnRef}
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label="More options"
+          className="text-white drop-shadow"
+        >
+          <IconMore size={26} className="text-white" />
+        </button>
+        {menuOpen && (
+          <PostMoreDropdown post={post} isMine={isMine} anchorRef={moreBtnRef} onClose={() => setMenuOpen(false)} />
+        )}
+      </div>
 
       <AnimatePresence>
         {giftOpen && (
@@ -306,28 +229,159 @@ function PostCard({ post }: { post: FeedPost }) {
           />
         )}
       </AnimatePresence>
-    </article>
+    </section>
+  )
+}
+
+function RailButton({
+  children, onClick, label, active,
+}: {
+  children: React.ReactNode
+  onClick: () => void
+  label?: string
+  active?: boolean
+}) {
+  return (
+    <motion.button
+      onClick={onClick}
+      whileTap={{ scale: 0.85 }}
+      className={['flex flex-col items-center gap-1 drop-shadow', active ? 'text-rose' : 'text-white'].join(' ')}
+    >
+      {children}
+      {label && <span className="text-[11px] font-semibold">{label}</span>}
+    </motion.button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Custom video player: thumbnail + center play/pause, buffering spinner,
+// bottom progress bar (scrub to seek). Tap center to play/pause. Pauses
+// automatically when scrolled off-screen.
+// ---------------------------------------------------------------------------
+function FeedVideo({ src }: { src: string }) {
+  const ref = useRef<HTMLVideoElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
+  const [playing, setPlaying] = useState(false)
+  const [buffering, setBuffering] = useState(false)
+  const [started, setStarted] = useState(false)
+  const [progress, setProgress] = useState(0) // 0..1
+
+  // Pause + reset the "playing" state when the slide scrolls out of view.
+  useEffect(() => {
+    const el = wrapRef.current
+    const v = ref.current
+    if (!el || !v) return
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.intersectionRatio < 0.5 && !v.paused) {
+          v.pause()
+        }
+      },
+      { threshold: [0, 0.5, 1] },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  function toggle() {
+    const v = ref.current
+    if (!v) return
+    if (v.paused) {
+      setStarted(true)
+      v.muted = false
+      void v.play().catch(() => {})
+    } else {
+      v.pause()
+    }
+  }
+
+  function seek(clientX: number) {
+    const v = ref.current
+    const bar = barRef.current
+    if (!v || !bar || !v.duration) return
+    const rect = bar.getBoundingClientRect()
+    const frac = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    v.currentTime = frac * v.duration
+    setProgress(frac)
+  }
+
+  return (
+    <div ref={wrapRef} className="relative h-full w-full grid place-items-center">
+      <video
+        ref={ref}
+        src={src}
+        className="max-h-full max-w-full w-auto h-auto object-contain"
+        playsInline
+        loop
+        preload="metadata"
+        disablePictureInPicture
+        onContextMenu={(e) => e.preventDefault()}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onWaiting={() => setBuffering(true)}
+        onPlaying={() => setBuffering(false)}
+        onCanPlay={() => setBuffering(false)}
+        onTimeUpdate={(e) => {
+          const v = e.currentTarget
+          if (v.duration) setProgress(v.currentTime / v.duration)
+        }}
+      />
+
+      {/* Center tap target: play / pause. */}
+      <button
+        onClick={toggle}
+        aria-label={playing ? 'Pause' : 'Play'}
+        className="absolute inset-0 grid place-items-center"
+      >
+        {/* Show the big control when paused or buffering; hide while playing cleanly. */}
+        {(!playing || buffering) && (
+          <span className="relative grid place-items-center w-16 h-16">
+            {buffering && (
+              <span className="absolute inset-0 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+            )}
+            <span className="w-16 h-16 rounded-full bg-black/45 grid place-items-center text-white">
+              {playing ? <PauseGlyph /> : <IconPlay size={30} className="ml-0.5" />}
+            </span>
+          </span>
+        )}
+      </button>
+
+      {/* Bottom progress bar — view + scrub. */}
+      <div
+        ref={barRef}
+        onPointerDown={(e) => {
+          (e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+          seek(e.clientX)
+        }}
+        onPointerMove={(e) => { if (e.buttons === 1) seek(e.clientX) }}
+        className="absolute bottom-0 left-0 right-0 px-0 py-2 cursor-pointer"
+      >
+        <div className="h-1 mx-0 rounded-full bg-white/25">
+          <div className="h-full rounded-full bg-white" style={{ width: `${progress * 100}%` }} />
+        </div>
+      </div>
+
+      {!started && <span className="sr-only">Video — tap to play</span>}
+    </div>
+  )
+}
+
+function PauseGlyph() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <rect x="6" y="5" width="4" height="14" rx="1" />
+      <rect x="14" y="5" width="4" height="14" rx="1" />
+    </svg>
   )
 }
 
 /** Small cyan ✓ badge, matching the mobile MaterialIcons "verified" tint. */
 function VerifiedBadge() {
   return (
-    <svg
-      viewBox="0 0 20 20"
-      width="15"
-      height="15"
-      aria-label="Verified"
-      className="text-gold shrink-0"
-    >
-      <path
-        fill="currentColor"
-        d="M10 1.2l2 1.6 2.5-.3.7 2.4 2.3 1-.4 2.5 1.4 2.1-1.6 2 .3 2.5-2.4.7-1 2.3-2.5-.4-2.1 1.4-2-1.6-2.5.3-.7-2.4-2.3-1 .4-2.5L.6 9.4 2.2 7.4 2 5l2.4-.7 1-2.3 2.5.4z"
-      />
-      <path
-        fill="#070A16"
-        d="M8.5 12.2l-2-2 1.1-1.1 1 1 3.2-3.3 1.1 1.1z"
-      />
+    <svg viewBox="0 0 20 20" width="15" height="15" aria-label="Verified" className="text-gold shrink-0">
+      <path fill="currentColor" d="M10 1.2l2 1.6 2.5-.3.7 2.4 2.3 1-.4 2.5 1.4 2.1-1.6 2 .3 2.5-2.4.7-1 2.3-2.5-.4-2.1 1.4-2-1.6-2.5.3-.7-2.4-2.3-1 .4-2.5L.6 9.4 2.2 7.4 2 5l2.4-.7 1-2.3 2.5.4z" />
+      <path fill="#070A16" d="M8.5 12.2l-2-2 1.1-1.1 1 1 3.2-3.3 1.1 1.1z" />
     </svg>
   )
 }
