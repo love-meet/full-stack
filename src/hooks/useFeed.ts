@@ -28,25 +28,23 @@ export const FEED_PAGE_SIZE = 10
 export const feedQueryKey = ['feed'] as const
 
 /**
- * Cursor-paginated feed via `posts_with_counts`. Cursor is the previous page's
- * oldest `created_at`. Simpler than offset and stable as new posts arrive.
+ * Ranked feed via the `ranked_feed` RPC: surfaces more of who you follow,
+ * verified (subscriber) accounts, and people matching your age preferences,
+ * with recency as the tie-breaker. Offset-paginated.
  */
 export function useFeed() {
   return useInfiniteQuery({
     queryKey: feedQueryKey,
-    initialPageParam: null as string | null,
+    initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
-      let q = supabase
-        .from('posts_with_counts')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(FEED_PAGE_SIZE)
-      if (pageParam) q = q.lt('created_at', pageParam)
-      const { data, error } = await q
+      const { data, error } = await supabase.rpc('ranked_feed', {
+        p_limit: FEED_PAGE_SIZE,
+        p_offset: pageParam,
+      })
       if (error) throw error
       return (data ?? []) as FeedPost[]
     },
-    getNextPageParam: (last) =>
-      last.length < FEED_PAGE_SIZE ? undefined : last[last.length - 1].created_at,
+    getNextPageParam: (last, _all, lastPageParam) =>
+      last.length < FEED_PAGE_SIZE ? undefined : (lastPageParam as number) + FEED_PAGE_SIZE,
   })
 }

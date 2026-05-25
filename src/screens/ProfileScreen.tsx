@@ -6,6 +6,8 @@ import { useProfile, useProfileById } from '../hooks/useProfile'
 import { useStartDM } from '../hooks/useStartDM'
 import { useProfileSocial, useToggleFollow, type ProfileSocial } from '../hooks/useFollow'
 import { avatarFor } from '../lib/avatar'
+import BlueTick from '../components/BlueTick'
+import { IconShare } from '../components/icons'
 import UserDetails from './profile/UserDetails'
 import ProfileTabs from './profile/ProfileTabs'
 
@@ -191,7 +193,7 @@ export default function ProfileScreen() {
               </div>
             </div>
             {!isMe && (
-              <div className="flex flex-col items-end gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 <FollowButton targetId={profile.id} social={social} />
                 <ChatLinkButton otherId={profile.id} />
               </div>
@@ -222,16 +224,6 @@ export default function ProfileScreen() {
   )
 }
 
-/** Blue verified tick — shown for paying subscribers. */
-function BlueTick({ size = 18 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 24 24" width={size} height={size} aria-label="Verified" className="shrink-0">
-      <circle cx="12" cy="12" r="11" fill="#1D9BF6" />
-      <path d="M16.8 9.2l-6 6L7.2 12" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
 function FollowButton({ targetId, social }: { targetId: string; social?: ProfileSocial }) {
   const toggle = useToggleFollow(targetId)
   const following = social?.is_following ?? false
@@ -240,7 +232,7 @@ function FollowButton({ targetId, social }: { targetId: string; social?: Profile
       onClick={() => toggle.mutate(!following)}
       disabled={toggle.isPending}
       className={[
-        'inline-flex items-center justify-center px-5 py-2 rounded-full font-bold text-sm shadow-lg disabled:opacity-70 transition-colors',
+        'inline-flex items-center justify-center px-5 h-10 rounded-full font-bold text-sm shadow-lg disabled:opacity-70 transition-colors',
         following ? 'glass text-ink' : 'bg-gradient-brand text-white glow-rose',
       ].join(' ')}
     >
@@ -249,34 +241,28 @@ function FollowButton({ targetId, social }: { targetId: string; social?: Profile
   )
 }
 
+/** Icon-only "send message" button so it fits next to Follow. */
 function ChatLinkButton({ otherId }: { otherId: string }) {
   const navigate = useNavigate()
   const startDM = useStartDM()
-  const [err, setErr] = useState<string | null>(null)
 
   async function go() {
     if (startDM.isPending) return
     try {
       const convId = await startDM.mutateAsync(otherId)
       navigate(`/chat/${convId}`)
-    } catch (e) {
-      setErr((e as Error).message)
-      window.setTimeout(() => setErr(null), 2400)
-    }
+    } catch { /* swallow — rare; user can retry */ }
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <button
-        onClick={go}
-        disabled={startDM.isPending}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose text-white font-bold text-sm shadow-lg shadow-rose/30 disabled:opacity-70"
-      >
-        <span aria-hidden>➤</span>
-        <span>{startDM.isPending ? 'Opening…' : 'Send Message'}</span>
-      </button>
-      {err && <span className="text-xs text-danger drop-shadow">{err}</span>}
-    </div>
+    <button
+      onClick={go}
+      disabled={startDM.isPending}
+      aria-label="Send message"
+      className="w-10 h-10 grid place-items-center rounded-full bg-rose text-white shadow-lg shadow-rose/30 disabled:opacity-70"
+    >
+      <IconShare size={18} className="text-white" />
+    </button>
   )
 }
 

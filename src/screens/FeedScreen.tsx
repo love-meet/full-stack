@@ -7,7 +7,9 @@ import { useFeedRealtime } from '../hooks/useFeedRealtime'
 import { useUnreadNotifications, useNotificationsRealtime } from '../hooks/useNotifications'
 import { useConversations } from '../hooks/useConversations'
 import { useMySubscription } from '../hooks/usePayments'
+import { useRelations, useToggleFollow, type Relation } from '../hooks/useFollow'
 import { useAuth } from '../stores/auth'
+import BlueTick from '../components/BlueTick'
 import { useFeedPrefs } from '../stores/feedPrefs'
 import { getSurface } from '../lib/surface'
 import { avatarUrlOr } from '../lib/avatar'
@@ -56,6 +58,7 @@ export default function FeedScreen() {
 
   const pages = feed.data?.pages ?? []
   const posts = pages.flat()
+  const relations = useRelations(posts.map((p) => p.author_id))
   const isEmpty = feed.status === 'success' && posts.length === 0
   const adAfter = useMemo(
     () => (showAds ? computeAdPositions(posts.length, adSeed.current) : new Set<number>()),
@@ -124,7 +127,7 @@ export default function FeedScreen() {
 
         {posts.map((post, i) => (
           <Fragment key={post.id}>
-            <FeedSlide post={post} />
+            <FeedSlide post={post} relation={relations.data?.get(post.author_id)} />
             {adAfter.has(i) && <AdSlide />}
           </Fragment>
         ))}
@@ -183,7 +186,7 @@ function AdSlide() {
 // ---------------------------------------------------------------------------
 // One full-screen post.
 // ---------------------------------------------------------------------------
-function FeedSlide({ post }: { post: FeedPost }) {
+function FeedSlide({ post, relation }: { post: FeedPost; relation?: Relation }) {
   const myId = useAuth((s) => s.session?.user.id ?? null)
   const toggleLike = useToggleLike()
   const [popKey, setPopKey] = useState(0)
@@ -226,9 +229,12 @@ function FeedSlide({ post }: { post: FeedPost }) {
           />
           <span className="text-sm font-bold text-white drop-shadow flex items-center gap-1 min-w-0">
             <span className="truncate">@{post.author_handle ?? post.author_display_name ?? 'unknown'}</span>
-            {post.author_is_verified && <VerifiedBadge />}
+            {relation?.is_subscriber ? <BlueTick size={15} /> : post.author_is_verified && <VerifiedBadge />}
           </span>
           <span className="text-[11px] text-white/70 drop-shadow">· {timeAgo(post.created_at)}</span>
+          {!isMine && (
+            <FeedFollowButton authorId={post.author_id} initialFollowing={relation?.is_following ?? false} />
+          )}
         </Link>
         {post.caption && (
           <button
@@ -296,6 +302,22 @@ function FeedSlide({ post }: { post: FeedPost }) {
         )}
       </AnimatePresence>
     </section>
+  )
+}
+
+/** Compact "Follow" chip on the feed author line (blurred bg). Disappears
+ *  once you're following (initially or after tapping). */
+function FeedFollowButton({ authorId, initialFollowing }: { authorId: string; initialFollowing: boolean }) {
+  const toggle = useToggleFollow(authorId)
+  const [done, setDone] = useState(false)
+  if (initialFollowing || done) return null
+  return (
+    <button
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDone(true); toggle.mutate(true) }}
+      className="ml-1 shrink-0 text-[11px] font-bold text-white bg-white/15 backdrop-blur-sm px-2.5 py-0.5 rounded-full ring-1 ring-white/30"
+    >
+      Follow
+    </button>
   )
 }
 

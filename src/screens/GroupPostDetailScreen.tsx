@@ -9,6 +9,7 @@ import { useAuth } from '../stores/auth'
 import { avatarFor, avatarUrlOr } from '../lib/avatar'
 import { cloudinaryPlaceholderUrl } from '../lib/cloudinary'
 import { InlineAd } from '../components/FeedAd'
+import AuthorTick from '../components/AuthorTick'
 
 export default function GroupPostDetailScreen() {
   const { slug = '', postId = '' } = useParams<{ slug: string; postId: string }>()
@@ -268,11 +269,12 @@ function CommentNode({
         </Link>
         <div className="flex-1 min-w-0">
           <div className="glass rounded-2xl rounded-tl-sm px-3 py-2">
-            <div className="text-[13px]">
+            <div className="text-[13px] flex items-center gap-1">
               <Link to={`/profile/${comment.author_id}`} className="font-bold text-ink hover:underline">
                 @{comment.author_handle ?? comment.author_display_name ?? 'unknown'}
               </Link>
-              <span className="text-ink-muted text-[10px] ml-2">{timeAgo(comment.created_at)}</span>
+              <AuthorTick userId={comment.author_id} />
+              <span className="text-ink-muted text-[10px] ml-1">{timeAgo(comment.created_at)}</span>
             </div>
             <p className="text-ink-2 text-sm mt-0.5 whitespace-pre-wrap break-words">{comment.body}</p>
           </div>

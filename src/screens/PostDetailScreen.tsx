@@ -18,6 +18,7 @@ import GiftSheet from '../components/GiftSheet'
 import PostMoreDropdown from '../components/PostMoreDropdown'
 import CommentActionsSheet from '../components/CommentActionsSheet'
 import { InlineAd } from '../components/FeedAd'
+import AuthorTick from '../components/AuthorTick'
 import { IconBack, IconComment, IconShare, IconMore } from '../components/icons'
 import type { FeedPost } from '../hooks/useFeed'
 
@@ -395,11 +396,12 @@ function CommentRow({ postId, comment }: { postId: string; comment: PostCommentR
           />
         </Link>
         <div className="flex-1 min-w-0">
-          <div className="text-sm flex items-center">
+          <div className="text-sm flex items-center gap-1">
             <Link to={`/profile/${comment.author_id}`} className="font-bold text-ink hover:underline">
               {comment.author_handle ?? comment.author_display_name ?? 'unknown'}
             </Link>
-            <span className="text-ink-muted text-[11px] ml-2">{timeAgo(comment.created_at)}</span>
+            <AuthorTick userId={comment.author_id} />
+            <span className="text-ink-muted text-[11px] ml-1">{timeAgo(comment.created_at)}</span>
             <button
               onClick={() => setActionsOpen(true)}
               aria-label="Comment options"

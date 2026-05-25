@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
 import { useConversations, type Conversation } from '../hooks/useConversations'
 import { useActiveConversation } from '../stores/activeConversation'
+import { useRelations } from '../hooks/useFollow'
 import { avatarUrlOr } from '../lib/avatar'
+import BlueTick from '../components/BlueTick'
 import { ChatPane } from '../screens/ChatDetailScreen'
 
 /**
@@ -31,6 +33,7 @@ export default function ConversationRail() {
 function ConversationList({ onOpen }: { onOpen: (id: string) => void }) {
   const q = useConversations()
   const items = q.data ?? []
+  const relations = useRelations(items.map((c) => c.other_id))
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -71,8 +74,9 @@ function ConversationList({ onOpen }: { onOpen: (id: string) => void }) {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold text-ink truncate">
+                    <span className="text-sm font-semibold text-ink truncate flex items-center gap-1">
                       @{c.other_handle ?? c.other_display_name ?? 'unknown'}
+                      {c.other_id && relations.data?.get(c.other_id)?.is_subscriber && <BlueTick size={13} />}
                     </span>
                     {c.last_message_at && (
                       <span className="text-[10px] text-ink-muted shrink-0">{timeAgo(c.last_message_at)}</span>

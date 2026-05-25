@@ -10,7 +10,9 @@ import { useTyping } from '../hooks/useTyping'
 import { markConversationRead } from '../hooks/useStartDM'
 import { useIsOnline } from '../stores/presence'
 import { useAuth } from '../stores/auth'
+import { useRelations } from '../hooks/useFollow'
 import { avatarUrlOr } from '../lib/avatar'
+import BlueTick from '../components/BlueTick'
 import ChatBubble from '../components/chat/ChatBubble'
 import TypingIndicatorBubble from '../components/chat/TypingIndicatorBubble'
 import MessageActionsSheet from '../components/chat/MessageActionsSheet'
@@ -50,6 +52,8 @@ export function ChatPane({
   useChatRealtime(conversationId)
   const { theyAreTyping, notifyTyping, notifyStopped } = useTyping(conversationId)
   const otherOnline = useIsOnline(conv.data?.other_id)
+  const relations = useRelations([conv.data?.other_id])
+  const otherVerified = !!(conv.data?.other_id && relations.data?.get(conv.data.other_id)?.is_subscriber)
 
   const [actionsFor, setActionsFor] = useState<Message | null>(null)
   const [mode, setMode] = useState<ComposerMode>({ kind: 'idle' })
@@ -127,8 +131,9 @@ export function ChatPane({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-ink truncate">
-            @{conv.data?.other_handle ?? conv.data?.other_display_name ?? '…'}
+          <div className="font-semibold text-ink truncate flex items-center gap-1">
+            <span className="truncate">@{conv.data?.other_handle ?? conv.data?.other_display_name ?? '…'}</span>
+            {otherVerified && <BlueTick size={15} />}
           </div>
           <div className="text-[11px] text-ink-muted truncate">
             {theyAreTyping ? (

@@ -8,13 +8,16 @@ import { useConversationsRealtime } from '../hooks/useChatRealtime'
 import { useTypingMap } from '../hooks/useTyping'
 import { useIsOnline } from '../stores/presence'
 import { useAuth } from '../stores/auth'
+import { useRelations } from '../hooks/useFollow'
 import { avatarUrlOr } from '../lib/avatar'
+import BlueTick from '../components/BlueTick'
 
 export default function ChatScreen() {
   useConversationsRealtime()
   const myId = useAuth((s) => s.session?.user.id ?? null)
   const convs = useConversations()
   const typingMap = useTypingMap()
+  const relations = useRelations((convs.data ?? []).map((c) => c.other_id))
   const [q, setQ] = useState('')
 
   const filtered = useMemo(() => {
@@ -79,6 +82,7 @@ export default function ChatScreen() {
               c={c}
               mySenderId={myId}
               isTyping={!!typingMap[c.id]}
+              verified={!!(c.other_id && relations.data?.get(c.other_id)?.is_subscriber)}
             />
           </motion.li>
         ))}
@@ -88,11 +92,12 @@ export default function ChatScreen() {
 }
 
 function ConversationRow({
-  c, mySenderId, isTyping,
+  c, mySenderId, isTyping, verified,
 }: {
   c: Conversation
   mySenderId: string | null
   isTyping: boolean
+  verified: boolean
 }) {
   const youSent = c.last_sender_id && c.last_sender_id === mySenderId
   const online = useIsOnline(c.other_id)
@@ -130,6 +135,7 @@ function ConversationRow({
               <span className="text-coral text-xs leading-none shrink-0" aria-label="Pinned">📌</span>
             )}
             @{c.other_handle ?? c.other_display_name ?? 'unknown'}
+            {verified && <BlueTick size={14} />}
           </span>
           <span className="text-[11px] text-ink-muted shrink-0">{timeAgo(c.last_message_at)}</span>
         </div>
