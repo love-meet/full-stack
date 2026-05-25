@@ -160,15 +160,21 @@ function TopIcon({ to, label, glyph, badge }: { to: string; label: string; glyph
 // if no Adsterra key is configured, so the feed just skips it.
 function AdSlide() {
   return (
-    <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center">
-      <div className="relative h-full w-full max-w-3xl mx-auto grid place-items-center">
-        <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-wider text-white/70 bg-black/45 rounded-full px-2 py-1">
-          Sponsored
-        </span>
-        <div className="grid place-items-center gap-4 px-6 text-center">
-          <FeedAd />
-          <p className="text-xs text-white/50">Ads keep Love meet free — go premium to remove them.</p>
+    <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center px-5">
+      <div className="w-full max-w-3xl mx-auto flex flex-col items-center">
+        <div className="glass rounded-3xl px-5 pt-4 pb-5 flex flex-col items-center gap-4 w-full max-w-md sm:max-w-3xl">
+          <span className="self-start text-[10px] font-bold uppercase tracking-[0.18em] text-ink-muted">
+            Sponsored
+          </span>
+          <div className="grid place-items-center min-h-[250px] w-full">
+            <FeedAd />
+          </div>
         </div>
+        <p className="mt-4 text-xs text-white/55 text-center">
+          Ads keep Love meet free —{' '}
+          <Link to="/subscription" className="text-rose font-semibold hover:underline">go premium</Link>{' '}
+          to remove them.
+        </p>
       </div>
     </section>
   )

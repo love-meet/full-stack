@@ -12,6 +12,10 @@ import { useEffect, useState } from 'react'
 const KEY_320x50  = (import.meta.env.VITE_ADSTERRA_320x50 as string | undefined)  || '1eeb5db8e869a87a5cd959b0d4402b18'
 const KEY_728x90  = (import.meta.env.VITE_ADSTERRA_728x90 as string | undefined)  || '9e485555f453c6799fffa62edb74ec80'
 const KEY_160x600 = (import.meta.env.VITE_ADSTERRA_160x600 as string | undefined) || 'd31ff0d7fba6180ea5c3c316f2165700'
+// Medium Rectangle (300x250) — fills a mobile feed card far better than the
+// thin 320x50. Create this unit in Adsterra and paste its key (or set
+// VITE_ADSTERRA_300x250). Until then, mobile falls back to the 320x50.
+const KEY_300x250 = (import.meta.env.VITE_ADSTERRA_300x250 as string | undefined) || ''
 
 /** A single Adsterra banner of a given size, sandboxed in an iframe. */
 function AdsterraBanner({ unitKey, w, h }: { unitKey: string; w: number; h: number }) {
@@ -55,6 +59,8 @@ function useMinWidth(px: number): boolean {
 export default function FeedAd() {
   const wide = useMinWidth(768)
   if (wide && KEY_728x90) return <AdsterraBanner unitKey={KEY_728x90} w={728} h={90} />
+  // Mobile: prefer the 300x250 rectangle (fills the card); else the 320x50.
+  if (KEY_300x250) return <AdsterraBanner unitKey={KEY_300x250} w={300} h={250} />
   return <AdsterraBanner unitKey={KEY_320x50} w={320} h={50} />
 }
 
