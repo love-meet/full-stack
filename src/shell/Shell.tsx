@@ -2,7 +2,10 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useLocation, useOutlet } from 'react-router-dom'
 import BottomNav from './BottomNav'
 import Sidebar from './Sidebar'
+import NotifPermissionBanner from './NotifPermissionBanner'
 import { usePresenceInit } from '../hooks/usePresenceInit'
+import { useEnsureBrowserNotifications } from '../hooks/useBrowserNotifications'
+import { useIncomingMessageAlerts } from '../hooks/useIncomingMessageAlerts'
 
 // Routes that take over the whole mobile viewport — no bottom nav, no main
 // padding-bottom for the nav. Sidebar still shows on desktop.
@@ -12,6 +15,8 @@ export default function Shell() {
   const location = useLocation()
   const outlet = useOutlet()
   usePresenceInit()
+  useEnsureBrowserNotifications()
+  useIncomingMessageAlerts()
 
   const immersive = IMMERSIVE_ROUTES.some(
     (p) => location.pathname === p || location.pathname.startsWith(`${p}/`),
@@ -26,6 +31,7 @@ export default function Shell() {
           immersive ? 'pb-0' : 'pb-16 lg:pb-0',
         ].join(' ')}
       >
+        <NotifPermissionBanner />
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}

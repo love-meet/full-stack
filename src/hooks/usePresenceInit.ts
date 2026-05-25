@@ -45,7 +45,19 @@ export function usePresenceInit() {
       }
     })
 
+    // DB heartbeat so the server (notify-email) knows we're online: stamp
+    // last_seen_at now, every 25s, and whenever the tab becomes visible.
+    const touch = () => { void supabase.rpc('touch_last_seen') }
+    touch()
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') touch()
+    }, 25_000)
+    const onVisible = () => { if (document.visibilityState === 'visible') touch() }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
       void supabase.removeChannel(channel)
       setOnline(new Set())
     }

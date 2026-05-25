@@ -60,12 +60,17 @@ serve(async (req: Request) => {
     // Recipient channels + name.
     const { data: profile } = await admin
       .from('profiles')
-      .select('email_notifications, telegram_notifications, telegram_user_id, display_name, first_name')
+      .select('email_notifications, telegram_notifications, telegram_user_id, display_name, first_name, last_seen_at')
       .eq('id', n.user_id)
       .maybeSingle()
     const emailOn = profile?.email_notifications !== false
     const tgOn = profile?.telegram_notifications === true
     const tgChatId = profile?.telegram_user_id ?? null
+
+    // "Online" = heartbeat within the last 60s. Used to decide whether a chat
+    // message should also be emailed (offline) or not (online → sound only).
+    const lastSeen = profile?.last_seen_at ? Date.parse(profile.last_seen_at) : 0
+    const isOnline = lastSeen > 0 && (Date.now() - lastSeen) < 60_000
 
     // Recipient email lives on the auth user. Telegram sign-ups have a
     // SYNTHETIC placeholder address (tg_<id>@telegram.lovemeet.invalid) that
@@ -93,9 +98,10 @@ serve(async (req: Request) => {
     const result: Record<string, unknown> = { ok: true }
     const errors: string[] = []
 
-    // Per-message chat pings would flood the inbox — deliver those via
-    // in-app + Telegram only (the chat_reminder handles the email nudge).
-    const emailAllowedForType = n.type !== 'chat_message'
+    // A chat message is only emailed when the recipient is OFFLINE — online
+    // users get an in-app sound + browser notification instead, so the inbox
+    // isn't flooded during a live conversation.
+    const emailAllowedForType = n.type !== 'chat_message' || !isOnline
 
     // ----- Email (Gmail SMTP) -----
     if (emailOn && email && emailAllowedForType) {
