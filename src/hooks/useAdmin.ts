@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useProfile } from './useProfile'
+import type { GroupPost } from './useGroupPosts'
 import type {
   Deposit,
   WithdrawalRequest,
@@ -41,6 +42,53 @@ export function useIsAdmin(): boolean {
   const p = useProfile()
   const r = p.data?.role
   return r === 'admin' || r === 'super_admin'
+}
+
+export const pendingThreadsKey = ['admin:pending-threads'] as const
+
+/**
+ * All group threads/posts awaiting approval, across every group. Platform
+ * admins see all pending posts (the moderation view grants is_group_admin to
+ * them), so this powers a central approval queue in the admin panel.
+ */
+export function usePendingThreads() {
+  return useQuery<GroupPost[]>({
+    queryKey: pendingThreadsKey,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('group_posts_with_counts')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+        .limit(100)
+      if (error) throw error
+      return (data ?? []) as GroupPost[]
+    },
+  })
+}
+
+/** Approve or reject a pending thread from the admin queue. */
+export function useModeratePendingThread() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { postId: string; action: 'approve' | 'reject'; reason?: string }) => {
+      if (vars.action === 'approve') {
+        const { error } = await supabase.rpc('approve_group_post', { post_id: vars.postId })
+        if (error) throw error
+      } else {
+        const { error } = await supabase.rpc('reject_group_post', {
+          post_id: vars.postId,
+          reason: vars.reason ?? null,
+        })
+        if (error) throw error
+      }
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: pendingThreadsKey })
+      qc.invalidateQueries({ queryKey: ['group-feed'] })
+      qc.invalidateQueries({ queryKey: ['group-post', vars.postId] })
+    },
+  })
 }
 
 export function useIsSuperAdmin(): boolean {
