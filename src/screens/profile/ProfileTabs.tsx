@@ -1,6 +1,10 @@
 import { useState, Fragment } from 'react'
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { useUserPosts } from '../../hooks/useUserPosts'
+import { useReceivedGifts } from '../../hooks/useGift'
+import { useUserCurrency } from '../../hooks/useFx'
+import { IconImages, IconVideo, IconPlay } from '../../components/icons'
 
 type TabKey = 'posts' | 'gifts' | 'videos' | 'career'
 
@@ -49,7 +53,7 @@ export default function ProfileTabs({ userId, isMe }: Props) {
 
       <div className="pt-1">
         {active === 'posts'  && <PostsGrid userId={userId} />}
-        {active === 'gifts'  && <Empty icon="🎁" label="No gifts received yet." />}
+        {active === 'gifts'  && <GiftsList userId={userId} />}
         {active === 'videos' && <ComingSoon />}
         {active === 'career' && <ComingSoon />}
       </div>
@@ -84,7 +88,7 @@ function PostsGrid({ userId }: { userId: string }) {
         {pages.map((page, i) => (
           <Fragment key={i}>
             {page.map((post) => (
-              <div key={post.id} className="aspect-square bg-surface overflow-hidden">
+              <div key={post.id} className="relative aspect-square bg-surface overflow-hidden">
                 {post.kind === 'image' ? (
                   <img
                     src={post.media_url}
@@ -93,6 +97,22 @@ function PostsGrid({ userId }: { userId: string }) {
                   />
                 ) : (
                   <video src={post.media_url} className="w-full h-full object-cover" muted playsInline />
+                )}
+
+                {/* Top-right media-type indicator. */}
+                <span className="absolute top-1.5 right-1.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+                  {post.kind === 'image'
+                    ? <IconImages size={16} strokeWidth={2.4} />
+                    : <IconVideo size={16} strokeWidth={2.4} />}
+                </span>
+
+                {/* Center play affordance for videos. */}
+                {post.kind !== 'image' && (
+                  <span className="absolute inset-0 grid place-items-center pointer-events-none">
+                    <span className="w-9 h-9 rounded-full bg-black/45 grid place-items-center text-white">
+                      <IconPlay size={18} />
+                    </span>
+                  </span>
                 )}
               </div>
             ))}
@@ -111,6 +131,66 @@ function PostsGrid({ userId }: { userId: string }) {
         </div>
       )}
     </>
+  )
+}
+
+function GiftsList({ userId }: { userId: string }) {
+  const q = useReceivedGifts(userId)
+  const cur = useUserCurrency()
+
+  if (q.status === 'pending') {
+    return (
+      <div className="px-5 pt-4 space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="glass rounded-2xl h-16 animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+  if (q.status === 'error') {
+    return <p className="text-center text-danger py-6 text-sm">{(q.error as Error).message}</p>
+  }
+
+  const gifts = q.data ?? []
+  if (gifts.length === 0) return <Empty icon="🎁" label="No gifts received yet." />
+
+  return (
+    <ul className="px-5 pt-4 space-y-2">
+      {gifts.map((g) => {
+        const amountUsd = g.amount_cents / 100
+        const price = cur.ready || cur.code === 'USD' ? cur.format(amountUsd) : `$${amountUsd}`
+        const from = g.sender?.handle ? `@${g.sender.handle}` : g.sender?.display_name ?? 'Someone'
+        return (
+          <li key={g.id}>
+            <Link to={`/gift/${g.id}`} className="glass rounded-2xl p-3 flex items-center gap-3 hover:bg-white/[0.04] transition-colors">
+              <div className="w-12 h-12 rounded-xl overflow-hidden bg-black shrink-0">
+                {g.gift_image && <img src={g.gift_image} alt={g.gift_name} className="w-full h-full object-cover" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-ink truncate">{g.gift_name}</div>
+                <div className="text-[11px] text-ink-muted truncate">from {from} · {price}</div>
+              </div>
+              <GiftStatusTag status={g.status} />
+            </Link>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function GiftStatusTag({ status }: { status: 'pending' | 'accepted' | 'rejected' | 'failed' }) {
+  const map = {
+    pending:  { label: 'Pending',  cls: 'bg-gold/15 text-gold' },
+    accepted: { label: 'Accepted', cls: 'bg-success/15 text-success' },
+    rejected: { label: 'Declined', cls: 'bg-rose/15 text-rose' },
+    failed:   { label: 'Failed',   cls: 'bg-rose/15 text-rose' },
+  } as const
+  const m = map[status]
+  return (
+    <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${m.cls}`}>
+      {m.label}
+    </span>
   )
 }
 

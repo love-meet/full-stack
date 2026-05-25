@@ -66,6 +66,25 @@ export function IconImages({ className, size = 24, strokeWidth = 2 }: IconProps)
   )
 }
 
+/** Video camera — marks a video post. */
+export function IconVideo({ className, size = 22, strokeWidth = 2 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
+      <rect x="2" y="6" width="14" height="12" rx="2.5" />
+      <path d="M22 8.5 16 12l6 3.5v-7z" />
+    </svg>
+  )
+}
+
+/** Filled play triangle — centered video affordance. */
+export function IconPlay({ className, size = 24 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  )
+}
+
 /** Camera with circular arrows — flip front/back. */
 export function IconFlipCamera({ className, size = 22, strokeWidth = 2 }: IconProps) {
   return (

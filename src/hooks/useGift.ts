@@ -43,6 +43,27 @@ export function useGift(giftId: string | null | undefined) {
   })
 }
 
+/** Gifts a user has received (any status), newest first, with sender info. */
+export function useReceivedGifts(userId: string | null | undefined) {
+  const session = useAuth((s) => s.session)
+  return useQuery<GiftDetail[]>({
+    queryKey: ['gifts:received', userId ?? null],
+    enabled: !!session && !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('post_gifts')
+        .select(
+          '*, sender:sender_id(handle, display_name, avatar_url), recipient:recipient_id(handle, display_name, avatar_url)',
+        )
+        .eq('recipient_id', userId!)
+        .order('created_at', { ascending: false })
+        .limit(100)
+      if (error) throw error
+      return (data ?? []) as GiftDetail[]
+    },
+  })
+}
+
 /** Recipient accepts (they're credited) or declines (sender refunded). */
 export function useRespondGift() {
   const qc = useQueryClient()
@@ -58,6 +79,7 @@ export function useRespondGift() {
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: giftKey(vars.giftId) })
+      qc.invalidateQueries({ queryKey: ['gifts:received'] })
       if (session) qc.invalidateQueries({ queryKey: walletKey(session.user.id) })
       qc.invalidateQueries({ queryKey: ['ledger'] })
       qc.invalidateQueries({ queryKey: ['earnings_summary'] })
