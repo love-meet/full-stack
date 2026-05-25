@@ -7,6 +7,7 @@ import { useFeedRealtime } from '../hooks/useFeedRealtime'
 import { useUnreadNotifications, useNotificationsRealtime } from '../hooks/useNotifications'
 import { useConversations } from '../hooks/useConversations'
 import { useAuth } from '../stores/auth'
+import { useFeedPrefs } from '../stores/feedPrefs'
 import { getSurface } from '../lib/surface'
 import { avatarUrlOr } from '../lib/avatar'
 import GiftSheet from '../components/GiftSheet'
@@ -59,7 +60,7 @@ export default function FeedScreen() {
       <div
         ref={scrollerRef}
         onScroll={onScroll}
-        className="fixed top-0 left-0 right-0 bottom-16 lg:left-64 lg:bottom-0 bg-black overflow-y-scroll snap-y snap-mandatory overscroll-contain no-scrollbar"
+        className="fixed top-0 left-0 right-0 bottom-[calc(4rem_+_env(safe-area-inset-bottom))] lg:left-64 lg:bottom-0 bg-black overflow-y-scroll snap-y snap-mandatory overscroll-contain no-scrollbar"
       >
         {feed.status === 'pending' && (
           <div className="h-full grid place-items-center">
@@ -260,9 +261,9 @@ function RailButton({
 }
 
 // ---------------------------------------------------------------------------
-// Custom video player: thumbnail + center play/pause, buffering spinner,
-// bottom progress bar (scrub to seek). Tap center to play/pause. Pauses
-// automatically when scrolled off-screen.
+// Custom video player: autoplays (muted) when it's the on-screen post; tap
+// center to pause/replay; buffering spinner; bottom progress bar to scrub;
+// speaker toggle for sound. Pauses automatically when scrolled off-screen.
 // ---------------------------------------------------------------------------
 function FeedVideo({ src }: { src: string }) {
   const ref = useRef<HTMLVideoElement>(null)
@@ -270,34 +271,53 @@ function FeedVideo({ src }: { src: string }) {
   const barRef = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)
   const [buffering, setBuffering] = useState(false)
-  const [started, setStarted] = useState(false)
   const [progress, setProgress] = useState(0) // 0..1
+  const muted = useFeedPrefs((s) => s.muted)
+  const setMuted = useFeedPrefs((s) => s.setMuted)
+  // Remember if the user explicitly paused this slide, so the visibility
+  // observer doesn't fight them and re-play it while it's still on screen.
+  const userPaused = useRef(false)
 
-  // Pause + reset the "playing" state when the slide scrolls out of view.
+  // Autoplay when this post is on screen; pause when it scrolls away.
   useEffect(() => {
     const el = wrapRef.current
     const v = ref.current
     if (!el || !v) return
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (entry.intersectionRatio < 0.5 && !v.paused) {
+        const onScreen = entry.intersectionRatio >= 0.6
+        if (onScreen) {
+          userPaused.current = false
+          v.muted = useFeedPrefs.getState().muted
+          v.play().catch(() => {
+            // Autoplay with sound can be blocked — retry muted so it still plays.
+            v.muted = true
+            useFeedPrefs.getState().setMuted(true)
+            v.play().catch(() => {})
+          })
+        } else {
           v.pause()
         }
       },
-      { threshold: [0, 0.5, 1] },
+      { threshold: [0, 0.6, 1] },
     )
     io.observe(el)
     return () => io.disconnect()
   }, [])
 
-  function toggle() {
+  // Keep the element's muted flag in sync with the shared preference.
+  useEffect(() => {
+    if (ref.current) ref.current.muted = muted
+  }, [muted])
+
+  function togglePlay() {
     const v = ref.current
     if (!v) return
     if (v.paused) {
-      setStarted(true)
-      v.muted = false
+      userPaused.current = false
       void v.play().catch(() => {})
     } else {
+      userPaused.current = true
       v.pause()
     }
   }
@@ -320,6 +340,7 @@ function FeedVideo({ src }: { src: string }) {
         className="w-full h-full object-contain"
         playsInline
         loop
+        muted={muted}
         preload="metadata"
         disablePictureInPicture
         onContextMenu={(e) => e.preventDefault()}
@@ -336,11 +357,11 @@ function FeedVideo({ src }: { src: string }) {
 
       {/* Center tap target: play / pause. */}
       <button
-        onClick={toggle}
+        onClick={togglePlay}
         aria-label={playing ? 'Pause' : 'Play'}
         className="absolute inset-0 grid place-items-center"
       >
-        {/* Show the big control when paused or buffering; hide while playing cleanly. */}
+        {/* Big control shows when paused or buffering; hidden while playing. */}
         {(!playing || buffering) && (
           <span className="relative grid place-items-center w-16 h-16">
             {buffering && (
@@ -351,6 +372,15 @@ function FeedVideo({ src }: { src: string }) {
             </span>
           </span>
         )}
+      </button>
+
+      {/* Sound toggle — top-right of the post column. */}
+      <button
+        onClick={() => setMuted(!muted)}
+        aria-label={muted ? 'Unmute' : 'Mute'}
+        className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/45 grid place-items-center text-white text-base"
+      >
+        {muted ? '🔇' : '🔊'}
       </button>
 
       {/* Bottom progress bar — view + scrub. */}
@@ -367,8 +397,6 @@ function FeedVideo({ src }: { src: string }) {
           <div className="h-full rounded-full bg-white" style={{ width: `${progress * 100}%` }} />
         </div>
       </div>
-
-      {!started && <span className="sr-only">Video — tap to play</span>}
     </div>
   )
 }
