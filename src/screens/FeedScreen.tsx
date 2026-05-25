@@ -14,7 +14,7 @@ import { avatarUrlOr } from '../lib/avatar'
 import GiftSheet from '../components/GiftSheet'
 import FeedAd from '../components/FeedAd'
 import PostMoreDropdown from '../components/PostMoreDropdown'
-import { IconComment, IconShare, IconMore, IconPlay } from '../components/icons'
+import { IconComment, IconShare, IconMore, IconPlay, IconBell, IconMail, IconSearch } from '../components/icons'
 
 // Sponsored slides appear at RANDOM gaps (not a fixed count) for free-mode
 // users, so an ad can surface as the next post at any time. Gaps stay within
@@ -83,9 +83,9 @@ export default function FeedScreen() {
             </Link>
             <div className="hidden lg:block" />
             <div className="flex items-center gap-1 pointer-events-auto">
-              <TopIcon to="/search" label="Search" glyph="⌕" />
-              <TopIcon to="/notifications" label="Notifications" glyph="🔔" badge={unread} />
-              <TopIcon to="/chat" label="Chats" glyph="✉" badge={unreadChats} />
+              <TopIcon to="/search" label="Search" icon={<IconSearch size={22} />} />
+              <TopIcon to="/notifications" label="Notifications" icon={<IconBell size={22} />} badge={unread} />
+              <TopIcon to="/chat" label="Chats" icon={<IconMail size={22} />} badge={unreadChats} />
             </div>
           </div>
         </div>
@@ -139,14 +139,14 @@ export default function FeedScreen() {
   )
 }
 
-function TopIcon({ to, label, glyph, badge }: { to: string; label: string; glyph: string; badge?: number }) {
+function TopIcon({ to, label, icon, badge }: { to: string; label: string; icon: React.ReactNode; badge?: number }) {
   return (
     <Link
       to={to}
       aria-label={label}
       className="relative w-10 h-10 grid place-items-center text-white/90 hover:text-white transition-colors drop-shadow"
     >
-      <span className="text-xl">{glyph}</span>
+      {icon}
       {!!badge && badge > 0 && (
         <span className="absolute top-1 right-1 min-w-[1.05rem] h-[1.05rem] px-1 rounded-full bg-rose text-white text-[10px] font-bold grid place-items-center">
           {badge > 99 ? '99+' : badge}

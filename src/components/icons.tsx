@@ -66,6 +66,36 @@ export function IconImages({ className, size = 24, strokeWidth = 2 }: IconProps)
   )
 }
 
+/** Bell — notifications. */
+export function IconBell({ className, size = 22, strokeWidth = 2 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  )
+}
+
+/** Envelope — messages / chats. */
+export function IconMail({ className, size = 22, strokeWidth = 2 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  )
+}
+
+/** Magnifier — search. */
+export function IconSearch({ className, size = 22, strokeWidth = 2 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  )
+}
+
 /** Video camera — marks a video post. */
 export function IconVideo({ className, size = 22, strokeWidth = 2 }: IconProps) {
   return (
