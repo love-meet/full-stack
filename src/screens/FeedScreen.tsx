@@ -143,7 +143,7 @@ function FeedSlide({ post }: { post: FeedPost }) {
     <section className="relative h-full w-full snap-start snap-always grid place-items-center overflow-hidden">
       {/* Media — contained within the screen (whole media visible), centered. */}
       {post.kind === 'image' ? (
-        <img src={post.media_url} alt={post.alt_text ?? ''} className="max-h-full max-w-full w-auto h-auto object-contain" />
+        <img src={post.media_url} alt={post.alt_text ?? ''} className="w-full h-full object-contain" />
       ) : (
         <FeedVideo src={post.media_url} />
       )}
@@ -311,7 +311,7 @@ function FeedVideo({ src }: { src: string }) {
       <video
         ref={ref}
         src={src}
-        className="max-h-full max-w-full w-auto h-auto object-contain"
+        className="w-full h-full object-contain"
         playsInline
         loop
         preload="metadata"
