@@ -10,8 +10,8 @@ import { useEffect, useState } from 'react'
 // or set VITE_ADSTERRA_728x90 / VITE_ADSTERRA_160x600 in Netlify.
 
 const KEY_320x50  = (import.meta.env.VITE_ADSTERRA_320x50 as string | undefined)  || '1eeb5db8e869a87a5cd959b0d4402b18'
-const KEY_728x90  = (import.meta.env.VITE_ADSTERRA_728x90 as string | undefined)  || ''
-const KEY_160x600 = (import.meta.env.VITE_ADSTERRA_160x600 as string | undefined) || ''
+const KEY_728x90  = (import.meta.env.VITE_ADSTERRA_728x90 as string | undefined)  || '9e485555f453c6799fffa62edb74ec80'
+const KEY_160x600 = (import.meta.env.VITE_ADSTERRA_160x600 as string | undefined) || 'd31ff0d7fba6180ea5c3c316f2165700'
 
 /** A single Adsterra banner of a given size, sandboxed in an iframe. */
 function AdsterraBanner({ unitKey, w, h }: { unitKey: string; w: number; h: number }) {
