@@ -19,6 +19,8 @@ declare global {
         contentSafeAreaInset?: { top?: number; bottom?: number; left?: number; right?: number }
         onEvent?: (event: string, cb: () => void) => void
         requestFullscreen?: () => void
+        exitFullscreen?: () => void
+        isFullscreen?: boolean
       }
     }
   }

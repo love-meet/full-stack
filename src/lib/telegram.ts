@@ -15,7 +15,7 @@ function applyInsets(): void {
   const top = (wa.safeAreaInset?.top ?? 0) + (wa.contentSafeAreaInset?.top ?? 0)
   document.documentElement.style.setProperty(
     '--lm-top-inset',
-    `max(var(--lm-top-inset), ${top}px)`,
+    `max(env(safe-area-inset-top), ${top}px)`,
   )
 }
 
@@ -25,6 +25,12 @@ export function initTelegram(): void {
   if (!wa) return
   wa.ready?.()
   wa.expand?.()
+
+  // Drop out of Telegram's fullscreen so it shows its standard windowed header
+  // (which reserves space) instead of overlaying Close/⋯ over our top bar.
+  // This is the layout that already works when launched via the Open button.
+  try { wa.exitFullscreen?.() } catch { /* not in fullscreen / old client */ }
+
   applyInsets()
   // Re-apply when Telegram resizes, toggles fullscreen, or the insets change.
   for (const ev of ['safeAreaChanged', 'contentSafeAreaChanged', 'viewportChanged', 'fullscreenChanged']) {
