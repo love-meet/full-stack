@@ -27,7 +27,11 @@ export default function Shell() {
       <Sidebar />
       <main
         className={[
-          'flex-1 overflow-x-hidden',
+          // overflow-x-clip (not hidden): hidden forces overflow-y to `auto`,
+          // making this a scroll container and breaking the sticky headers on
+          // the settings/secondary screens. clip prevents sideways scroll
+          // without hijacking the vertical axis, so those headers pin to top.
+          'flex-1 overflow-x-clip',
           immersive ? 'pb-0' : 'pb-16 lg:pb-0',
         ].join(' ')}
       >
