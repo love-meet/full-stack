@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, Fragment } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useGroupPost, type GroupPost } from '../hooks/useGroupPosts'
@@ -8,6 +8,7 @@ import { useProfile } from '../hooks/useProfile'
 import { useAuth } from '../stores/auth'
 import { avatarFor, avatarUrlOr } from '../lib/avatar'
 import { cloudinaryPlaceholderUrl } from '../lib/cloudinary'
+import { InlineAd } from '../components/FeedAd'
 
 export default function GroupPostDetailScreen() {
   const { slug = '', postId = '' } = useParams<{ slug: string; postId: string }>()
@@ -100,17 +101,20 @@ export default function GroupPostDetailScreen() {
           )}
 
           <ul>
-            {roots.slice(0, rootVisible).map((c) => (
-              <li key={c.id}>
-                <CommentNode
-                  comment={c}
-                  childrenOf={childrenOf}
-                  myId={myId}
-                  depth={0}
-                  onReply={(target) => setReplyTo(target)}
-                  onDelete={(id) => del.mutate(id)}
-                />
-              </li>
+            {roots.slice(0, rootVisible).map((c, i) => (
+              <Fragment key={c.id}>
+                <li>
+                  <CommentNode
+                    comment={c}
+                    childrenOf={childrenOf}
+                    myId={myId}
+                    depth={0}
+                    onReply={(target) => setReplyTo(target)}
+                    onDelete={(id) => del.mutate(id)}
+                  />
+                </li>
+                {i === 2 && <li><InlineAd /></li>}
+              </Fragment>
             ))}
           </ul>
           {roots.length > rootVisible && (

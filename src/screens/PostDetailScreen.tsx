@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, Fragment } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../stores/auth'
@@ -17,6 +17,7 @@ import { getSurface } from '../lib/surface'
 import GiftSheet from '../components/GiftSheet'
 import PostMoreDropdown from '../components/PostMoreDropdown'
 import CommentActionsSheet from '../components/CommentActionsSheet'
+import { InlineAd } from '../components/FeedAd'
 import { IconBack, IconComment, IconShare, IconMore } from '../components/icons'
 import type { FeedPost } from '../hooks/useFeed'
 
@@ -343,8 +344,11 @@ function Comments({ postId }: { postId: string }) {
 
   return (
     <ul className="divide-y divide-white/[0.06]">
-      {shown.map((c) => (
-        <CommentRow key={c.id} postId={postId} comment={c} />
+      {shown.map((c, i) => (
+        <Fragment key={c.id}>
+          <CommentRow postId={postId} comment={c} />
+          {i === 2 && <li className="py-1"><InlineAd /></li>}
+        </Fragment>
       ))}
       {remaining > 0 && (
         <button

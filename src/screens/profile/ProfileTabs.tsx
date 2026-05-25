@@ -88,7 +88,7 @@ function PostsGrid({ userId }: { userId: string }) {
         {pages.map((page, i) => (
           <Fragment key={i}>
             {page.map((post) => (
-              <div key={post.id} className="relative aspect-square bg-surface overflow-hidden">
+              <Link key={post.id} to={`/p/${post.id}`} className="relative aspect-square bg-surface overflow-hidden block">
                 {post.kind === 'image' ? (
                   <img
                     src={post.media_url}
@@ -114,7 +114,7 @@ function PostsGrid({ userId }: { userId: string }) {
                     </span>
                   </span>
                 )}
-              </div>
+              </Link>
             ))}
           </Fragment>
         ))}

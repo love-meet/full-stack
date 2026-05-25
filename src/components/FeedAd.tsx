@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useMySubscription } from '../hooks/usePayments'
 
 // Adsterra ad units. Each ad renders in its own sandboxed iframe so multiple
 // instances don't collide (the invoke script targets the document it runs in).
@@ -68,4 +69,22 @@ export default function FeedAd() {
 export function SidebarAd() {
   if (!KEY_160x600) return null
   return <AdsterraBanner unitKey={KEY_160x600} w={160} h={600} />
+}
+
+/**
+ * A framed "Sponsored" banner for inline placement (comment lists, threads).
+ * Free users only — subscribers see nothing. Uses the same responsive unit
+ * as the feed.
+ */
+export function InlineAd() {
+  const isSubscriber = !!useMySubscription().data
+  if (isSubscriber) return null
+  return (
+    <div className="my-3 glass rounded-2xl px-3 py-3 flex flex-col items-center gap-2">
+      <span className="self-start text-[10px] font-bold uppercase tracking-[0.18em] text-ink-muted">
+        Sponsored
+      </span>
+      <FeedAd />
+    </div>
+  )
 }
