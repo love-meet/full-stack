@@ -18,6 +18,7 @@ import ChatDetailScreen from './screens/ChatDetailScreen'
 import SearchScreen from './screens/SearchScreen'
 import GamesScreen from './screens/GamesScreen'
 import PixelRushScreen from './screens/games/PixelRushScreen'
+import PlayGameScreen from './screens/games/PlayGameScreen'
 import GiftDetailScreen from './screens/GiftDetailScreen'
 import GuideScreen from './screens/GuideScreen'
 import NotificationsScreen from './screens/NotificationsScreen'
@@ -54,6 +55,9 @@ export const router = createBrowserRouter([
   // Public, crawlable SEO blog — no auth required.
   { path: '/blog', element: <BlogScreen /> },
   { path: '/blog/:slug', element: <ArticleScreen /> },
+
+  // Public game lobby — guests (no account) can join via the invite link.
+  { path: '/play/:code', element: <PlayGameScreen /> },
 
   // Signed-in but not-yet-onboarded users can reach /onboarding.
   {

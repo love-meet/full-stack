@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMySubscription } from '../../hooks/usePayments'
+import { useCreateGame } from '../../hooks/usePixelGame'
 
 const GRID = 5
 const N = GRID * GRID // 25 tiles
@@ -13,6 +14,19 @@ type Phase = 'guide' | 'mode' | 'setup' | 'preview' | 'play' | 'won'
 export default function PixelRushScreen() {
   const navigate = useNavigate()
   const isSubscriber = !!useMySubscription().data
+  const createGame = useCreateGame()
+  const [groupCount, setGroupCount] = useState(4)
+  const [createErr, setCreateErr] = useState<string | null>(null)
+
+  async function host(kind: '1v1' | 'group', max?: number) {
+    setCreateErr(null)
+    try {
+      const g = await createGame.mutateAsync({ kind, maxPlayers: max })
+      navigate(`/play/${g.invite_code}`)
+    } catch (e) {
+      setCreateErr((e as Error).message)
+    }
+  }
 
   // ----- gameplay state -----
   const [phase, setPhase] = useState<Phase>('guide')
@@ -130,17 +144,41 @@ export default function PixelRushScreen() {
                 <div className="font-extrabold text-ink">Solo practice</div>
                 <div className="text-sm text-ink-muted">Play now and beat your own best time.</div>
               </button>
-              <div className="w-full glass rounded-2xl p-4 text-left opacity-70">
-                <div className="font-extrabold text-ink flex items-center gap-2">1 v 1 <Soon /></div>
-                <div className="text-sm text-ink-muted">Invite an opponent with a link — no account needed to join.</div>
-              </div>
-              <div className="w-full glass rounded-2xl p-4 text-left opacity-70">
-                <div className="font-extrabold text-ink flex items-center gap-2">Group (teams) <Soon /></div>
-                <div className="text-sm text-ink-muted">Set the player count; we split everyone into two teams at random.</div>
+
+              <button
+                onClick={() => host('1v1')}
+                disabled={createGame.isPending}
+                className="w-full glass rounded-2xl p-4 text-left hover:ring-1 hover:ring-gold/40 disabled:opacity-60"
+              >
+                <div className="font-extrabold text-ink">1 v 1</div>
+                <div className="text-sm text-ink-muted">Create a match and invite an opponent with a link — no account needed to join.</div>
+              </button>
+
+              <div className="w-full glass rounded-2xl p-4">
+                <div className="font-extrabold text-ink">Group (teams)</div>
+                <div className="text-sm text-ink-muted">Set the player count; joiners are split into two teams at random.</div>
+                <div className="mt-3 flex items-center gap-2">
+                  <label className="text-xs text-ink-2">Players</label>
+                  <select
+                    value={groupCount}
+                    onChange={(e) => setGroupCount(Number(e.target.value))}
+                    className="lm-input w-20 py-1.5"
+                  >
+                    {[4, 6, 8, 10, 12].map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                  <button
+                    onClick={() => host('group', groupCount)}
+                    disabled={createGame.isPending}
+                    className="ml-auto rounded-full px-4 py-1.5 bg-gradient-brand text-white text-sm font-bold glow-rose disabled:opacity-60"
+                  >
+                    Create
+                  </button>
+                </div>
               </div>
             </div>
+            {createErr && <p className="mt-3 text-xs text-danger">{createErr}</p>}
             <p className="mt-3 text-[11px] text-ink-muted">
-              Live multiplayer + spectating in the feed is rolling out next. Solo is fully playable now.
+              The lobby + guest join are live. The round-by-round picture race &amp; feed spectating are rolling out next.
             </p>
           </Step>
         )}
@@ -296,10 +334,6 @@ function Step({ children }: { children: React.ReactNode }) {
       {children}
     </motion.div>
   )
-}
-
-function Soon() {
-  return <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-gold/15 text-gold">Soon</span>
 }
 
 // ---------- puzzle helpers ----------
