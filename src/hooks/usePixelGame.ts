@@ -38,8 +38,22 @@ export function playerLabel(p: GamePlayer): string {
   return p.guest_name || p.profile?.handle || p.profile?.display_name || 'Player'
 }
 
+export type GameRound = {
+  game_id: string
+  round_no: number
+  turn_user_id: string | null
+  image_url: string | null
+  status: 'awaiting_image' | 'racing' | 'done'
+  started_at: string | null
+  winner_player: string | null
+  winner_team: string | null
+  winner_time_ms: number | null
+}
+
 export const gameByCodeKey = (code: string | undefined) => ['game', 'code', code ?? null] as const
 export const gamePlayersKey = (gameId: string | undefined) => ['game-players', gameId ?? null] as const
+export const gameRoundKey = (gameId: string | undefined, round: number | undefined) =>
+  ['game-round', gameId ?? null, round ?? null] as const
 
 export function useGameByCode(code: string | undefined) {
   return useQuery<Game | null>({
@@ -82,6 +96,8 @@ export function useGamePlayers(gameId: string | undefined) {
         () => qc.invalidateQueries({ queryKey: gamePlayersKey(gameId) }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
         () => qc.invalidateQueries({ queryKey: ['game'] }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_rounds', filter: `game_id=eq.${gameId}` },
+        () => qc.invalidateQueries({ queryKey: ['game-round', gameId] }))
       .subscribe()
     return () => { void supabase.removeChannel(ch) }
   }, [gameId, qc])
@@ -129,5 +145,63 @@ export function useStartGame() {
       return data as Game
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['game'] }),
+  })
+}
+
+export function useGameRound(gameId: string | undefined, round: number | undefined) {
+  return useQuery<GameRound | null>({
+    queryKey: gameRoundKey(gameId, round),
+    enabled: !!gameId && !!round && round > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('game_rounds')
+        .select('*')
+        .eq('game_id', gameId!)
+        .eq('round_no', round!)
+        .maybeSingle()
+      if (error) throw error
+      return (data as GameRound | null) ?? null
+    },
+  })
+}
+
+export function useSetRoundImage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { gameId: string; round: number; imageUrl: string }) => {
+      const { data, error } = await supabase
+        .rpc('set_round_image', { p_game_id: vars.gameId, p_round: vars.round, p_image: vars.imageUrl })
+        .select().single()
+      if (error) throw error
+      return data as GameRound
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: gameRoundKey(v.gameId, v.round) }),
+  })
+}
+
+export function useSubmitSolve() {
+  return useMutation({
+    mutationFn: async (vars: { gameId: string; round: number; timeMs: number }) => {
+      const { data, error } = await supabase
+        .rpc('submit_solve', { p_game_id: vars.gameId, p_round: vars.round, p_time_ms: vars.timeMs })
+        .select().single()
+      if (error) throw error
+      return data as GameRound
+    },
+  })
+}
+
+export function useAdvanceRound() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (gameId: string) => {
+      const { data, error } = await supabase.rpc('advance_round', { p_game_id: gameId }).select().single()
+      if (error) throw error
+      return data as Game
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['game'] })
+      qc.invalidateQueries({ queryKey: ['game-round'] })
+    },
   })
 }

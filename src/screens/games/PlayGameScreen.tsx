@@ -8,9 +8,16 @@ import {
   useGamePlayers,
   useJoinGame,
   useStartGame,
+  useGameRound,
+  useSetRoundImage,
+  useSubmitSolve,
+  useAdvanceRound,
   playerLabel,
   type GamePlayer,
+  type Game,
 } from '../../hooks/usePixelGame'
+import { useUploadChatMedia } from '../../hooks/useUploadChatMedia'
+import PixelBoard, { seedFor } from '../../components/games/PixelBoard'
 import { avatarUrlOr } from '../../lib/avatar'
 
 /**
@@ -106,27 +113,7 @@ export default function PlayGameScreen() {
 
   // ----- active / finished -----
   if (g.status === 'active' || g.status === 'finished') {
-    return (
-      <Frame>
-        <Card>
-          <div className="text-center">
-            <div className="text-5xl">{g.status === 'finished' ? '🏆' : '🎮'}</div>
-            <h1 className="mt-2 text-xl font-extrabold text-gradient-warm">
-              {g.status === 'finished' ? 'Game over' : 'Game on!'}
-            </h1>
-            <p className="text-sm text-ink-2 mt-1">
-              {g.status === 'finished'
-                ? 'Thanks for playing Pixel Rush.'
-                : `Round ${g.current_round} of ${g.rounds_total}.`}
-            </p>
-          </div>
-          <PlayerList players={list} kind={g.kind} />
-          <p className="mt-4 text-[12px] text-ink-muted text-center">
-            The live round-by-round picture race is rolling out next. Your lobby and scores are saved.
-          </p>
-        </Card>
-      </Frame>
-    )
+    return <Frame><Match g={g} players={list} myId={myId} /></Frame>
   }
 
   // ----- lobby -----
@@ -208,6 +195,144 @@ function PlayerRow({ p }: { p: GamePlayer }) {
       <span className="text-sm text-ink truncate">{playerLabel(p)}</span>
       {p.is_host && <span className="text-[9px] font-bold uppercase tracking-wider text-gold">host</span>}
     </li>
+  )
+}
+
+// ---------- Match (active / finished) ----------
+function Match({ g, players, myId }: { g: Game; players: GamePlayer[]; myId: string | null }) {
+  const round = useGameRound(g.id, g.current_round)
+  const setImg = useSetRoundImage()
+  const submit = useSubmitSolve()
+  const advance = useAdvanceRound()
+  const upload = useUploadChatMedia()
+
+  const me = players.find((p) => p.user_id === myId)
+  const amPlayer = !!me
+  const isHost = !!me?.is_host
+  const r = round.data
+
+  async function pickRoundImage(file: File | undefined) {
+    if (!file || !r) return
+    try {
+      const up = await upload.mutateAsync(file)
+      await setImg.mutateAsync({ gameId: g.id, round: r.round_no, imageUrl: up.url })
+    } catch { /* shown via mutation state */ }
+  }
+
+  // Finished
+  if (g.status === 'finished') {
+    const champ = g.kind === '1v1'
+      ? players.find((p) => p.user_id === g.winner_player)
+      : null
+    return (
+      <Card>
+        <div className="text-center">
+          <div className="text-6xl">🏆</div>
+          <h1 className="mt-2 text-2xl font-extrabold text-gradient-warm">
+            {g.kind === '1v1'
+              ? `${champ ? playerLabel(champ) : 'Someone'} wins!`
+              : `Team ${g.winner_team ?? '—'} wins!`}
+          </h1>
+        </div>
+        <Scoreboard players={players} kind={g.kind} />
+      </Card>
+    )
+  }
+
+  const turnPlayer = players.find((p) => p.user_id === r?.turn_user_id)
+  const winner = players.find((p) => p.user_id === r?.winner_player)
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold text-ink">Round {g.current_round}/{g.rounds_total}</span>
+        <span className="text-[11px] text-ink-muted">{g.kind === '1v1' ? '1 v 1' : 'Teams'}</span>
+      </div>
+
+      <Scoreboard players={players} kind={g.kind} />
+
+      <div className="mt-4">
+        {!r || round.isPending ? (
+          <Spinner />
+        ) : r.status === 'awaiting_image' ? (
+          r.turn_user_id === myId ? (
+            <div className="text-center">
+              <p className="text-sm text-ink-2 mb-3">Your turn — pick a picture for everyone to race.</p>
+              <label className="inline-block rounded-full px-6 py-3 bg-gradient-brand text-white font-bold glow-rose cursor-pointer">
+                {upload.isPending || setImg.isPending ? 'Uploading…' : 'Upload picture'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => pickRoundImage(e.target.files?.[0])} />
+              </label>
+            </div>
+          ) : (
+            <p className="text-center text-sm text-ink-muted py-6">
+              Waiting for <b className="text-ink">{turnPlayer ? playerLabel(turnPlayer) : 'the next player'}</b> to pick a picture…
+            </p>
+          )
+        ) : r.status === 'racing' ? (
+          amPlayer ? (
+            <PixelBoard
+              image={r.image_url!}
+              seed={seedFor(g.id, r.round_no)}
+              startedAt={r.started_at ? Date.parse(r.started_at) : Date.now()}
+              locked={false}
+              onSolve={(timeMs) => submit.mutate({ gameId: g.id, round: r.round_no, timeMs })}
+            />
+          ) : (
+            <p className="text-center text-sm text-ink-muted py-6">🍿 Race in progress — you're spectating.</p>
+          )
+        ) : (
+          // done
+          <div className="text-center py-4">
+            <div className="text-4xl">🎉</div>
+            <p className="mt-2 font-extrabold text-ink">
+              {winner ? (winner.user_id === myId ? 'You won the round!' : `${playerLabel(winner)} won the round`) : 'Round over'}
+            </p>
+            {r.winner_time_ms != null && <p className="text-sm text-ink-muted">{(r.winner_time_ms / 1000).toFixed(1)}s</p>}
+            {isHost ? (
+              <button
+                onClick={() => advance.mutate(g.id)}
+                disabled={advance.isPending}
+                className="mt-4 rounded-full px-6 py-2.5 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60"
+              >
+                {advance.isPending ? '…' : g.current_round >= g.rounds_total ? 'Finish game' : 'Next round'}
+              </button>
+            ) : (
+              <p className="mt-3 text-sm text-ink-muted">Waiting for the host…</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {(submit.error || setImg.error) && (
+        <p className="mt-3 text-xs text-danger text-center">{((submit.error || setImg.error) as Error).message}</p>
+      )}
+    </Card>
+  )
+}
+
+function Scoreboard({ players, kind }: { players: GamePlayer[]; kind: string }) {
+  if (kind === 'group') {
+    const a = players.filter((p) => p.team === 'A').reduce((s, p) => s + p.score, 0)
+    const b = players.filter((p) => p.team === 'B').reduce((s, p) => s + p.score, 0)
+    return (
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="glass rounded-2xl p-3 text-center"><div className="text-[11px] text-rose font-bold">Team A</div><div className="text-2xl font-extrabold text-ink">{a}</div></div>
+        <div className="glass rounded-2xl p-3 text-center"><div className="text-[11px] text-rose font-bold">Team B</div><div className="text-2xl font-extrabold text-ink">{b}</div></div>
+      </div>
+    )
+  }
+  return (
+    <ul className="mt-3 space-y-1.5">
+      {[...players].sort((x, y) => y.score - x.score).map((p) => (
+        <li key={p.id} className="flex items-center justify-between glass rounded-xl px-3 py-2">
+          <span className="flex items-center gap-2 min-w-0">
+            <img src={avatarUrlOr(p.profile?.avatar_url)} alt="" className="w-6 h-6 rounded-full object-cover" />
+            <span className="text-sm text-ink truncate">{playerLabel(p)}</span>
+          </span>
+          <span className="text-sm font-extrabold text-gradient-warm">{p.score}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
