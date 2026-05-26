@@ -47,9 +47,9 @@ export default function PixelBoard({
   const raceStart = startedAt + PREVIEW_MS
   const [order, setOrder] = useState<number[]>(() => identity(n))
   const [phase, setPhase] = useState<'preview' | 'play' | 'solved'>('preview')
-  const [selected, setSelected] = useState<number | null>(null)
   const [now, setNow] = useState(Date.now())
   const solvedRef = useRef(false)
+  const gridRef = useRef<HTMLDivElement>(null)
 
   // Broadcast progress on every order change while racing.
   useEffect(() => {
@@ -70,13 +70,14 @@ export default function PixelBoard({
 
   const countdown = Math.max(0, Math.ceil((raceStart - now) / 1000))
 
-  function tap(slot: number) {
-    if (phase !== 'play' || locked) return
-    if (selected === null) { setSelected(slot); return }
-    if (selected === slot) { setSelected(null); return }
+  const canPlay = phase === 'play' && !locked
+
+  // Swap the tiles at two slots (the dragged one and wherever it was dropped).
+  function swapSlots(from: number, to: number) {
+    if (!canPlay || from === to) return
     setOrder((prev) => {
       const next = [...prev]
-      ;[next[selected], next[slot]] = [next[slot], next[selected]]
+      ;[next[from], next[to]] = [next[to], next[from]]
       if (!solvedRef.current && isSolved(next)) {
         solvedRef.current = true
         setPhase('solved')
@@ -84,7 +85,18 @@ export default function PixelBoard({
       }
       return next
     })
-    setSelected(null)
+  }
+
+  // Which slot a tile was dropped over, from its drag offset + grid geometry.
+  function dropTarget(slot: number, offX: number, offY: number): number {
+    const el = gridRef.current
+    if (!el) return slot
+    const rect = el.getBoundingClientRect()
+    const cellW = rect.width / grid
+    const cellH = rect.height / grid
+    const col = clamp((slot % grid) + Math.round(offX / cellW), 0, grid - 1)
+    const row = clamp(Math.floor(slot / grid) + Math.round(offY / cellH), 0, grid - 1)
+    return row * grid + col
   }
 
   const showWhole = phase === 'preview' || phase === 'solved'
@@ -93,6 +105,7 @@ export default function PixelBoard({
   return (
     <div className="relative aspect-square w-full max-w-sm mx-auto select-none">
       <div
+        ref={gridRef}
         className="grid gap-[3px] w-full h-full"
         style={{ gridTemplateColumns: `repeat(${grid}, minmax(0, 1fr))` }}
       >
@@ -103,12 +116,15 @@ export default function PixelBoard({
             <motion.button
               key={tile}
               layout
+              drag={canPlay}
+              dragSnapToOrigin
+              dragElastic={0.12}
+              whileDrag={{ scale: 1.1, zIndex: 30, boxShadow: '0 10px 28px rgba(0,0,0,0.45)' }}
+              onDragEnd={(_e, info) => swapSlots(slot, dropTarget(slot, info.offset.x, info.offset.y))}
               transition={{ type: 'spring', stiffness: 600, damping: 40 }}
-              onClick={() => tap(slot)}
               className={[
-                'relative rounded-[5px] overflow-hidden',
-                selected === slot ? 'ring-2 ring-gold z-10' : '',
-                showWhole || locked ? 'pointer-events-none' : '',
+                'relative rounded-[5px] overflow-hidden touch-none',
+                showWhole || locked ? 'pointer-events-none' : 'cursor-grab active:cursor-grabbing',
               ].join(' ')}
               style={{
                 backgroundImage: `url(${image})`,
@@ -139,6 +155,7 @@ export default function PixelBoard({
 }
 
 // ---- helpers ----
+function clamp(v: number, lo: number, hi: number): number { return Math.min(hi, Math.max(lo, v)) }
 function identity(n: number): number[] { return Array.from({ length: n }, (_, i) => i) }
 function isSolved(a: number[]): boolean { return a.every((v, i) => v === i) }
 

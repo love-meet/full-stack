@@ -394,9 +394,9 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
                   <span className="text-ink-muted">{gridForRound(r.round_no)}×{gridForRound(r.round_no)}</span>
                 </div>
               </div>
-              {/* Draggable grid */}
-              <motion.div drag dragMomentum={false} dragElastic={0.12} whileDrag={{ scale: 1.03 }} className="touch-none cursor-grab active:cursor-grabbing">
-                <div className="text-center text-[10px] text-ink-muted mb-1">✥ drag to reposition</div>
+              {/* Drag a tile onto another to swap them. */}
+              <div>
+                <div className="text-center text-[10px] text-ink-muted mb-1">✥ drag a tile onto another to swap</div>
                 <PixelBoard
                   image={r.image_url!}
                   seed={seedFor(g.id, r.round_no)}
@@ -406,7 +406,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
                   onSolve={(timeMs) => submit.mutate({ gameId: g.id, round: r.round_no, timeMs })}
                   onProgress={(order, done) => { setMyOrder(order); if (myId) sendProgress(myId, order, done) }}
                 />
-              </motion.div>
+              </div>
             </div>
           ) : (
             <SpectatorBoards gameId={g.id} round={r.round_no} image={r.image_url!} players={players} progress={progress} />
