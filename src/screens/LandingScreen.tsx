@@ -135,8 +135,9 @@ export default function LandingScreen() {
             variants={rise}
             className="mt-4 text-base sm:text-lg text-ink-2 max-w-md mx-auto lg:mx-0 leading-relaxed"
           >
-            Real conversations, real connections. Chat in realtime, jump into
-            rooms, and send a little something — on web or inside Telegram.
+            Love meet is the free dating app to meet new people, find your love
+            match, chat in real time, play love games and get relationship
+            advice — on the web or inside Telegram.
           </motion.p>
 
           {/* Glass auth card */}
