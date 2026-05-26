@@ -15,6 +15,7 @@ import {
   useReassignTurn,
   useCreateGame,
   useCloseGame,
+  useLeaveGame,
   playerLabel,
   type GamePlayer,
   type Game,
@@ -52,6 +53,7 @@ export default function PlayGameScreen() {
   const join = useJoinGame()
   const start = useStartGame()
   const closeGame = useCloseGame()
+  const leaveGame = useLeaveGame()
   const online = useGamePresence(game.data?.id, session?.user.id ?? null)
 
   const [name, setName] = useState('')
@@ -72,10 +74,28 @@ export default function PlayGameScreen() {
 
   async function doClose() {
     if (!g) return
-    if (!window.confirm('Close this game for everyone? It will be deleted.')) return
+    if (!window.confirm('Close this game for everyone?')) return
     try { await closeGame.mutateAsync(g.id); navigate('/games') }
     catch (e) { alert((e as Error).message) }
   }
+
+  async function doLeave() {
+    if (!g) return
+    if (!window.confirm('Leave this game?')) return
+    try { await leaveGame.mutateAsync(g.id) } catch { /* ignore */ }
+    navigate('/')
+  }
+
+  // Host heartbeat — while the host is on the page, ping so the server knows
+  // they're present. If they leave, the sweep auto-closes the game (~45s).
+  useEffect(() => {
+    if (!isHost || !g || g.status === 'finished') return
+    const id = g.id
+    const ping = () => { void supabase.rpc('host_heartbeat', { p_game_id: id }) }
+    ping()
+    const iv = window.setInterval(ping, 15_000)
+    return () => window.clearInterval(iv)
+  }, [isHost, g])
 
   async function doJoin() {
     if (!code) return
@@ -133,11 +153,7 @@ export default function PlayGameScreen() {
 
   // ----- active / finished -----
   if (g.status === 'active' || g.status === 'finished') {
-    return (
-      <Frame>
-        <Match g={g} players={list} myId={myId} online={online} viewers={viewers} onClose={doClose} />
-      </Frame>
-    )
+    return <Match g={g} players={list} myId={myId} online={online} viewers={viewers} onClose={doClose} onLeave={doLeave} />
   }
 
   // ----- lobby -----
@@ -244,7 +260,9 @@ function PlayerRow({ p, online }: { p: GamePlayer; online: boolean }) {
 }
 
 // ---------- Match (active / finished) ----------
-function Match({ g, players, myId, online, viewers, onClose }: { g: Game; players: GamePlayer[]; myId: string | null; online: Set<string>; viewers: number; onClose: () => void }) {
+function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
+  g: Game; players: GamePlayer[]; myId: string | null; online: Set<string>; viewers: number; onClose: () => void; onLeave: () => void
+}) {
   const navigate = useNavigate()
   const round = useGameRound(g.id, g.current_round)
   const setImg = useSetRoundImage()
@@ -275,33 +293,35 @@ function Match({ g, players, myId, online, viewers, onClose }: { g: Game; player
     } catch { /* shown via mutation state */ }
   }
 
-  // Finished
+  // ----- Finished — "Game over", with a winner if there was one. -----
   if (g.status === 'finished') {
-    const champ = g.kind === '1v1'
-      ? players.find((p) => p.user_id === g.winner_player)
-      : null
+    const hasWinner = !!(g.winner_player || g.winner_team)
+    const champ = players.find((p) => p.user_id === g.winner_player)
     return (
-      <Card>
-        <div className="text-center">
-          <div className="text-6xl">🏆</div>
-          <h1 className="mt-2 text-2xl font-extrabold text-gradient-warm">
-            {g.kind === '1v1'
-              ? `${champ ? playerLabel(champ) : 'Someone'} wins!`
-              : `Team ${g.winner_team ?? '—'} wins!`}
-          </h1>
-        </div>
-        <Scoreboard players={players} kind={g.kind} online={online} />
-        <div className="mt-5 flex flex-col gap-2">
-          {isHost && (
-            <button onClick={rematch} disabled={createGame.isPending} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
-              {createGame.isPending ? '…' : 'Rematch'}
+      <Frame>
+        <Card>
+          <div className="text-center">
+            <div className="text-6xl">{hasWinner ? '🏆' : '🏁'}</div>
+            <h1 className="mt-2 text-2xl font-extrabold text-gradient-warm">
+              {hasWinner
+                ? (g.kind === '1v1' ? `${champ ? playerLabel(champ) : 'Someone'} wins!` : `Team ${g.winner_team} wins!`)
+                : 'Game over'}
+            </h1>
+            {!hasWinner && <p className="text-sm text-ink-2 mt-1">The game has ended.</p>}
+          </div>
+          <Scoreboard players={players} kind={g.kind} online={online} />
+          <div className="mt-5 flex flex-col gap-2">
+            {isHost && (
+              <button onClick={rematch} disabled={createGame.isPending} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
+                {createGame.isPending ? '…' : 'Rematch'}
+              </button>
+            )}
+            <button onClick={() => navigate('/games')} className="w-full rounded-full py-3 glass text-ink-2 hover:text-ink font-semibold">
+              Back to games
             </button>
-          )}
-          <button onClick={() => navigate('/games')} className="w-full rounded-full py-3 glass text-ink-2 hover:text-ink font-semibold">
-            Back to games
-          </button>
-        </div>
-      </Card>
+          </div>
+        </Card>
+      </Frame>
     )
   }
 
@@ -309,26 +329,34 @@ function Match({ g, players, myId, online, viewers, onClose }: { g: Game; player
   const winner = players.find((p) => p.user_id === r?.winner_player)
 
   return (
-    <Card>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-ink">Round {g.current_round}/{g.rounds_total}</span>
-        <div className="flex items-center gap-3">
-          {viewers > 0 && <span className="text-[11px] text-ink-muted">👁 {viewers}</span>}
-          <span className="text-[11px] text-ink-muted">{g.kind === '1v1' ? '1 v 1' : 'Teams'}</span>
-          {isHost && (
-            <button onClick={onClose} className="text-[11px] font-bold text-ink-muted hover:text-danger">Close</button>
-          )}
+    <div className="min-h-screen bg-surface text-ink">
+      {/* Fixed VS header — opponents + scores + close/leave. */}
+      <div className="fixed top-0 left-0 right-0 z-20 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
+        <div className="max-w-md mx-auto px-3 py-2">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-bold text-ink-2">Round {g.current_round}/{g.rounds_total}</span>
+            <div className="flex items-center gap-3">
+              {viewers > 0 && <span className="text-[11px] text-ink-muted">👁 {viewers}</span>}
+              {isHost ? (
+                <button onClick={onClose} className="text-[11px] font-bold text-ink-muted hover:text-danger">Close</button>
+              ) : amPlayer ? (
+                <button onClick={onLeave} className="text-[11px] font-bold text-ink-muted hover:text-danger">Leave</button>
+              ) : (
+                <button onClick={() => navigate('/feed')} className="text-[11px] font-bold text-ink-muted hover:text-ink">Exit</button>
+              )}
+            </div>
+          </div>
+          <VSHeader players={players} kind={g.kind} online={online} />
         </div>
       </div>
 
-      <Scoreboard players={players} kind={g.kind} online={online} />
-
-      <div className="mt-4">
+      {/* Content (clears the fixed header). */}
+      <div className="max-w-md mx-auto px-4" style={{ paddingTop: 'calc(var(--lm-top-inset) + 6.5rem)', paddingBottom: '3rem' }}>
         {!r || round.isPending ? (
           <Spinner />
         ) : r.status === 'awaiting_image' ? (
           r.turn_user_id === myId ? (
-            <div className="text-center">
+            <div className="text-center py-8">
               <p className="text-sm text-ink-2 mb-3">Your turn — pick a picture for everyone to race.</p>
               <label className="inline-block rounded-full px-6 py-3 bg-gradient-brand text-white font-bold glow-rose cursor-pointer">
                 {upload.isPending || setImg.isPending ? 'Uploading…' : 'Upload picture'}
@@ -336,75 +364,107 @@ function Match({ g, players, myId, online, viewers, onClose }: { g: Game; player
               </label>
             </div>
           ) : (
-            <div className="text-center py-6">
+            <div className="text-center py-8">
               <p className="text-sm text-ink-muted">
                 Waiting for <b className="text-ink">{turnPlayer ? playerLabel(turnPlayer) : 'the next player'}</b> to pick a picture…
                 {turnPlayer && !online.has(turnPlayer.user_id) && <span className="block text-danger mt-1">They seem to have left — skip them.</span>}
               </p>
               {isHost && (
-                <button
-                  onClick={() => reassign.mutate({ gameId: g.id, round: r.round_no })}
-                  disabled={reassign.isPending}
-                  className="mt-3 text-xs font-bold rounded-full px-4 py-1.5 glass text-ink-2 hover:text-ink disabled:opacity-60"
-                >
+                <button onClick={() => reassign.mutate({ gameId: g.id, round: r.round_no })} disabled={reassign.isPending}
+                  className="mt-3 text-xs font-bold rounded-full px-4 py-1.5 glass text-ink-2 hover:text-ink disabled:opacity-60">
                   Skip player →
                 </button>
               )}
             </div>
           )
         ) : r.status === 'racing' ? (
-          <>
-            {amPlayer ? (
-              <PixelBoard
-                image={r.image_url!}
-                seed={seedFor(g.id, r.round_no)}
-                startedAt={r.started_at ? Date.parse(r.started_at) : Date.now()}
-                locked={false}
-                onSolve={(timeMs) => submit.mutate({ gameId: g.id, round: r.round_no, timeMs })}
-                onProgress={(order, done) => { if (myId) sendProgress(myId, order, done) }}
-              />
-            ) : (
-              <SpectatorBoards gameId={g.id} round={r.round_no} image={r.image_url!} players={players} progress={progress} />
-            )}
-            {isHost && (
-              <div className="mt-3 text-center">
-                <button
-                  onClick={() => advance.mutate(g.id)}
-                  disabled={advance.isPending}
-                  className="text-xs font-bold rounded-full px-4 py-1.5 glass text-ink-2 hover:text-ink disabled:opacity-60"
-                >
-                  End round (no winner) →
-                </button>
+          amPlayer ? (
+            <div>
+              {/* Target picture */}
+              <div className="text-center mb-3">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">Rebuild this picture</div>
+                <img src={r.image_url!} alt="" className="mx-auto w-24 aspect-square object-cover rounded-xl ring-1 ring-white/10" />
               </div>
-            )}
-          </>
+              {/* Draggable grid */}
+              <motion.div drag dragMomentum={false} dragElastic={0.12} whileDrag={{ scale: 1.03 }} className="touch-none cursor-grab active:cursor-grabbing">
+                <div className="text-center text-[10px] text-ink-muted mb-1">✥ drag to reposition</div>
+                <PixelBoard
+                  image={r.image_url!}
+                  seed={seedFor(g.id, r.round_no)}
+                  startedAt={r.started_at ? Date.parse(r.started_at) : Date.now()}
+                  locked={false}
+                  onSolve={(timeMs) => submit.mutate({ gameId: g.id, round: r.round_no, timeMs })}
+                  onProgress={(order, done) => { if (myId) sendProgress(myId, order, done) }}
+                />
+              </motion.div>
+            </div>
+          ) : (
+            <SpectatorBoards gameId={g.id} round={r.round_no} image={r.image_url!} players={players} progress={progress} />
+          )
         ) : (
-          // done
-          <div className="text-center py-4">
+          // done — round won, waiting to advance
+          <div className="text-center py-8">
             <div className="text-4xl">🎉</div>
             <p className="mt-2 font-extrabold text-ink">
               {winner ? (winner.user_id === myId ? 'You won the round!' : `${playerLabel(winner)} won the round`) : 'Round over'}
             </p>
             {r.winner_time_ms != null && <p className="text-sm text-ink-muted">{(r.winner_time_ms / 1000).toFixed(1)}s</p>}
             {isHost ? (
-              <button
-                onClick={() => advance.mutate(g.id)}
-                disabled={advance.isPending}
-                className="mt-4 rounded-full px-6 py-2.5 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60"
-              >
+              <button onClick={() => advance.mutate(g.id)} disabled={advance.isPending}
+                className="mt-4 rounded-full px-6 py-2.5 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
                 {advance.isPending ? '…' : g.current_round >= g.rounds_total ? 'Finish game' : 'Next round'}
               </button>
             ) : (
-              <p className="mt-3 text-sm text-ink-muted">Waiting for the host…</p>
+              <p className="mt-3 text-sm text-ink-muted">Next round starting…</p>
             )}
           </div>
         )}
-      </div>
 
-      {(submit.error || setImg.error) && (
-        <p className="mt-3 text-xs text-danger text-center">{((submit.error || setImg.error) as Error).message}</p>
-      )}
-    </Card>
+        {(submit.error || setImg.error) && (
+          <p className="mt-3 text-xs text-danger text-center">{((submit.error || setImg.error) as Error).message}</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** The opponents bar: A — VS — B with avatars + scores (or team totals). */
+function VSHeader({ players, kind, online }: { players: GamePlayer[]; kind: string; online: Set<string> }) {
+  if (kind === 'group') {
+    const a = players.filter((p) => p.team === 'A').reduce((s, p) => s + p.score, 0)
+    const b = players.filter((p) => p.team === 'B').reduce((s, p) => s + p.score, 0)
+    return (
+      <div className="flex items-center justify-between">
+        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team A</div><div className="text-2xl font-extrabold text-ink">{a}</div></div>
+        <span className="text-sm font-extrabold text-gradient-warm px-2">VS</span>
+        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team B</div><div className="text-2xl font-extrabold text-ink">{b}</div></div>
+      </div>
+    )
+  }
+  const a = players[0]
+  const b = players[1]
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <PlayerChip p={a} online={!!a && online.has(a.user_id)} align="left" />
+      <span className="text-sm font-extrabold text-gradient-warm shrink-0">VS</span>
+      <PlayerChip p={b} online={!!b && online.has(b.user_id)} align="right" />
+    </div>
+  )
+}
+
+function PlayerChip({ p, online, align }: { p?: GamePlayer; online: boolean; align: 'left' | 'right' }) {
+  if (!p) return <div className="flex-1 text-center text-[11px] text-ink-muted">waiting…</div>
+  return (
+    <div className={`flex-1 flex items-center gap-2 min-w-0 ${align === 'right' ? 'flex-row-reverse text-right' : ''}`}>
+      <span className="relative shrink-0">
+        <img src={avatarUrlOr(p.profile?.avatar_url)} alt="" className="w-9 h-9 rounded-full object-cover" />
+        <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-surface-2 ${online ? 'bg-success' : 'bg-ink-muted'}`} />
+      </span>
+      <div className="min-w-0">
+        <div className="text-xs font-bold text-ink truncate">{playerLabel(p)}</div>
+        <div className="text-lg font-extrabold text-gradient-warm leading-none">{p.score}</div>
+      </div>
+    </div>
   )
 }
 

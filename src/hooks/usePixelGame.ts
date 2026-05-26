@@ -55,12 +55,19 @@ export const gamePlayersKey = (gameId: string | undefined) => ['game-players', g
 export const gameRoundKey = (gameId: string | undefined, round: number | undefined) =>
   ['game-round', gameId ?? null, round ?? null] as const
 
+export type LivePlayer = {
+  user_id: string
+  team: string | null
+  joined_at: string
+  profile: { handle: string | null; display_name: string | null; avatar_url: string | null } | null
+}
 export type LiveGame = {
   id: string
   invite_code: string
   kind: GameKind
   current_round: number
   rounds_total: number
+  players: LivePlayer[]
 }
 
 /** Currently-active games, newest first — surfaced in the feed for spectating. */
@@ -71,12 +78,12 @@ export function useLiveGames() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('games')
-        .select('id, invite_code, kind, current_round, rounds_total')
+        .select('id, invite_code, kind, current_round, rounds_total, players:game_players(user_id, team, joined_at, profile:user_id(handle, display_name, avatar_url))')
         .eq('status', 'active')
         .order('started_at', { ascending: false })
         .limit(5)
       if (error) throw error
-      return (data ?? []) as LiveGame[]
+      return (data ?? []) as unknown as LiveGame[]
     },
   })
 }
@@ -221,6 +228,15 @@ export function useCloseGame() {
   return useMutation({
     mutationFn: async (gameId: string) => {
       const { error } = await supabase.rpc('close_game', { p_game_id: gameId })
+      if (error) throw error
+    },
+  })
+}
+
+export function useLeaveGame() {
+  return useMutation({
+    mutationFn: async (gameId: string) => {
+      const { error } = await supabase.rpc('leave_game', { p_game_id: gameId })
       if (error) throw error
     },
   })

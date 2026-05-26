@@ -199,8 +199,20 @@ function LiveGameSlide({ game }: { game: LiveGame }) {
         <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-white bg-rose rounded-full px-3 py-1">
           <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Live
         </span>
-        <div className="mt-5 text-6xl">🧩</div>
-        <h2 className="mt-3 text-2xl font-extrabold text-gradient-warm">Pixel Rush</h2>
+
+        {/* Two players, 50/50 with VS in the middle. */}
+        {(() => {
+          const ps = [...(game.players ?? [])].sort((a, b) => a.joined_at.localeCompare(b.joined_at))
+          return (
+            <div className="mt-6 flex items-center justify-center gap-4">
+              <PlayerFace p={ps[0]} />
+              <span className="text-2xl font-extrabold text-gradient-warm shrink-0">VS</span>
+              <PlayerFace p={ps[1]} />
+            </div>
+          )
+        })()}
+
+        <h2 className="mt-4 text-xl font-extrabold text-gradient-warm">Pixel Rush</h2>
         <p className="mt-1 text-sm text-ink-2">
           {game.kind === '1v1' ? '1 v 1 match' : 'Team match'} · Round {game.current_round}/{game.rounds_total}
         </p>
@@ -210,6 +222,20 @@ function LiveGameSlide({ game }: { game: LiveGame }) {
         <p className="mt-3 text-[11px] text-white/55">Spectators can watch — only players can play.</p>
       </Link>
     </section>
+  )
+}
+
+function PlayerFace({ p }: { p?: LiveGame['players'][number] }) {
+  const label = p?.profile?.handle ?? p?.profile?.display_name ?? 'Player'
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <img
+        src={avatarUrlOr(p?.profile?.avatar_url)}
+        alt=""
+        className="w-20 h-20 rounded-full object-cover ring-2 ring-white/30"
+      />
+      <span className="text-xs text-white/90 max-w-20 truncate">@{label}</span>
+    </div>
   )
 }
 
