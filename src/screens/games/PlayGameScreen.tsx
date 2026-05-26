@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../stores/auth'
@@ -12,6 +12,8 @@ import {
   useSetRoundImage,
   useSubmitSolve,
   useAdvanceRound,
+  useReassignTurn,
+  useCreateGame,
   playerLabel,
   type GamePlayer,
   type Game,
@@ -200,11 +202,21 @@ function PlayerRow({ p }: { p: GamePlayer }) {
 
 // ---------- Match (active / finished) ----------
 function Match({ g, players, myId }: { g: Game; players: GamePlayer[]; myId: string | null }) {
+  const navigate = useNavigate()
   const round = useGameRound(g.id, g.current_round)
   const setImg = useSetRoundImage()
   const submit = useSubmitSolve()
   const advance = useAdvanceRound()
+  const reassign = useReassignTurn()
+  const createGame = useCreateGame()
   const upload = useUploadChatMedia()
+
+  async function rematch() {
+    try {
+      const ng = await createGame.mutateAsync({ kind: g.kind, maxPlayers: g.max_players })
+      navigate(`/play/${ng.invite_code}`)
+    } catch { /* shown via state */ }
+  }
 
   const me = players.find((p) => p.user_id === myId)
   const amPlayer = !!me
@@ -235,6 +247,16 @@ function Match({ g, players, myId }: { g: Game; players: GamePlayer[]; myId: str
           </h1>
         </div>
         <Scoreboard players={players} kind={g.kind} />
+        <div className="mt-5 flex flex-col gap-2">
+          {isHost && (
+            <button onClick={rematch} disabled={createGame.isPending} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
+              {createGame.isPending ? '…' : 'Rematch'}
+            </button>
+          )}
+          <button onClick={() => navigate('/games')} className="w-full rounded-full py-3 glass text-ink-2 hover:text-ink font-semibold">
+            Back to games
+          </button>
+        </div>
       </Card>
     )
   }
@@ -264,22 +286,46 @@ function Match({ g, players, myId }: { g: Game; players: GamePlayer[]; myId: str
               </label>
             </div>
           ) : (
-            <p className="text-center text-sm text-ink-muted py-6">
-              Waiting for <b className="text-ink">{turnPlayer ? playerLabel(turnPlayer) : 'the next player'}</b> to pick a picture…
-            </p>
+            <div className="text-center py-6">
+              <p className="text-sm text-ink-muted">
+                Waiting for <b className="text-ink">{turnPlayer ? playerLabel(turnPlayer) : 'the next player'}</b> to pick a picture…
+              </p>
+              {isHost && (
+                <button
+                  onClick={() => reassign.mutate({ gameId: g.id, round: r.round_no })}
+                  disabled={reassign.isPending}
+                  className="mt-3 text-xs font-bold rounded-full px-4 py-1.5 glass text-ink-2 hover:text-ink disabled:opacity-60"
+                >
+                  Skip player →
+                </button>
+              )}
+            </div>
           )
         ) : r.status === 'racing' ? (
-          amPlayer ? (
-            <PixelBoard
-              image={r.image_url!}
-              seed={seedFor(g.id, r.round_no)}
-              startedAt={r.started_at ? Date.parse(r.started_at) : Date.now()}
-              locked={false}
-              onSolve={(timeMs) => submit.mutate({ gameId: g.id, round: r.round_no, timeMs })}
-            />
-          ) : (
-            <p className="text-center text-sm text-ink-muted py-6">🍿 Race in progress — you're spectating.</p>
-          )
+          <>
+            {amPlayer ? (
+              <PixelBoard
+                image={r.image_url!}
+                seed={seedFor(g.id, r.round_no)}
+                startedAt={r.started_at ? Date.parse(r.started_at) : Date.now()}
+                locked={false}
+                onSolve={(timeMs) => submit.mutate({ gameId: g.id, round: r.round_no, timeMs })}
+              />
+            ) : (
+              <p className="text-center text-sm text-ink-muted py-6">🍿 Race in progress — you're spectating.</p>
+            )}
+            {isHost && (
+              <div className="mt-3 text-center">
+                <button
+                  onClick={() => advance.mutate(g.id)}
+                  disabled={advance.isPending}
+                  className="text-xs font-bold rounded-full px-4 py-1.5 glass text-ink-2 hover:text-ink disabled:opacity-60"
+                >
+                  End round (no winner) →
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           // done
           <div className="text-center py-4">

@@ -191,6 +191,20 @@ export function useSubmitSolve() {
   })
 }
 
+export function useReassignTurn() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { gameId: string; round: number }) => {
+      const { data, error } = await supabase
+        .rpc('reassign_turn', { p_game_id: vars.gameId, p_round: vars.round })
+        .select().single()
+      if (error) throw error
+      return data as GameRound
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: gameRoundKey(v.gameId, v.round) }),
+  })
+}
+
 export function useAdvanceRound() {
   const qc = useQueryClient()
   return useMutation({
