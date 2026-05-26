@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import ScreenHeader from '../shell/ScreenHeader'
 import { stagger, itemUp } from '../shell/motion'
 
@@ -6,12 +7,13 @@ type Game = {
   title: string
   blurb: string
   emoji: string
-  players: 'Couples' | 'Group'
+  players: 'Couples' | 'Group' | '1v1 / Group'
   accent: string
+  to?: string // present = playable (no padlock)
 }
 
-// 10 games — all "coming soon". A spread of couple + group play.
 const GAMES: Game[] = [
+  { title: 'Pixel Rush',        blurb: 'Race to rebuild a scrambled photo. Fastest to fix it wins.', emoji: '🧩', players: '1v1 / Group', accent: 'var(--color-gold)', to: '/games/pixel-rush' },
   { title: 'Truth or Dare',     blurb: 'Spicy prompts to break the ice — your rules.',        emoji: '🎯', players: 'Couples', accent: 'var(--color-rose)' },
   { title: 'Would You Rather',  blurb: 'Reveal what you really want, one choice at a time.',   emoji: '🤔', players: 'Group',   accent: 'var(--color-magenta)' },
   { title: 'Love Quiz',         blurb: 'How well do you really know each other?',              emoji: '💞', players: 'Couples', accent: 'var(--color-rose)' },
@@ -21,7 +23,6 @@ const GAMES: Game[] = [
   { title: 'Compliment Battle', blurb: 'Out-charm each other, sweetest line wins.',           emoji: '💌', players: 'Group',   accent: 'var(--color-coral)' },
   { title: 'Guess the Vibe',    blurb: 'Read the room and match the mood.',                    emoji: '🎶', players: 'Group',   accent: 'var(--color-gold)' },
   { title: 'Couple Goals',      blurb: 'Tiny challenges to do together this week.',            emoji: '🏆', players: 'Couples', accent: 'var(--color-rose)' },
-  { title: 'Spin the Heart',    blurb: 'A flirty spin to decide who does what.',               emoji: '💘', players: 'Group',   accent: 'var(--color-magenta)' },
 ]
 
 export default function GamesScreen() {
@@ -36,7 +37,7 @@ export default function GamesScreen() {
       <div className="px-5 sm:px-8 pb-28">
         <div className="glass rounded-2xl px-4 py-3 mb-5 text-sm text-ink-2 flex items-center gap-2">
           <span className="text-lg">🎮</span>
-          <span>Games are on the way. Tap any card to be first to know when it drops.</span>
+          <span>Pixel Rush is live — tap to play. More games are on the way.</span>
         </div>
 
         <motion.div
@@ -57,8 +58,8 @@ export default function GamesScreen() {
 }
 
 function GameCard({ game }: { game: Game }) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl glass p-4 h-40 flex flex-col">
+  const inner = (
+    <>
       {/* tinted glow */}
       <div
         aria-hidden
@@ -72,16 +73,30 @@ function GameCard({ game }: { game: Game }) {
         </span>
       </div>
       <div className="mt-auto">
-        <div className="font-extrabold text-ink text-[15px] leading-tight">{game.title}</div>
+        <div className="font-extrabold text-ink text-[15px] leading-tight flex items-center gap-1.5">
+          {game.title}
+          {game.to && (
+            <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-success/20 text-success">New</span>
+          )}
+        </div>
         <div className="text-[11px] text-ink-muted line-clamp-2 mt-0.5">{game.blurb}</div>
       </div>
 
-      {/* Coming-soon padlock overlay */}
-      <div className="absolute inset-0 grid place-items-center bg-surface/55 backdrop-blur-[1px]">
-        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-2 bg-black/45 rounded-full px-3 py-1.5">
-          🔒 Coming soon
-        </span>
-      </div>
-    </div>
+      {/* Coming-soon padlock overlay (only for non-playable cards) */}
+      {!game.to && (
+        <div className="absolute inset-0 grid place-items-center bg-surface/55 backdrop-blur-[1px]">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-2 bg-black/45 rounded-full px-3 py-1.5">
+            🔒 Coming soon
+          </span>
+        </div>
+      )}
+    </>
+  )
+
+  const cls = 'relative overflow-hidden rounded-2xl glass p-4 h-40 flex flex-col'
+  return game.to ? (
+    <Link to={game.to} className={`${cls} block hover:ring-1 hover:ring-gold/40 transition-shadow`}>{inner}</Link>
+  ) : (
+    <div className={cls}>{inner}</div>
   )
 }

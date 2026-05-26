@@ -1,0 +1,325 @@
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useMySubscription } from '../../hooks/usePayments'
+
+const GRID = 5
+const N = GRID * GRID // 25 tiles
+const PREVIEW_SECONDS = 5
+const DEFAULT_IMAGE = '/hero.jpeg'
+
+type Phase = 'guide' | 'mode' | 'setup' | 'preview' | 'play' | 'won'
+
+export default function PixelRushScreen() {
+  const navigate = useNavigate()
+  const isSubscriber = !!useMySubscription().data
+
+  // ----- gameplay state -----
+  const [phase, setPhase] = useState<Phase>('guide')
+  const [image, setImage] = useState<string>(DEFAULT_IMAGE)
+  const [order, setOrder] = useState<number[]>(() => identity())
+  const [selected, setSelected] = useState<number | null>(null)
+  const [countdown, setCountdown] = useState(PREVIEW_SECONDS)
+  const [elapsed, setElapsed] = useState(0)
+  const [moves, setMoves] = useState(0)
+  const startRef = useRef(0)
+
+  // Preview countdown → scatter → play.
+  useEffect(() => {
+    if (phase !== 'preview') return
+    setOrder(identity())
+    setCountdown(PREVIEW_SECONDS)
+    const iv = window.setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          window.clearInterval(iv)
+          setOrder(shuffled())
+          setMoves(0)
+          startRef.current = Date.now()
+          setPhase('play')
+          return 0
+        }
+        return c - 1
+      })
+    }, 1000)
+    return () => window.clearInterval(iv)
+  }, [phase])
+
+  // Running timer while playing.
+  useEffect(() => {
+    if (phase !== 'play') return
+    const iv = window.setInterval(() => setElapsed(Date.now() - startRef.current), 100)
+    return () => window.clearInterval(iv)
+  }, [phase])
+
+  function onPickImage(file: File | undefined) {
+    if (!file) return
+    setImage(URL.createObjectURL(file))
+  }
+
+  function tapTile(slot: number) {
+    if (phase !== 'play') return
+    if (selected === null) { setSelected(slot); return }
+    if (selected === slot) { setSelected(null); return }
+    setOrder((prev) => {
+      const next = [...prev]
+      ;[next[selected], next[slot]] = [next[slot], next[selected]]
+      if (isSolved(next)) {
+        setElapsed(Date.now() - startRef.current)
+        setPhase('won')
+      }
+      return next
+    })
+    setMoves((m) => m + 1)
+    setSelected(null)
+  }
+
+  function playAgain() {
+    setSelected(null)
+    setElapsed(0)
+    setPhase('preview')
+  }
+
+  // ----- gates -----
+  if (!isSubscriber) {
+    return (
+      <Shell onBack={() => navigate(-1)}>
+        <div className="glass rounded-3xl p-6 text-center space-y-3 border border-rose/30 mt-6">
+          <div className="text-4xl">👑</div>
+          <h2 className="text-lg font-extrabold text-gradient-warm">Creating games is for members</h2>
+          <p className="text-sm text-ink-2">
+            Pixel Rush is a premium game. Upgrade your plan to create and host games — free members can
+            still join a game they're invited to.
+          </p>
+          <button
+            onClick={() => navigate('/subscription')}
+            className="rounded-full px-5 py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose"
+          >
+            See plans
+          </button>
+        </div>
+      </Shell>
+    )
+  }
+
+  return (
+    <Shell onBack={() => navigate(-1)}>
+      <AnimatePresence mode="wait">
+        {phase === 'guide' && (
+          <Step key="guide">
+            <h2 className="text-xl font-extrabold text-gradient-warm">🧩 Pixel Rush</h2>
+            <p className="text-sm text-ink-2 mt-1">Race to rebuild a scrambled photo. Fastest to fix it wins.</p>
+            <ol className="mt-4 space-y-2 text-sm text-ink-2 list-decimal pl-5">
+              <li>A photo is shown for <b>5 seconds</b> — study it.</li>
+              <li>It scatters into a <b>5×5</b> grid of 25 tiles.</li>
+              <li><b>Tap two tiles to swap them</b> and rebuild the original.</li>
+              <li>Beat the clock — fewest seconds (and moves) wins the round.</li>
+              <li>In multiplayer, first to finish takes the round; best of 20 takes the trophy. 🏆</li>
+            </ol>
+            <button onClick={() => setPhase('mode')} className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose">
+              Got it — continue
+            </button>
+          </Step>
+        )}
+
+        {phase === 'mode' && (
+          <Step key="mode">
+            <h2 className="text-lg font-extrabold text-ink">Choose a mode</h2>
+            <div className="mt-4 space-y-3">
+              <button onClick={() => setPhase('setup')} className="w-full glass rounded-2xl p-4 text-left hover:ring-1 hover:ring-gold/40">
+                <div className="font-extrabold text-ink">Solo practice</div>
+                <div className="text-sm text-ink-muted">Play now and beat your own best time.</div>
+              </button>
+              <div className="w-full glass rounded-2xl p-4 text-left opacity-70">
+                <div className="font-extrabold text-ink flex items-center gap-2">1 v 1 <Soon /></div>
+                <div className="text-sm text-ink-muted">Invite an opponent with a link — no account needed to join.</div>
+              </div>
+              <div className="w-full glass rounded-2xl p-4 text-left opacity-70">
+                <div className="font-extrabold text-ink flex items-center gap-2">Group (teams) <Soon /></div>
+                <div className="text-sm text-ink-muted">Set the player count; we split everyone into two teams at random.</div>
+              </div>
+            </div>
+            <p className="mt-3 text-[11px] text-ink-muted">
+              Live multiplayer + spectating in the feed is rolling out next. Solo is fully playable now.
+            </p>
+          </Step>
+        )}
+
+        {phase === 'setup' && (
+          <Step key="setup">
+            <h2 className="text-lg font-extrabold text-ink">Pick your picture</h2>
+            <p className="text-sm text-ink-muted mt-1">Upload a photo to scramble, or play the default.</p>
+            <div className="mt-4 aspect-square w-full max-w-sm mx-auto rounded-2xl overflow-hidden bg-black">
+              <img src={image} alt="" className="w-full h-full object-cover" />
+            </div>
+            <div className="mt-4 flex flex-col gap-2 max-w-sm mx-auto">
+              <label className="w-full rounded-full py-3 text-center text-sm font-bold glass text-ink-2 hover:text-ink cursor-pointer">
+                Upload a photo
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => onPickImage(e.target.files?.[0])} />
+              </label>
+              <button onClick={() => setPhase('preview')} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose">
+                Start round
+              </button>
+            </div>
+          </Step>
+        )}
+
+        {(phase === 'preview' || phase === 'play' || phase === 'won') && (
+          <Step key="board">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-bold text-ink">
+                {phase === 'preview' ? 'Study the photo…' : `⏱ ${(elapsed / 1000).toFixed(1)}s`}
+              </div>
+              <div className="text-[11px] text-ink-muted">{phase !== 'preview' && `${moves} moves`}</div>
+            </div>
+
+            <div className="relative aspect-square w-full max-w-sm mx-auto select-none">
+              <div className="grid grid-cols-5 gap-[3px] w-full h-full">
+                {order.map((tile, slot) => {
+                  const row = Math.floor(tile / GRID)
+                  const col = tile % GRID
+                  const showSolved = phase === 'preview' || phase === 'won'
+                  return (
+                    <motion.button
+                      key={tile}
+                      layout
+                      transition={{ type: 'spring', stiffness: 600, damping: 40 }}
+                      onClick={() => tapTile(slot)}
+                      className={[
+                        'relative rounded-[5px] overflow-hidden',
+                        selected === slot ? 'ring-2 ring-gold z-10' : 'ring-0',
+                        showSolved ? 'pointer-events-none' : '',
+                      ].join(' ')}
+                      style={{
+                        backgroundImage: `url(${image})`,
+                        backgroundSize: '500% 500%',
+                        backgroundPosition: `${col * 25}% ${row * 25}%`,
+                      }}
+                      aria-label={`tile ${tile + 1}`}
+                    />
+                  )
+                })}
+              </div>
+
+              {/* Preview countdown overlay */}
+              <AnimatePresence>
+                {phase === 'preview' && (
+                  <motion.div
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="absolute inset-0 grid place-items-center pointer-events-none"
+                  >
+                    <motion.span
+                      key={countdown}
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="text-6xl font-extrabold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+                    >
+                      {countdown}
+                    </motion.span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Win overlay */}
+              <AnimatePresence>
+                {phase === 'won' && (
+                  <motion.div
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    className="absolute inset-0 grid place-items-center bg-black/55 backdrop-blur-[1px] rounded-2xl"
+                  >
+                    <motion.div
+                      initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 18 }}
+                      className="text-center"
+                    >
+                      <div className="text-5xl">🏆</div>
+                      <div className="mt-2 text-2xl font-extrabold text-gradient-warm">Solved!</div>
+                      <div className="mt-1 text-white font-semibold">{(elapsed / 1000).toFixed(1)}s · {moves} moves</div>
+                    </motion.div>
+                    {/* confetti burst */}
+                    {['🎉','✨','💖','⭐','🎊','💫'].map((e, i) => (
+                      <motion.span
+                        key={i}
+                        className="absolute text-2xl"
+                        initial={{ opacity: 0, x: 0, y: 0 }}
+                        animate={{ opacity: [1, 1, 0], x: (i - 3) * 60, y: -120 - i * 10 }}
+                        transition={{ duration: 1.1, delay: 0.1 }}
+                      >{e}</motion.span>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {phase === 'play' && (
+              <p className="mt-3 text-center text-[12px] text-ink-muted">Tap two tiles to swap them.</p>
+            )}
+            {phase === 'won' && (
+              <div className="mt-4 flex flex-col gap-2 max-w-sm mx-auto">
+                <button onClick={playAgain} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose">Play again</button>
+                <button onClick={() => setPhase('setup')} className="w-full rounded-full py-3 glass text-ink-2 hover:text-ink font-semibold">New picture</button>
+              </div>
+            )}
+          </Step>
+        )}
+      </AnimatePresence>
+    </Shell>
+  )
+}
+
+// ---------- shell + bits ----------
+
+function Shell({ children, onBack }: { children: React.ReactNode; onBack: () => void }) {
+  return (
+    <div className="min-h-screen text-ink pb-24">
+      <header className="sticky top-0 z-10 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
+        <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
+          <button onClick={onBack} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <div className="flex-1 text-center text-ink font-bold">Pixel Rush</div>
+          <div className="w-10" aria-hidden />
+        </div>
+      </header>
+      <main className="max-w-md mx-auto px-5 py-6">{children}</main>
+    </div>
+  )
+}
+
+function Step({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.2 }}
+      className="glass rounded-3xl p-5"
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+function Soon() {
+  return <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-gold/15 text-gold">Soon</span>
+}
+
+// ---------- puzzle helpers ----------
+
+function identity(): number[] {
+  return Array.from({ length: N }, (_, i) => i)
+}
+
+function isSolved(arr: number[]): boolean {
+  return arr.every((v, i) => v === i)
+}
+
+function shuffled(): number[] {
+  let a = identity()
+  do {
+    a = identity()
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[a[i], a[j]] = [a[j], a[i]]
+    }
+  } while (isSolved(a))
+  return a
+}

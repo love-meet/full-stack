@@ -17,6 +17,7 @@ import ChatScreen from './screens/ChatScreen'
 import ChatDetailScreen from './screens/ChatDetailScreen'
 import SearchScreen from './screens/SearchScreen'
 import GamesScreen from './screens/GamesScreen'
+import PixelRushScreen from './screens/games/PixelRushScreen'
 import GiftDetailScreen from './screens/GiftDetailScreen'
 import GuideScreen from './screens/GuideScreen'
 import NotificationsScreen from './screens/NotificationsScreen'
@@ -86,6 +87,7 @@ export const router = createBrowserRouter([
               { path: 'groups/new',            element: <CreateGroupScreen /> },
               { path: 'post',                  element: <PostScreen /> },
               { path: 'games',                 element: <GamesScreen /> },
+              { path: 'games/pixel-rush',      element: <PixelRushScreen /> },
               { path: 'gift/:giftId',          element: <GiftDetailScreen /> },
               { path: 'guide',                 element: <GuideScreen /> },
               { path: 'chat',                  element: <ChatScreen /> },
