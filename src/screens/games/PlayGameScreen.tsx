@@ -86,17 +86,6 @@ export default function PlayGameScreen() {
     navigate('/')
   }
 
-  // Host heartbeat — while the host is on the page, ping so the server knows
-  // they're present. If they leave, the sweep auto-closes the game (~45s).
-  useEffect(() => {
-    if (!isHost || !g || g.status === 'finished') return
-    const id = g.id
-    const ping = () => { void supabase.rpc('host_heartbeat', { p_game_id: id }) }
-    ping()
-    const iv = window.setInterval(ping, 15_000)
-    return () => window.clearInterval(iv)
-  }, [isHost, g])
-
   async function doJoin() {
     if (!code) return
     setJoinError(null)
