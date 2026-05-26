@@ -8,6 +8,7 @@ import { useUnreadNotifications, useNotificationsRealtime } from '../hooks/useNo
 import { useConversations } from '../hooks/useConversations'
 import { useMySubscription } from '../hooks/usePayments'
 import { useRelations, useToggleFollow, type Relation } from '../hooks/useFollow'
+import { useLiveGames, type LiveGame } from '../hooks/usePixelGame'
 import { useAuth } from '../stores/auth'
 import BlueTick from '../components/BlueTick'
 import { useFeedPrefs } from '../stores/feedPrefs'
@@ -59,6 +60,7 @@ export default function FeedScreen() {
   const pages = feed.data?.pages ?? []
   const posts = pages.flat()
   const relations = useRelations(posts.map((p) => p.author_id))
+  const liveGames = useLiveGames().data ?? []
   const isEmpty = feed.status === 'success' && posts.length === 0
   const adAfter = useMemo(
     () => (showAds ? computeAdPositions(posts.length, adSeed.current) : new Set<number>()),
@@ -125,6 +127,8 @@ export default function FeedScreen() {
           </div>
         )}
 
+        {liveGames.map((lg) => <LiveGameSlide key={lg.id} game={lg} />)}
+
         {posts.map((post, i) => (
           <Fragment key={post.id}>
             <FeedSlide post={post} relation={relations.data?.get(post.author_id)} />
@@ -179,6 +183,32 @@ function AdSlide() {
           to remove them.
         </p>
       </div>
+    </section>
+  )
+}
+
+// A live Pixel Rush game — tap to watch (spectate). Full-screen snap slide.
+function LiveGameSlide({ game }: { game: LiveGame }) {
+  return (
+    <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center px-5">
+      <Link
+        to={`/play/${game.invite_code}`}
+        className="w-full max-w-md mx-auto glass rounded-3xl p-8 text-center block hover:ring-1 hover:ring-gold/40 transition-shadow"
+        style={{ background: 'radial-gradient(700px 500px at 50% 0%, rgba(53,205,232,0.18), transparent 60%)' }}
+      >
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-white bg-rose rounded-full px-3 py-1">
+          <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Live
+        </span>
+        <div className="mt-5 text-6xl">🧩</div>
+        <h2 className="mt-3 text-2xl font-extrabold text-gradient-warm">Pixel Rush</h2>
+        <p className="mt-1 text-sm text-ink-2">
+          {game.kind === '1v1' ? '1 v 1 match' : 'Team match'} · Round {game.current_round}/{game.rounds_total}
+        </p>
+        <span className="mt-5 inline-block rounded-full px-6 py-2.5 bg-gradient-brand text-white font-bold glow-rose">
+          ▶ Watch live
+        </span>
+        <p className="mt-3 text-[11px] text-white/55">Spectators can watch — only players can play.</p>
+      </Link>
     </section>
   )
 }

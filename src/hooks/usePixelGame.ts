@@ -55,6 +55,32 @@ export const gamePlayersKey = (gameId: string | undefined) => ['game-players', g
 export const gameRoundKey = (gameId: string | undefined, round: number | undefined) =>
   ['game-round', gameId ?? null, round ?? null] as const
 
+export type LiveGame = {
+  id: string
+  invite_code: string
+  kind: GameKind
+  current_round: number
+  rounds_total: number
+}
+
+/** Currently-active games, newest first — surfaced in the feed for spectating. */
+export function useLiveGames() {
+  return useQuery<LiveGame[]>({
+    queryKey: ['live-games'],
+    staleTime: 15_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('games')
+        .select('id, invite_code, kind, current_round, rounds_total')
+        .eq('status', 'active')
+        .order('started_at', { ascending: false })
+        .limit(5)
+      if (error) throw error
+      return (data ?? []) as LiveGame[]
+    },
+  })
+}
+
 export function useGameByCode(code: string | undefined) {
   return useQuery<Game | null>({
     queryKey: gameByCodeKey(code),
