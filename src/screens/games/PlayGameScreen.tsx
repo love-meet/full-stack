@@ -23,7 +23,7 @@ import {
 import { useUploadChatMedia } from '../../hooks/useUploadChatMedia'
 import { useGamePresence } from '../../hooks/useGamePresence'
 import { useGameBroadcast } from '../../hooks/useGameBroadcast'
-import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount } from '../../components/games/PixelBoard'
+import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
 import { avatarUrlOr } from '../../lib/avatar'
 import ShareSheet from '../../components/ShareSheet'
 
@@ -261,6 +261,10 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   const createGame = useCreateGame()
   const upload = useUploadChatMedia()
   const { progress, sendProgress } = useGameBroadcast(g.id)
+  // My own board order — broadcast is self:false, so my % is computed locally.
+  const [myOrder, setMyOrder] = useState<number[] | null>(null)
+  // Reset my tracked progress whenever the round changes.
+  useEffect(() => { setMyOrder(null) }, [g.current_round])
 
   async function rematch() {
     try {
@@ -373,6 +377,10 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
               <div className="text-center mb-3">
                 <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">Rebuild this picture</div>
                 <img src={r.image_url!} alt="" className="mx-auto w-24 aspect-square object-cover rounded-xl ring-1 ring-white/10" />
+                <div className="mt-1.5 inline-flex items-center gap-1.5 text-[10px] font-bold">
+                  <span className="rounded-full px-2 py-0.5 glass text-gradient-warm">{difficultyLabel(gridForRound(r.round_no))}</span>
+                  <span className="text-ink-muted">{gridForRound(r.round_no)}×{gridForRound(r.round_no)}</span>
+                </div>
               </div>
               {/* Draggable grid */}
               <motion.div drag dragMomentum={false} dragElastic={0.12} whileDrag={{ scale: 1.03 }} className="touch-none cursor-grab active:cursor-grabbing">
@@ -380,12 +388,21 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
                 <PixelBoard
                   image={r.image_url!}
                   seed={seedFor(g.id, r.round_no)}
+                  grid={gridForRound(r.round_no)}
                   startedAt={r.started_at ? Date.parse(r.started_at) : Date.now()}
                   locked={false}
                   onSolve={(timeMs) => submit.mutate({ gameId: g.id, round: r.round_no, timeMs })}
-                  onProgress={(order, done) => { if (myId) sendProgress(myId, order, done) }}
+                  onProgress={(order, done) => { setMyOrder(order); if (myId) sendProgress(myId, order, done) }}
                 />
               </motion.div>
+              {/* Live progress — me vs each opponent. */}
+              <RaceProgress
+                players={players}
+                myId={myId}
+                myOrder={myOrder}
+                progress={progress}
+                grid={gridForRound(r.round_no)}
+              />
             </div>
           ) : (
             <SpectatorBoards gameId={g.id} round={r.round_no} image={r.image_url!} players={players} progress={progress} />
@@ -457,6 +474,47 @@ function PlayerChip({ p, online, align }: { p?: GamePlayer; online: boolean; ali
   )
 }
 
+/** Live progress for a racing player: their own % plus each opponent's %, so
+ *  you can see how close anyone is to finishing. My own order comes in locally
+ *  (broadcast is self:false); opponents' orders arrive over the broadcast. */
+function RaceProgress({
+  players, myId, myOrder, progress, grid,
+}: {
+  players: GamePlayer[]
+  myId: string | null
+  myOrder: number[] | null
+  progress: Map<string, { order: number[]; done: boolean }>
+  grid: number
+}) {
+  const total = grid * grid
+  return (
+    <div className="mt-5 space-y-2.5">
+      {players.map((p) => {
+        const mine = p.user_id === myId
+        const order = mine ? myOrder : progress.get(p.user_id)?.order
+        const pct = order ? Math.round((solvedCount(order) / total) * 100) : 0
+        return (
+          <div key={p.id}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-bold text-ink truncate">
+                {mine ? 'You' : playerLabel(p)}
+              </span>
+              <span className="text-[11px] font-bold text-gradient-warm tabular-nums">{pct}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+              <motion.div
+                className={mine ? 'h-full rounded-full bg-gradient-brand' : 'h-full rounded-full bg-white/40'}
+                animate={{ width: `${pct}%` }}
+                transition={{ type: 'spring', stiffness: 200, damping: 30 }}
+              />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Spectator view of a live race: the target picture + each player's board
  *  updating in real time, with their solved %. */
 function SpectatorBoards({
@@ -468,24 +526,29 @@ function SpectatorBoards({
   players: GamePlayer[]
   progress: Map<string, { order: number[]; done: boolean }>
 }) {
-  const start = scrambleFor(gameId, round)
+  const grid = gridForRound(round)
+  const start = scrambleFor(gameId, round, grid)
   return (
     <div>
       <div className="text-center mb-4">
         <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">Rebuild this picture</div>
         <img src={image} alt="" className="mx-auto w-28 aspect-square object-cover rounded-xl ring-1 ring-white/10" />
+        <div className="mt-1.5 inline-flex items-center gap-1.5 text-[10px] font-bold">
+          <span className="rounded-full px-2 py-0.5 glass text-gradient-warm">{difficultyLabel(grid)}</span>
+          <span className="text-ink-muted">{grid}×{grid}</span>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         {players.map((p) => {
           const order = progress.get(p.user_id)?.order ?? start
-          const pct = Math.round((solvedCount(order) / 25) * 100)
+          const pct = Math.round((solvedCount(order) / (grid * grid)) * 100)
           return (
             <div key={p.id}>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[11px] text-ink-2 truncate">{playerLabel(p)}</span>
                 <span className="text-[11px] font-bold text-gradient-warm">{pct}%</span>
               </div>
-              <MiniBoard image={image} order={order} />
+              <MiniBoard image={image} order={order} grid={grid} />
             </div>
           )
         })}

@@ -1,30 +1,51 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const GRID = 5
-const N = GRID * GRID
 const PREVIEW_MS = 5000
 
 /**
- * Shared 5x5 picture-race board. All clients pass the same `seed` (game+round)
- * so everyone scrambles identically without streaming moves — they simply race
- * to restore it. `startedAt` (epoch ms) gives a synced 5s preview. Calls
- * onSolve(timeMs) once when this client solves; `locked` freezes the board when
- * the round is already decided.
+ * Progressive difficulty: the picture is cut into a small grid early on and a
+ * bigger one as rounds advance, so the game eases players in (3x3) and ramps to
+ * hard (5x5). Derived purely from the round number so every client computes the
+ * same size for the shared scramble.
+ *   rounds 1–5   → 3x3  (easy)
+ *   rounds 6–12  → 4x4  (medium)
+ *   rounds 13+   → 5x5  (hard)
+ */
+export function gridForRound(round: number): number {
+  if (round <= 5) return 3
+  if (round <= 12) return 4
+  return 5
+}
+
+export function difficultyLabel(grid: number): string {
+  if (grid <= 3) return 'Easy'
+  if (grid === 4) return 'Medium'
+  return 'Hard'
+}
+
+/**
+ * Shared picture-race board. All clients pass the same `seed` (game+round) and
+ * the same `grid` size so everyone scrambles identically without streaming
+ * moves — they simply race to restore it. `startedAt` (epoch ms) gives a synced
+ * 5s preview. Calls onSolve(timeMs) once when this client solves; `locked`
+ * freezes the board when the round is already decided.
  */
 export default function PixelBoard({
-  image, seed, startedAt, locked, onSolve, onProgress,
+  image, seed, grid, startedAt, locked, onSolve, onProgress,
 }: {
   image: string
   seed: number
+  grid: number
   startedAt: number
   locked: boolean
   onSolve: (timeMs: number) => void
   /** Fired whenever the tile order changes, so progress can be broadcast. */
   onProgress?: (order: number[], done: boolean) => void
 }) {
+  const n = grid * grid
   const raceStart = startedAt + PREVIEW_MS
-  const [order, setOrder] = useState<number[]>(() => identity())
+  const [order, setOrder] = useState<number[]>(() => identity(n))
   const [phase, setPhase] = useState<'preview' | 'play' | 'solved'>('preview')
   const [selected, setSelected] = useState<number | null>(null)
   const [now, setNow] = useState(Date.now())
@@ -41,11 +62,11 @@ export default function PixelBoard({
   useEffect(() => {
     if (phase !== 'preview') return
     const delay = raceStart - Date.now()
-    if (delay <= 0) { setOrder(seededShuffle(seed)); setPhase('play'); return }
+    if (delay <= 0) { setOrder(seededShuffle(seed, n)); setPhase('play'); return }
     const iv = window.setInterval(() => setNow(Date.now()), 250)
-    const to = window.setTimeout(() => { setOrder(seededShuffle(seed)); setPhase('play') }, delay)
+    const to = window.setTimeout(() => { setOrder(seededShuffle(seed, n)); setPhase('play') }, delay)
     return () => { window.clearInterval(iv); window.clearTimeout(to) }
-  }, [phase, raceStart, seed])
+  }, [phase, raceStart, seed, n])
 
   const countdown = Math.max(0, Math.ceil((raceStart - now) / 1000))
 
@@ -67,13 +88,17 @@ export default function PixelBoard({
   }
 
   const showWhole = phase === 'preview' || phase === 'solved'
+  const bgSize = `${grid * 100}% ${grid * 100}%`
 
   return (
     <div className="relative aspect-square w-full max-w-sm mx-auto select-none">
-      <div className="grid grid-cols-5 gap-[3px] w-full h-full">
+      <div
+        className="grid gap-[3px] w-full h-full"
+        style={{ gridTemplateColumns: `repeat(${grid}, minmax(0, 1fr))` }}
+      >
         {order.map((tile, slot) => {
-          const row = Math.floor(tile / GRID)
-          const col = tile % GRID
+          const row = Math.floor(tile / grid)
+          const col = tile % grid
           return (
             <motion.button
               key={tile}
@@ -87,8 +112,8 @@ export default function PixelBoard({
               ].join(' ')}
               style={{
                 backgroundImage: `url(${image})`,
-                backgroundSize: '500% 500%',
-                backgroundPosition: `${col * 25}% ${row * 25}%`,
+                backgroundSize: bgSize,
+                backgroundPosition: `${(col * 100) / (grid - 1)}% ${(row * 100) / (grid - 1)}%`,
               }}
               aria-label={`tile ${tile + 1}`}
             />
@@ -114,7 +139,7 @@ export default function PixelBoard({
 }
 
 // ---- helpers ----
-function identity(): number[] { return Array.from({ length: N }, (_, i) => i) }
+function identity(n: number): number[] { return Array.from({ length: n }, (_, i) => i) }
 function isSolved(a: number[]): boolean { return a.every((v, i) => v === i) }
 
 function mulberry32(seed: number) {
@@ -127,24 +152,29 @@ function mulberry32(seed: number) {
   }
 }
 
-function seededShuffle(seed: number): number[] {
+function seededShuffle(seed: number, n: number): number[] {
   const rand = mulberry32(seed)
-  const a = identity()
+  const a = identity(n)
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1))
     ;[a[i], a[j]] = [a[j], a[i]]
   }
-  return isSolved(a) ? seededShuffle(seed + 1) : a
+  return isSolved(a) ? seededShuffle(seed + 1, n) : a
 }
 
 /** Read-only board for spectators — renders a given tile order, no interaction. */
-export function MiniBoard({ image, order }: { image: string; order?: number[] }) {
-  const o = order && order.length === N ? order : identity()
+export function MiniBoard({ image, order, grid }: { image: string; order?: number[]; grid: number }) {
+  const n = grid * grid
+  const o = order && order.length === n ? order : identity(n)
+  const bgSize = `${grid * 100}% ${grid * 100}%`
   return (
-    <div className="grid grid-cols-5 gap-[2px] w-full aspect-square">
+    <div
+      className="grid gap-[2px] w-full aspect-square"
+      style={{ gridTemplateColumns: `repeat(${grid}, minmax(0, 1fr))` }}
+    >
       {o.map((tile) => {
-        const row = Math.floor(tile / GRID)
-        const col = tile % GRID
+        const row = Math.floor(tile / grid)
+        const col = tile % grid
         return (
           <motion.div
             key={tile}
@@ -153,8 +183,8 @@ export function MiniBoard({ image, order }: { image: string; order?: number[] })
             className="rounded-[3px] overflow-hidden"
             style={{
               backgroundImage: `url(${image})`,
-              backgroundSize: '500% 500%',
-              backgroundPosition: `${col * 25}% ${row * 25}%`,
+              backgroundSize: bgSize,
+              backgroundPosition: `${(col * 100) / (grid - 1)}% ${(row * 100) / (grid - 1)}%`,
             }}
           />
         )
@@ -172,11 +202,11 @@ export function seedFor(gameId: string, round: number): number {
 
 /** The shared starting scramble for a round (so spectators show it before a
  *  player has made a move). */
-export function scrambleFor(gameId: string, round: number): number[] {
-  return seededShuffle(seedFor(gameId, round))
+export function scrambleFor(gameId: string, round: number, grid: number): number[] {
+  return seededShuffle(seedFor(gameId, round), grid * grid)
 }
 
-/** How many tiles are already in their correct place (0..25). */
+/** How many tiles are already in their correct place. */
 export function solvedCount(order?: number[]): number {
   if (!order) return 0
   return order.reduce((n, v, i) => n + (v === i ? 1 : 0), 0)
