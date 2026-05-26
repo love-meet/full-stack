@@ -217,29 +217,53 @@ export function useSetRoundImage() {
  *  finished first. submit_solve is idempotent — once decided it just returns
  *  the round, and the row lock serializes concurrent solves — so we can safely
  *  retry on transient network failures until it lands. */
-function isNetworkError(e: unknown): boolean {
+export function isNetworkError(e: unknown): boolean {
   // PostgREST errors carry a `code`; genuine app errors must NOT be retried.
   if (e && typeof e === 'object' && 'code' in e && (e as { code?: string }).code) return false
   const msg = (e instanceof Error ? e.message : String(e)).toLowerCase()
   return /load failed|failed to fetch|network|timeout|connection|fetch/.test(msg)
 }
 
+/** Resolve after `ms`, OR as soon as the browser reports it's back online —
+ *  so a queued request fires the instant connectivity returns. */
+function waitOnlineOr(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      clearTimeout(t)
+      window.removeEventListener('online', finish)
+      resolve()
+    }
+    const t = setTimeout(finish, ms)
+    window.addEventListener('online', finish)
+  })
+}
+
 export function useSubmitSolve() {
   return useMutation({
+    // Keep the result pending instead of failing while offline. submit_solve
+    // decides by fastest time and lets a faster solve override a network-delayed
+    // one, so as long as our request eventually lands while the round is still
+    // current it wins on merit. We retry for a long window (~3 min) with backoff,
+    // waking immediately when the connection returns — so a player on a bad
+    // network keeps playing and their result syncs the moment they're back,
+    // rather than hanging on an error.
+    retry: false,
     mutationFn: async (vars: { gameId: string; round: number; timeMs: number }) => {
+      const start = Date.now()
+      let attempt = 0
       let lastErr: unknown
-      // Persist for ~18s. submit_solve decides by fastest time and lets a
-      // faster solve override a network-delayed slower one, so as long as our
-      // request lands while the round is still current it wins on merit. The
-      // round stays open until someone wins, so retrying long is safe.
-      for (let attempt = 0; attempt < 30; attempt++) {
+      while (Date.now() - start < 180_000) {
         const { data, error } = await supabase
           .rpc('submit_solve', { p_game_id: vars.gameId, p_round: vars.round, p_time_ms: vars.timeMs })
           .select().single()
         if (!error) return data as GameRound
         lastErr = error
         if (!isNetworkError(error)) throw error
-        await new Promise((res) => setTimeout(res, 600))
+        attempt++
+        await waitOnlineOr(Math.min(800 * attempt, 3000))
       }
       throw lastErr
     },

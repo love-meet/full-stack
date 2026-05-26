@@ -3,25 +3,53 @@ import { AnimatePresence, motion } from 'framer-motion'
 import type { LiveComment, LiveEmoji } from '../../hooks/useLiveReactions'
 
 const QUICK_EMOJIS = ['❤️', '😍', '🔥', '👏', '😂', '🎉', '😮', '💯']
-const COMMENT_TTL = 6500
 const EMOJI_TTL = 3200
 
 /**
- * Instagram-Live-style overlay: comments stack and rise from the bottom-left
- * (fading as they age) and tapped emoji float up the right side. A bottom input
- * bar lets viewers and players send comments + emoji. Pointer events pass
- * through everywhere except the input bar, so the game stays interactive.
+ * Instagram-Live-style reactions over an active game.
+ *  - Viewers get the rising comment stack + an input bar to comment / like.
+ *  - Players keep a clean board: comments don't overlay it; a "View comments"
+ *    button opens a panel to read them (players can't comment or like).
+ * Floating emoji (likes) rise for everyone. Comments persist and scroll up
+ * like a live feed rather than vanishing on a timer.
  */
 export default function LiveOverlay({
-  comments, emojis, senderName, onComment, onEmoji, removeComment, removeEmoji,
+  mode, comments, emojis, senderName, onComment, onEmoji, removeEmoji,
 }: {
+  mode: 'viewer' | 'player'
   comments: LiveComment[]
   emojis: LiveEmoji[]
   senderName: string
   onComment: (name: string, text: string) => void
   onEmoji: (emoji: string) => void
-  removeComment: (id: string) => void
   removeEmoji: (id: string) => void
+}) {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-30">
+      {/* Floating emoji — rise for everyone. */}
+      <div className="absolute right-2 bottom-24 w-16 h-[55vh] overflow-hidden">
+        <AnimatePresence>
+          {emojis.map((e) => (
+            <FloatingEmoji key={e.id} e={e} onExpire={() => removeEmoji(e.id)} />
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {mode === 'viewer'
+        ? <ViewerControls comments={comments} senderName={senderName} onComment={onComment} onEmoji={onEmoji} />
+        : <PlayerComments comments={comments} />}
+    </div>
+  )
+}
+
+/** Viewer side: rising comments + input bar (comment, like, quick emoji). */
+function ViewerControls({
+  comments, senderName, onComment, onEmoji,
+}: {
+  comments: LiveComment[]
+  senderName: string
+  onComment: (name: string, text: string) => void
+  onEmoji: (emoji: string) => void
 }) {
   const [text, setText] = useState('')
 
@@ -34,21 +62,26 @@ export default function LiveOverlay({
   }
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-30">
-      {/* Rising comment stack (bottom-left). */}
-      <div className="absolute left-3 right-20 bottom-20 flex flex-col justify-end gap-1.5 max-h-[45vh] overflow-hidden">
+    <>
+      {/* Rising comment stack (bottom-left, over the video). Newest at the
+          bottom; older ones get pushed up and clipped, like IG Live. */}
+      <div className="absolute left-3 right-20 bottom-24 flex flex-col justify-end gap-1.5 max-h-[42vh] overflow-hidden">
         <AnimatePresence initial={false}>
           {comments.map((c) => (
-            <CommentBubble key={c.id} c={c} onExpire={() => removeComment(c.id)} />
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* Floating emoji (bottom-right). */}
-      <div className="absolute right-2 bottom-20 w-16 h-[55vh] overflow-hidden">
-        <AnimatePresence>
-          {emojis.map((e) => (
-            <FloatingEmoji key={e.id} e={e} onExpire={() => removeEmoji(e.id)} />
+            <motion.div
+              key={c.id}
+              layout
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 36 }}
+              className="self-start max-w-full"
+            >
+              <div className="inline-block rounded-2xl bg-black/45 backdrop-blur-sm px-3 py-1.5 text-sm text-white drop-shadow">
+                <span className="font-bold text-gold mr-1.5">{c.name}</span>
+                <span className="break-words">{c.text}</span>
+              </div>
+            </motion.div>
           ))}
         </AnimatePresence>
       </div>
@@ -63,7 +96,7 @@ export default function LiveOverlay({
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Say something…"
+              placeholder="Add a comment…"
               maxLength={200}
               className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-white/50"
             />
@@ -85,7 +118,6 @@ export default function LiveOverlay({
             ❤️
           </button>
         </div>
-        {/* Quick emoji row */}
         <div className="max-w-md mx-auto mt-1.5 flex items-center justify-center gap-1.5">
           {QUICK_EMOJIS.map((em) => (
             <button
@@ -100,36 +132,72 @@ export default function LiveOverlay({
           ))}
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
-function CommentBubble({ c, onExpire }: { c: LiveComment; onExpire: () => void }) {
-  const timer = useRef<number | null>(null)
+/** Player side: a "View comments" button that opens a read-only panel, so the
+ *  board stays uncluttered while playing. */
+function PlayerComments({ comments }: { comments: LiveComment[] }) {
+  const [open, setOpen] = useState(false)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  // Keep the panel pinned to the newest comment.
   useEffect(() => {
-    timer.current = window.setTimeout(onExpire, COMMENT_TTL)
-    return () => { if (timer.current) window.clearTimeout(timer.current) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (open && listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
+  }, [comments, open])
+
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 16, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 36 }}
-      className="self-start max-w-full"
-    >
-      <div className="inline-block rounded-2xl bg-black/45 backdrop-blur-sm px-3 py-1.5 text-sm text-white drop-shadow">
-        <span className="font-bold text-gold mr-1.5">{c.name}</span>
-        <span className="break-words">{c.text}</span>
+    <>
+      <div className="pointer-events-auto absolute right-3 bottom-4">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="rounded-full px-4 py-2 glass text-sm font-bold text-ink flex items-center gap-2 shadow-lg"
+        >
+          💬 Comments
+          {comments.length > 0 && (
+            <span className="min-w-5 h-5 px-1 rounded-full bg-gradient-brand text-white text-[11px] grid place-items-center">
+              {comments.length}
+            </span>
+          )}
+        </button>
       </div>
-    </motion.div>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 380, damping: 38 }}
+            className="pointer-events-auto absolute inset-x-0 bottom-0 max-h-[60vh] glass rounded-t-3xl border-t border-white/10 flex flex-col"
+            style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.75rem)' }}
+          >
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <h3 className="text-sm font-extrabold text-ink">Live comments</h3>
+              <button onClick={() => setOpen(false)} className="text-xs font-bold text-ink-muted hover:text-ink">Close</button>
+            </div>
+            <div ref={listRef} className="flex-1 overflow-y-auto px-4 pb-2 space-y-2">
+              {comments.length === 0 ? (
+                <p className="text-sm text-ink-muted text-center py-8">No comments yet — viewers' comments show up here.</p>
+              ) : (
+                comments.map((c) => (
+                  <div key={c.id} className="text-sm">
+                    <span className="font-bold text-gold mr-1.5">{c.name}</span>
+                    <span className="text-ink break-words">{c.text}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 
 function FloatingEmoji({ e, onExpire }: { e: LiveEmoji; onExpire: () => void }) {
-  // Randomised drift + size so a burst of hearts looks lively, not uniform.
   const [drift] = useState(() => (Math.random() - 0.5) * 48)
   const [size] = useState(() => 22 + Math.random() * 16)
   const [startX] = useState(() => Math.random() * 24)

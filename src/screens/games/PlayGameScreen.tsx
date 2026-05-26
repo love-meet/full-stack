@@ -17,9 +17,11 @@ import {
   useCloseGame,
   useLeaveGame,
   playerLabel,
+  isNetworkError,
   type GamePlayer,
   type Game,
 } from '../../hooks/usePixelGame'
+import { useOnline } from '../../hooks/useOnline'
 import { useUploadChatMedia } from '../../hooks/useUploadChatMedia'
 import { useGamePresence } from '../../hooks/useGamePresence'
 import { useGameBroadcast } from '../../hooks/useGameBroadcast'
@@ -266,6 +268,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   const { progress, sendProgress } = useGameBroadcast(g.id)
   const live = useLiveReactions(g.id)
   const myProfile = useProfile()
+  const isOnline = useOnline()
   // My own board order — broadcast is self:false, so my % is computed locally.
   const [myOrder, setMyOrder] = useState<number[] | null>(null)
   // Reset my tracked progress whenever the round changes.
@@ -448,19 +451,33 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
           </div>
         )}
 
-        {(submit.error || setImg.error) && (
-          <p className="mt-3 text-xs text-danger text-center">{((submit.error || setImg.error) as Error).message}</p>
+        {/* Network-aware status. While offline or still saving a solve, we keep
+            playing and sync behind the scenes — no scary error, no hang. */}
+        {(!isOnline || submit.isPending) && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-xs text-ink-muted">
+            <span className="w-3.5 h-3.5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
+            <span>{isOnline ? 'Saving your result…' : 'Offline — your moves are safe, syncing when you reconnect'}</span>
+          </div>
+        )}
+        {/* Only surface a real (non-network) error; network blips self-heal. */}
+        {(submit.error || setImg.error) && !submit.isPending && (
+          <p className="mt-3 text-xs text-danger text-center">
+            {isNetworkError(submit.error || setImg.error)
+              ? 'Connection problem — retrying automatically.'
+              : ((submit.error || setImg.error) as Error).message}
+          </p>
         )}
       </div>
 
-      {/* Instagram-Live-style comments + emoji for everyone watching/playing. */}
+      {/* Live comments + emoji. Viewers comment/like; players read via a
+          "View comments" button so their board stays clean. */}
       <LiveOverlay
+        mode={amPlayer ? 'player' : 'viewer'}
         comments={live.comments}
         emojis={live.emojis}
         senderName={senderName}
         onComment={live.sendComment}
         onEmoji={live.sendEmoji}
-        removeComment={live.removeComment}
         removeEmoji={live.removeEmoji}
       />
     </div>
