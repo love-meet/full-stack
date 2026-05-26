@@ -13,13 +13,15 @@ const PREVIEW_MS = 5000
  * the round is already decided.
  */
 export default function PixelBoard({
-  image, seed, startedAt, locked, onSolve,
+  image, seed, startedAt, locked, onSolve, onProgress,
 }: {
   image: string
   seed: number
   startedAt: number
   locked: boolean
   onSolve: (timeMs: number) => void
+  /** Fired whenever the tile order changes, so progress can be broadcast. */
+  onProgress?: (order: number[], done: boolean) => void
 }) {
   const raceStart = startedAt + PREVIEW_MS
   const [order, setOrder] = useState<number[]>(() => identity())
@@ -27,6 +29,13 @@ export default function PixelBoard({
   const [selected, setSelected] = useState<number | null>(null)
   const [now, setNow] = useState(Date.now())
   const solvedRef = useRef(false)
+
+  // Broadcast progress on every order change while racing.
+  useEffect(() => {
+    if (phase === 'preview') return
+    onProgress?.(order, isSolved(order))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order, phase])
 
   // Preview → scatter at raceStart (synced across clients).
   useEffect(() => {
@@ -128,9 +137,47 @@ function seededShuffle(seed: number): number[] {
   return isSolved(a) ? seededShuffle(seed + 1) : a
 }
 
+/** Read-only board for spectators — renders a given tile order, no interaction. */
+export function MiniBoard({ image, order }: { image: string; order?: number[] }) {
+  const o = order && order.length === N ? order : identity()
+  return (
+    <div className="grid grid-cols-5 gap-[2px] w-full aspect-square">
+      {o.map((tile) => {
+        const row = Math.floor(tile / GRID)
+        const col = tile % GRID
+        return (
+          <motion.div
+            key={tile}
+            layout
+            transition={{ type: 'spring', stiffness: 600, damping: 40 }}
+            className="rounded-[3px] overflow-hidden"
+            style={{
+              backgroundImage: `url(${image})`,
+              backgroundSize: '500% 500%',
+              backgroundPosition: `${col * 25}% ${row * 25}%`,
+            }}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
 export function seedFor(gameId: string, round: number): number {
   let h = 0
   const s = `${gameId}:${round}`
   for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
   return h >>> 0
+}
+
+/** The shared starting scramble for a round (so spectators show it before a
+ *  player has made a move). */
+export function scrambleFor(gameId: string, round: number): number[] {
+  return seededShuffle(seedFor(gameId, round))
+}
+
+/** How many tiles are already in their correct place (0..25). */
+export function solvedCount(order?: number[]): number {
+  if (!order) return 0
+  return order.reduce((n, v, i) => n + (v === i ? 1 : 0), 0)
 }

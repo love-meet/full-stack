@@ -14,14 +14,17 @@ import {
   useAdvanceRound,
   useReassignTurn,
   useCreateGame,
+  useCloseGame,
   playerLabel,
   type GamePlayer,
   type Game,
 } from '../../hooks/usePixelGame'
 import { useUploadChatMedia } from '../../hooks/useUploadChatMedia'
 import { useGamePresence } from '../../hooks/useGamePresence'
-import PixelBoard, { seedFor } from '../../components/games/PixelBoard'
+import { useGameBroadcast } from '../../hooks/useGameBroadcast'
+import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount } from '../../components/games/PixelBoard'
 import { avatarUrlOr } from '../../lib/avatar'
+import ShareSheet from '../../components/ShareSheet'
 
 /**
  * Public game route (/play/:code). Works for the host, invited members, and
@@ -43,14 +46,17 @@ export default function PlayGameScreen() {
     }
   }, [ready, session])
 
+  const navigate = useNavigate()
   const game = useGameByCode(code)
   const players = useGamePlayers(game.data?.id)
   const join = useJoinGame()
   const start = useStartGame()
+  const closeGame = useCloseGame()
   const online = useGamePresence(game.data?.id, session?.user.id ?? null)
 
   const [name, setName] = useState('')
   const [joinError, setJoinError] = useState<string | null>(null)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const myId = session?.user.id ?? null
   const isAnon = !!session?.user.is_anonymous
@@ -60,6 +66,16 @@ export default function PlayGameScreen() {
   const isHost = !!me?.is_host
   const g = game.data
   const inviteUrl = g ? `${window.location.origin}/play/${g.invite_code}` : ''
+  const shareText = `Join my Pixel Rush game on Love meet 🧩 ${inviteUrl}`
+  const playerIds = new Set(list.map((p) => p.user_id))
+  const viewers = [...online].filter((id) => !playerIds.has(id)).length
+
+  async function doClose() {
+    if (!g) return
+    if (!window.confirm('Close this game for everyone? It will be deleted.')) return
+    try { await closeGame.mutateAsync(g.id); navigate('/games') }
+    catch (e) { alert((e as Error).message) }
+  }
 
   async function doJoin() {
     if (!code) return
@@ -117,7 +133,11 @@ export default function PlayGameScreen() {
 
   // ----- active / finished -----
   if (g.status === 'active' || g.status === 'finished') {
-    return <Frame><Match g={g} players={list} myId={myId} online={online} /></Frame>
+    return (
+      <Frame>
+        <Match g={g} players={list} myId={myId} online={online} viewers={viewers} onClose={doClose} />
+      </Frame>
+    )
   }
 
   // ----- lobby -----
@@ -140,24 +160,38 @@ export default function PlayGameScreen() {
             <span className="text-sm font-mono text-ink-2 truncate">{inviteUrl}</span>
             <span className="text-ink-muted shrink-0">⧉</span>
           </button>
+          <button
+            onClick={() => setShareOpen(true)}
+            className="mt-2 w-full rounded-full py-2.5 text-sm font-bold bg-gradient-brand text-white glow-rose"
+          >
+            ↗ Share invite (chat &amp; Telegram)
+          </button>
           <p className="text-[11px] text-ink-muted mt-1">Anyone with the link can join — no account needed.</p>
         </div>
 
         <PlayerList players={list} kind={g.kind} online={online} />
+        {viewers > 0 && <p className="mt-2 text-[11px] text-ink-muted">👁 {viewers} watching</p>}
 
         {isHost ? (
-          <button
-            onClick={() => g && start.mutate(g.id)}
-            disabled={!canStart || start.isPending}
-            className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60"
-          >
-            {start.isPending ? 'Starting…' : canStart ? 'Start game' : 'Waiting for players…'}
-          </button>
+          <>
+            <button
+              onClick={() => g && start.mutate(g.id)}
+              disabled={!canStart || start.isPending}
+              className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60"
+            >
+              {start.isPending ? 'Starting…' : canStart ? 'Start game' : 'Waiting for players…'}
+            </button>
+            <button onClick={doClose} disabled={closeGame.isPending} className="mt-2 w-full rounded-full py-2.5 text-sm font-semibold glass text-ink-2 hover:text-danger">
+              Close game
+            </button>
+          </>
         ) : (
           <p className="mt-5 text-center text-sm text-ink-muted">Waiting for the host to start…</p>
         )}
         {start.error && <p className="text-xs text-danger mt-2 text-center">{(start.error as Error).message}</p>}
       </Card>
+
+      {shareOpen && <ShareSheet url={inviteUrl} text={shareText} title="Invite to Pixel Rush" onClose={() => setShareOpen(false)} />}
     </Frame>
   )
 }
@@ -210,7 +244,7 @@ function PlayerRow({ p, online }: { p: GamePlayer; online: boolean }) {
 }
 
 // ---------- Match (active / finished) ----------
-function Match({ g, players, myId, online }: { g: Game; players: GamePlayer[]; myId: string | null; online: Set<string> }) {
+function Match({ g, players, myId, online, viewers, onClose }: { g: Game; players: GamePlayer[]; myId: string | null; online: Set<string>; viewers: number; onClose: () => void }) {
   const navigate = useNavigate()
   const round = useGameRound(g.id, g.current_round)
   const setImg = useSetRoundImage()
@@ -219,6 +253,7 @@ function Match({ g, players, myId, online }: { g: Game; players: GamePlayer[]; m
   const reassign = useReassignTurn()
   const createGame = useCreateGame()
   const upload = useUploadChatMedia()
+  const { progress, sendProgress } = useGameBroadcast(g.id)
 
   async function rematch() {
     try {
@@ -277,7 +312,13 @@ function Match({ g, players, myId, online }: { g: Game; players: GamePlayer[]; m
     <Card>
       <div className="flex items-center justify-between">
         <span className="text-sm font-bold text-ink">Round {g.current_round}/{g.rounds_total}</span>
-        <span className="text-[11px] text-ink-muted">{g.kind === '1v1' ? '1 v 1' : 'Teams'}</span>
+        <div className="flex items-center gap-3">
+          {viewers > 0 && <span className="text-[11px] text-ink-muted">👁 {viewers}</span>}
+          <span className="text-[11px] text-ink-muted">{g.kind === '1v1' ? '1 v 1' : 'Teams'}</span>
+          {isHost && (
+            <button onClick={onClose} className="text-[11px] font-bold text-ink-muted hover:text-danger">Close</button>
+          )}
+        </div>
       </div>
 
       <Scoreboard players={players} kind={g.kind} online={online} />
@@ -320,9 +361,10 @@ function Match({ g, players, myId, online }: { g: Game; players: GamePlayer[]; m
                 startedAt={r.started_at ? Date.parse(r.started_at) : Date.now()}
                 locked={false}
                 onSolve={(timeMs) => submit.mutate({ gameId: g.id, round: r.round_no, timeMs })}
+                onProgress={(order, done) => { if (myId) sendProgress(myId, order, done) }}
               />
             ) : (
-              <p className="text-center text-sm text-ink-muted py-6">🍿 Race in progress — you're spectating.</p>
+              <SpectatorBoards gameId={g.id} round={r.round_no} image={r.image_url!} players={players} progress={progress} />
             )}
             {isHost && (
               <div className="mt-3 text-center">
@@ -363,6 +405,44 @@ function Match({ g, players, myId, online }: { g: Game; players: GamePlayer[]; m
         <p className="mt-3 text-xs text-danger text-center">{((submit.error || setImg.error) as Error).message}</p>
       )}
     </Card>
+  )
+}
+
+/** Spectator view of a live race: the target picture + each player's board
+ *  updating in real time, with their solved %. */
+function SpectatorBoards({
+  gameId, round, image, players, progress,
+}: {
+  gameId: string
+  round: number
+  image: string
+  players: GamePlayer[]
+  progress: Map<string, { order: number[]; done: boolean }>
+}) {
+  const start = scrambleFor(gameId, round)
+  return (
+    <div>
+      <div className="text-center mb-4">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">Rebuild this picture</div>
+        <img src={image} alt="" className="mx-auto w-28 aspect-square object-cover rounded-xl ring-1 ring-white/10" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {players.map((p) => {
+          const order = progress.get(p.user_id)?.order ?? start
+          const pct = Math.round((solvedCount(order) / 25) * 100)
+          return (
+            <div key={p.id}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] text-ink-2 truncate">{playerLabel(p)}</span>
+                <span className="text-[11px] font-bold text-gradient-warm">{pct}%</span>
+              </div>
+              <MiniBoard image={image} order={order} />
+            </div>
+          )
+        })}
+      </div>
+      <p className="mt-3 text-center text-[11px] text-ink-muted">🍿 You're watching — only players can play.</p>
+    </div>
   )
 }
 

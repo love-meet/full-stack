@@ -217,6 +217,15 @@ export function useSubmitSolve() {
   })
 }
 
+export function useCloseGame() {
+  return useMutation({
+    mutationFn: async (gameId: string) => {
+      const { error } = await supabase.rpc('close_game', { p_game_id: gameId })
+      if (error) throw error
+    },
+  })
+}
+
 export function useReassignTurn() {
   const qc = useQueryClient()
   return useMutation({
