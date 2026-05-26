@@ -23,6 +23,9 @@ import {
 import { useUploadChatMedia } from '../../hooks/useUploadChatMedia'
 import { useGamePresence } from '../../hooks/useGamePresence'
 import { useGameBroadcast } from '../../hooks/useGameBroadcast'
+import { useLiveReactions } from '../../hooks/useLiveReactions'
+import { useProfile } from '../../hooks/useProfile'
+import LiveOverlay from '../../components/games/LiveOverlay'
 import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
 import { avatarUrlOr } from '../../lib/avatar'
 import ShareSheet from '../../components/ShareSheet'
@@ -261,6 +264,8 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   const createGame = useCreateGame()
   const upload = useUploadChatMedia()
   const { progress, sendProgress } = useGameBroadcast(g.id)
+  const live = useLiveReactions(g.id)
+  const myProfile = useProfile()
   // My own board order — broadcast is self:false, so my % is computed locally.
   const [myOrder, setMyOrder] = useState<number[] | null>(null)
   // Reset my tracked progress whenever the round changes.
@@ -277,6 +282,10 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   const amPlayer = !!me
   const isHost = !!me?.is_host
   const r = round.data
+  // Name shown on this person's live comments: their player name if playing,
+  // else their profile handle/name, else a friendly fallback.
+  const senderName = (me ? playerLabel(me)
+    : myProfile.data?.display_name || myProfile.data?.handle) || 'Viewer'
 
   // Clear any stale solve/upload error on every round or status transition, so
   // a transient "Load failed" doesn't linger on screen until a manual refresh.
@@ -365,7 +374,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
       </div>
 
       {/* Content (clears the fixed header). */}
-      <div className="max-w-md mx-auto px-4" style={{ paddingTop: 'calc(var(--lm-top-inset) + 6.5rem)', paddingBottom: '3rem' }}>
+      <div className="max-w-md mx-auto px-4" style={{ paddingTop: 'calc(var(--lm-top-inset) + 6.5rem)', paddingBottom: '8rem' }}>
         {!r || round.isPending ? (
           <Spinner />
         ) : r.status === 'awaiting_image' ? (
@@ -443,6 +452,17 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
           <p className="mt-3 text-xs text-danger text-center">{((submit.error || setImg.error) as Error).message}</p>
         )}
       </div>
+
+      {/* Instagram-Live-style comments + emoji for everyone watching/playing. */}
+      <LiveOverlay
+        comments={live.comments}
+        emojis={live.emojis}
+        senderName={senderName}
+        onComment={live.sendComment}
+        onEmoji={live.sendEmoji}
+        removeComment={live.removeComment}
+        removeEmoji={live.removeEmoji}
+      />
     </div>
   )
 }
