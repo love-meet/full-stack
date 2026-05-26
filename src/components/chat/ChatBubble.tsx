@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { Message } from '../../hooks/useMessages'
 import { cloudinaryPlaceholderUrl } from '../../lib/cloudinary'
+import { Linkify } from '../../lib/linkify'
 
 type Props = {
   message: Message
@@ -108,7 +109,7 @@ export default function ChatBubble({
                 pending={!!message.pending}
               />
             ) : null}
-            {message.body && <span>{message.body}</span>}
+            {message.body && <span><Linkify text={message.body} /></span>}
           </>
         )}
 
