@@ -228,16 +228,18 @@ export function useSubmitSolve() {
   return useMutation({
     mutationFn: async (vars: { gameId: string; round: number; timeMs: number }) => {
       let lastErr: unknown
-      // Up to ~8 tries over a few seconds. The round stays open until someone
-      // wins, so a brief blip shouldn't lose the win.
-      for (let attempt = 0; attempt < 8; attempt++) {
+      // Persist for ~18s. submit_solve decides by fastest time and lets a
+      // faster solve override a network-delayed slower one, so as long as our
+      // request lands while the round is still current it wins on merit. The
+      // round stays open until someone wins, so retrying long is safe.
+      for (let attempt = 0; attempt < 30; attempt++) {
         const { data, error } = await supabase
           .rpc('submit_solve', { p_game_id: vars.gameId, p_round: vars.round, p_time_ms: vars.timeMs })
           .select().single()
         if (!error) return data as GameRound
         lastErr = error
         if (!isNetworkError(error)) throw error
-        await new Promise((res) => setTimeout(res, 400))
+        await new Promise((res) => setTimeout(res, 600))
       }
       throw lastErr
     },
