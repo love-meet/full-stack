@@ -321,6 +321,18 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   const turnPlayer = players.find((p) => p.user_id === r?.turn_user_id)
   const winner = players.find((p) => p.user_id === r?.winner_player)
 
+  // Live solved % per player, shown by each name in the VS header while racing.
+  // My own order comes in locally (broadcast is self:false); others' over it.
+  const racing = r?.status === 'racing'
+  const total = racing ? gridForRound(r!.round_no) ** 2 : 0
+  const pctById = new Map<string, number>()
+  if (racing) {
+    for (const p of players) {
+      const order = p.user_id === myId ? myOrder : progress.get(p.user_id)?.order
+      pctById.set(p.user_id, order ? Math.round((solvedCount(order) / total) * 100) : 0)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-surface text-ink">
       {/* Fixed VS header — opponents + scores + close/leave. */}
@@ -339,7 +351,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
               )}
             </div>
           </div>
-          <VSHeader players={players} kind={g.kind} online={online} />
+          <VSHeader players={players} kind={g.kind} online={online} pctById={pctById} myId={myId} />
         </div>
       </div>
 
@@ -395,14 +407,6 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
                   onProgress={(order, done) => { setMyOrder(order); if (myId) sendProgress(myId, order, done) }}
                 />
               </motion.div>
-              {/* Live progress — me vs each opponent. */}
-              <RaceProgress
-                players={players}
-                myId={myId}
-                myOrder={myOrder}
-                progress={progress}
-                grid={gridForRound(r.round_no)}
-              />
             </div>
           ) : (
             <SpectatorBoards gameId={g.id} round={r.round_no} image={r.image_url!} players={players} progress={progress} />
@@ -434,16 +438,27 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   )
 }
 
-/** The opponents bar: A — VS — B with avatars + scores (or team totals). */
-function VSHeader({ players, kind, online }: { players: GamePlayer[]; kind: string; online: Set<string> }) {
+/** The opponents bar: A — VS — B with avatars + scores (or team totals).
+ *  `pctById` carries each player's live solved % during a race (empty otherwise);
+ *  it's shown by their name so you can see who's closest to finishing. */
+function VSHeader({ players, kind, online, pctById, myId }: {
+  players: GamePlayer[]; kind: string; online: Set<string>
+  pctById: Map<string, number>; myId: string | null
+}) {
   if (kind === 'group') {
-    const a = players.filter((p) => p.team === 'A').reduce((s, p) => s + p.score, 0)
-    const b = players.filter((p) => p.team === 'B').reduce((s, p) => s + p.score, 0)
+    const teamA = players.filter((p) => p.team === 'A')
+    const teamB = players.filter((p) => p.team === 'B')
+    const a = teamA.reduce((s, p) => s + p.score, 0)
+    const b = teamB.reduce((s, p) => s + p.score, 0)
+    const avg = (t: GamePlayer[]) => t.length && pctById.size
+      ? Math.round(t.reduce((s, p) => s + (pctById.get(p.user_id) ?? 0), 0) / t.length)
+      : null
+    const pa = avg(teamA), pb = avg(teamB)
     return (
       <div className="flex items-center justify-between">
-        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team A</div><div className="text-2xl font-extrabold text-ink">{a}</div></div>
+        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team A</div><div className="text-2xl font-extrabold text-ink">{a}</div>{pa != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pa}%</div>}</div>
         <span className="text-sm font-extrabold text-gradient-warm px-2">VS</span>
-        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team B</div><div className="text-2xl font-extrabold text-ink">{b}</div></div>
+        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team B</div><div className="text-2xl font-extrabold text-ink">{b}</div>{pb != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pb}%</div>}</div>
       </div>
     )
   }
@@ -451,14 +466,16 @@ function VSHeader({ players, kind, online }: { players: GamePlayer[]; kind: stri
   const b = players[1]
   return (
     <div className="flex items-center justify-between gap-2">
-      <PlayerChip p={a} online={!!a && online.has(a.user_id)} align="left" />
+      <PlayerChip p={a} online={!!a && online.has(a.user_id)} align="left" pct={a ? pctById.get(a.user_id) : undefined} isMe={!!a && a.user_id === myId} />
       <span className="text-sm font-extrabold text-gradient-warm shrink-0">VS</span>
-      <PlayerChip p={b} online={!!b && online.has(b.user_id)} align="right" />
+      <PlayerChip p={b} online={!!b && online.has(b.user_id)} align="right" pct={b ? pctById.get(b.user_id) : undefined} isMe={!!b && b.user_id === myId} />
     </div>
   )
 }
 
-function PlayerChip({ p, online, align }: { p?: GamePlayer; online: boolean; align: 'left' | 'right' }) {
+function PlayerChip({ p, online, align, pct, isMe }: {
+  p?: GamePlayer; online: boolean; align: 'left' | 'right'; pct?: number; isMe?: boolean
+}) {
   if (!p) return <div className="flex-1 text-center text-[11px] text-ink-muted">waiting…</div>
   return (
     <div className={`flex-1 flex items-center gap-2 min-w-0 ${align === 'right' ? 'flex-row-reverse text-right' : ''}`}>
@@ -467,50 +484,12 @@ function PlayerChip({ p, online, align }: { p?: GamePlayer; online: boolean; ali
         <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-surface-2 ${online ? 'bg-success' : 'bg-ink-muted'}`} />
       </span>
       <div className="min-w-0">
-        <div className="text-xs font-bold text-ink truncate">{playerLabel(p)}</div>
+        <div className={`flex items-center gap-1.5 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+          <span className="text-xs font-bold text-ink truncate">{isMe ? 'You' : playerLabel(p)}</span>
+          {pct != null && <span className="text-[11px] font-bold text-gradient-warm tabular-nums shrink-0">{pct}%</span>}
+        </div>
         <div className="text-lg font-extrabold text-gradient-warm leading-none">{p.score}</div>
       </div>
-    </div>
-  )
-}
-
-/** Live progress for a racing player: their own % plus each opponent's %, so
- *  you can see how close anyone is to finishing. My own order comes in locally
- *  (broadcast is self:false); opponents' orders arrive over the broadcast. */
-function RaceProgress({
-  players, myId, myOrder, progress, grid,
-}: {
-  players: GamePlayer[]
-  myId: string | null
-  myOrder: number[] | null
-  progress: Map<string, { order: number[]; done: boolean }>
-  grid: number
-}) {
-  const total = grid * grid
-  return (
-    <div className="mt-5 space-y-2.5">
-      {players.map((p) => {
-        const mine = p.user_id === myId
-        const order = mine ? myOrder : progress.get(p.user_id)?.order
-        const pct = order ? Math.round((solvedCount(order) / total) * 100) : 0
-        return (
-          <div key={p.id}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-bold text-ink truncate">
-                {mine ? 'You' : playerLabel(p)}
-              </span>
-              <span className="text-[11px] font-bold text-gradient-warm tabular-nums">{pct}%</span>
-            </div>
-            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-              <motion.div
-                className={mine ? 'h-full rounded-full bg-gradient-brand' : 'h-full rounded-full bg-white/40'}
-                animate={{ width: `${pct}%` }}
-                transition={{ type: 'spring', stiffness: 200, damping: 30 }}
-              />
-            </div>
-          </div>
-        )
-      })}
     </div>
   )
 }
