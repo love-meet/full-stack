@@ -47,6 +47,7 @@ export default function PixelBoard({
   const raceStart = startedAt + PREVIEW_MS
   const [order, setOrder] = useState<number[]>(() => identity(n))
   const [phase, setPhase] = useState<'preview' | 'play' | 'solved'>('preview')
+  const [selected, setSelected] = useState<number | null>(null)
   const [now, setNow] = useState(Date.now())
   const solvedRef = useRef(false)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -87,6 +88,16 @@ export default function PixelBoard({
     })
   }
 
+  // Tap to pick a tile (it animates as "ready to move"), tap another to place
+  // it — an alternative to dragging, both available at once.
+  function tap(slot: number) {
+    if (!canPlay) return
+    if (selected === null) { setSelected(slot); return }
+    if (selected === slot) { setSelected(null); return }
+    swapSlots(selected, slot)
+    setSelected(null)
+  }
+
   // Which slot a tile was dropped over, from its drag offset + grid geometry.
   function dropTarget(slot: number, offX: number, offY: number): number {
     const el = gridRef.current
@@ -120,10 +131,15 @@ export default function PixelBoard({
               dragSnapToOrigin
               dragElastic={0.12}
               whileDrag={{ scale: 1.1, zIndex: 30, boxShadow: '0 10px 28px rgba(0,0,0,0.45)' }}
-              onDragEnd={(_e, info) => swapSlots(slot, dropTarget(slot, info.offset.x, info.offset.y))}
-              transition={{ type: 'spring', stiffness: 600, damping: 40 }}
+              onDragEnd={(_e, info) => { swapSlots(slot, dropTarget(slot, info.offset.x, info.offset.y)); setSelected(null) }}
+              onClick={() => tap(slot)}
+              animate={selected === slot ? { rotate: [-2.5, 2.5, -2.5], scale: 1.07 } : { rotate: 0, scale: 1 }}
+              transition={selected === slot
+                ? { rotate: { repeat: Infinity, duration: 0.42, ease: 'easeInOut' }, scale: { type: 'spring', stiffness: 500, damping: 26 }, layout: { type: 'spring', stiffness: 600, damping: 40 } }
+                : { type: 'spring', stiffness: 600, damping: 40 }}
               className={[
                 'relative rounded-[5px] overflow-hidden touch-none',
+                selected === slot ? 'ring-2 ring-gold z-20 shadow-[0_8px_22px_rgba(0,0,0,0.45)]' : '',
                 showWhole || locked ? 'pointer-events-none' : 'cursor-grab active:cursor-grabbing',
               ].join(' ')}
               style={{

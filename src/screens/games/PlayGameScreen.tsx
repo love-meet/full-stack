@@ -396,7 +396,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
               </div>
               {/* Drag a tile onto another to swap them. */}
               <div>
-                <div className="text-center text-[10px] text-ink-muted mb-1">✥ drag a tile onto another to swap</div>
+                <div className="text-center text-[10px] text-ink-muted mb-1">✥ drag a tile onto another, or tap two tiles, to swap</div>
                 <PixelBoard
                   image={r.image_url!}
                   seed={seedFor(g.id, r.round_no)}
