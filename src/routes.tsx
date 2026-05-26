@@ -3,6 +3,8 @@ import Shell from './shell/Shell'
 import RequireSession from './shell/RequireSession'
 import RequireProfile from './shell/RequireProfile'
 import LandingScreen from './screens/LandingScreen'
+import BlogScreen from './screens/blog/BlogScreen'
+import ArticleScreen from './screens/blog/ArticleScreen'
 import OnboardingScreen from './screens/onboarding/OnboardingScreen'
 import FeedScreen from './screens/FeedScreen'
 import ExploreScreen from './screens/ExploreScreen'
@@ -47,6 +49,10 @@ import SupportTicketScreen from './screens/support/SupportTicketScreen'
 export const router = createBrowserRouter([
   // Public landing — no auth required.
   { path: '/', element: <LandingScreen /> },
+
+  // Public, crawlable SEO blog — no auth required.
+  { path: '/blog', element: <BlogScreen /> },
+  { path: '/blog/:slug', element: <ArticleScreen /> },
 
   // Signed-in but not-yet-onboarded users can reach /onboarding.
   {

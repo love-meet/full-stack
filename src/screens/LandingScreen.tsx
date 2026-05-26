@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, type Variants } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../stores/auth'
 import { getSurface } from '../lib/surface'
 import { signInWithGoogle, signInWithTelegram } from '../lib/signIn'
@@ -236,6 +236,12 @@ function CtaStack({ surface, busy, error, onGoogle, onTelegram }: CtaProps) {
         </button>
       )}
       {error && <p className="text-sm text-danger text-center">{error}</p>}
+      <p className="text-center text-[11px] text-ink-muted">
+        New here?{' '}
+        <Link to="/blog" className="text-rose hover:underline font-semibold">
+          Read love games, dating tips &amp; relationship advice
+        </Link>
+      </p>
     </div>
   )
 }
