@@ -278,6 +278,15 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   const isHost = !!me?.is_host
   const r = round.data
 
+  // Clear any stale solve/upload error on every round or status transition, so
+  // a transient "Load failed" doesn't linger on screen until a manual refresh.
+  // (The retry + fastest-time logic resolves the actual outcome regardless.)
+  useEffect(() => {
+    submit.reset()
+    setImg.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [g.current_round, r?.status])
+
   async function pickRoundImage(file: File | undefined) {
     if (!file || !r) return
     try {
