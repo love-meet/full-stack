@@ -212,14 +212,34 @@ export function useSetRoundImage() {
   })
 }
 
+/** A flaky webview connection (Telegram/WebKit "Load failed") can drop the
+ *  solve request, which would otherwise cost you the round even though you
+ *  finished first. submit_solve is idempotent — once decided it just returns
+ *  the round, and the row lock serializes concurrent solves — so we can safely
+ *  retry on transient network failures until it lands. */
+function isNetworkError(e: unknown): boolean {
+  // PostgREST errors carry a `code`; genuine app errors must NOT be retried.
+  if (e && typeof e === 'object' && 'code' in e && (e as { code?: string }).code) return false
+  const msg = (e instanceof Error ? e.message : String(e)).toLowerCase()
+  return /load failed|failed to fetch|network|timeout|connection|fetch/.test(msg)
+}
+
 export function useSubmitSolve() {
   return useMutation({
     mutationFn: async (vars: { gameId: string; round: number; timeMs: number }) => {
-      const { data, error } = await supabase
-        .rpc('submit_solve', { p_game_id: vars.gameId, p_round: vars.round, p_time_ms: vars.timeMs })
-        .select().single()
-      if (error) throw error
-      return data as GameRound
+      let lastErr: unknown
+      // Up to ~8 tries over a few seconds. The round stays open until someone
+      // wins, so a brief blip shouldn't lose the win.
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const { data, error } = await supabase
+          .rpc('submit_solve', { p_game_id: vars.gameId, p_round: vars.round, p_time_ms: vars.timeMs })
+          .select().single()
+        if (!error) return data as GameRound
+        lastErr = error
+        if (!isNetworkError(error)) throw error
+        await new Promise((res) => setTimeout(res, 400))
+      }
+      throw lastErr
     },
   })
 }
