@@ -19,6 +19,7 @@ import {
   type Game,
 } from '../../hooks/usePixelGame'
 import { useUploadChatMedia } from '../../hooks/useUploadChatMedia'
+import { useGamePresence } from '../../hooks/useGamePresence'
 import PixelBoard, { seedFor } from '../../components/games/PixelBoard'
 import { avatarUrlOr } from '../../lib/avatar'
 
@@ -46,6 +47,7 @@ export default function PlayGameScreen() {
   const players = useGamePlayers(game.data?.id)
   const join = useJoinGame()
   const start = useStartGame()
+  const online = useGamePresence(game.data?.id, session?.user.id ?? null)
 
   const [name, setName] = useState('')
   const [joinError, setJoinError] = useState<string | null>(null)
@@ -115,7 +117,7 @@ export default function PlayGameScreen() {
 
   // ----- active / finished -----
   if (g.status === 'active' || g.status === 'finished') {
-    return <Frame><Match g={g} players={list} myId={myId} /></Frame>
+    return <Frame><Match g={g} players={list} myId={myId} online={online} /></Frame>
   }
 
   // ----- lobby -----
@@ -141,7 +143,7 @@ export default function PlayGameScreen() {
           <p className="text-[11px] text-ink-muted mt-1">Anyone with the link can join — no account needed.</p>
         </div>
 
-        <PlayerList players={list} kind={g.kind} />
+        <PlayerList players={list} kind={g.kind} online={online} />
 
         {isHost ? (
           <button
@@ -160,7 +162,7 @@ export default function PlayGameScreen() {
   )
 }
 
-function PlayerList({ players, kind }: { players: GamePlayer[]; kind: string }) {
+function PlayerList({ players, kind, online }: { players: GamePlayer[]; kind: string; online: Set<string> }) {
   const teamA = players.filter((p) => p.team === 'A')
   const teamB = players.filter((p) => p.team === 'B')
   return (
@@ -170,38 +172,45 @@ function PlayerList({ players, kind }: { players: GamePlayer[]; kind: string }) 
       </div>
       {kind === 'group' ? (
         <div className="grid grid-cols-2 gap-3">
-          <TeamCol label="Team A" players={teamA} />
-          <TeamCol label="Team B" players={teamB} />
+          <TeamCol label="Team A" players={teamA} online={online} />
+          <TeamCol label="Team B" players={teamB} online={online} />
         </div>
       ) : (
-        <ul className="space-y-2">{players.map((p) => <PlayerRow key={p.id} p={p} />)}</ul>
+        <ul className="space-y-2">{players.map((p) => <PlayerRow key={p.id} p={p} online={online.has(p.user_id)} />)}</ul>
       )}
     </div>
   )
 }
 
-function TeamCol({ label, players }: { label: string; players: GamePlayer[] }) {
+function TeamCol({ label, players, online }: { label: string; players: GamePlayer[]; online: Set<string> }) {
   return (
     <div className="glass rounded-2xl p-3">
       <div className="text-[11px] font-bold text-rose mb-2">{label}</div>
-      <ul className="space-y-2">{players.map((p) => <PlayerRow key={p.id} p={p} />)}</ul>
+      <ul className="space-y-2">{players.map((p) => <PlayerRow key={p.id} p={p} online={online.has(p.user_id)} />)}</ul>
       {players.length === 0 && <p className="text-[11px] text-ink-muted">—</p>}
     </div>
   )
 }
 
-function PlayerRow({ p }: { p: GamePlayer }) {
+function PlayerRow({ p, online }: { p: GamePlayer; online: boolean }) {
   return (
     <li className="flex items-center gap-2">
-      <img src={avatarUrlOr(p.profile?.avatar_url)} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+      <span className="relative shrink-0">
+        <img src={avatarUrlOr(p.profile?.avatar_url)} alt="" className="w-7 h-7 rounded-full object-cover" />
+        <span
+          className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-surface-2 ${online ? 'bg-success' : 'bg-ink-muted'}`}
+          aria-label={online ? 'online' : 'offline'}
+        />
+      </span>
       <span className="text-sm text-ink truncate">{playerLabel(p)}</span>
       {p.is_host && <span className="text-[9px] font-bold uppercase tracking-wider text-gold">host</span>}
+      {!online && <span className="text-[10px] text-ink-muted">left</span>}
     </li>
   )
 }
 
 // ---------- Match (active / finished) ----------
-function Match({ g, players, myId }: { g: Game; players: GamePlayer[]; myId: string | null }) {
+function Match({ g, players, myId, online }: { g: Game; players: GamePlayer[]; myId: string | null; online: Set<string> }) {
   const navigate = useNavigate()
   const round = useGameRound(g.id, g.current_round)
   const setImg = useSetRoundImage()
@@ -246,7 +255,7 @@ function Match({ g, players, myId }: { g: Game; players: GamePlayer[]; myId: str
               : `Team ${g.winner_team ?? '—'} wins!`}
           </h1>
         </div>
-        <Scoreboard players={players} kind={g.kind} />
+        <Scoreboard players={players} kind={g.kind} online={online} />
         <div className="mt-5 flex flex-col gap-2">
           {isHost && (
             <button onClick={rematch} disabled={createGame.isPending} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
@@ -271,7 +280,7 @@ function Match({ g, players, myId }: { g: Game; players: GamePlayer[]; myId: str
         <span className="text-[11px] text-ink-muted">{g.kind === '1v1' ? '1 v 1' : 'Teams'}</span>
       </div>
 
-      <Scoreboard players={players} kind={g.kind} />
+      <Scoreboard players={players} kind={g.kind} online={online} />
 
       <div className="mt-4">
         {!r || round.isPending ? (
@@ -289,6 +298,7 @@ function Match({ g, players, myId }: { g: Game; players: GamePlayer[]; myId: str
             <div className="text-center py-6">
               <p className="text-sm text-ink-muted">
                 Waiting for <b className="text-ink">{turnPlayer ? playerLabel(turnPlayer) : 'the next player'}</b> to pick a picture…
+                {turnPlayer && !online.has(turnPlayer.user_id) && <span className="block text-danger mt-1">They seem to have left — skip them.</span>}
               </p>
               {isHost && (
                 <button
@@ -356,7 +366,7 @@ function Match({ g, players, myId }: { g: Game; players: GamePlayer[]; myId: str
   )
 }
 
-function Scoreboard({ players, kind }: { players: GamePlayer[]; kind: string }) {
+function Scoreboard({ players, kind, online }: { players: GamePlayer[]; kind: string; online: Set<string> }) {
   if (kind === 'group') {
     const a = players.filter((p) => p.team === 'A').reduce((s, p) => s + p.score, 0)
     const b = players.filter((p) => p.team === 'B').reduce((s, p) => s + p.score, 0)
@@ -369,15 +379,22 @@ function Scoreboard({ players, kind }: { players: GamePlayer[]; kind: string }) 
   }
   return (
     <ul className="mt-3 space-y-1.5">
-      {[...players].sort((x, y) => y.score - x.score).map((p) => (
-        <li key={p.id} className="flex items-center justify-between glass rounded-xl px-3 py-2">
-          <span className="flex items-center gap-2 min-w-0">
-            <img src={avatarUrlOr(p.profile?.avatar_url)} alt="" className="w-6 h-6 rounded-full object-cover" />
-            <span className="text-sm text-ink truncate">{playerLabel(p)}</span>
-          </span>
-          <span className="text-sm font-extrabold text-gradient-warm">{p.score}</span>
-        </li>
-      ))}
+      {[...players].sort((x, y) => y.score - x.score).map((p) => {
+        const isOn = online.has(p.user_id)
+        return (
+          <li key={p.id} className="flex items-center justify-between glass rounded-xl px-3 py-2">
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="relative shrink-0">
+                <img src={avatarUrlOr(p.profile?.avatar_url)} alt="" className="w-6 h-6 rounded-full object-cover" />
+                <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-surface-2 ${isOn ? 'bg-success' : 'bg-ink-muted'}`} />
+              </span>
+              <span className="text-sm text-ink truncate">{playerLabel(p)}</span>
+              {!isOn && <span className="text-[10px] text-ink-muted">left</span>}
+            </span>
+            <span className="text-sm font-extrabold text-gradient-warm">{p.score}</span>
+          </li>
+        )
+      })}
     </ul>
   )
 }
