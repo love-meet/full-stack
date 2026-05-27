@@ -152,6 +152,9 @@ export default function PlayGameScreen() {
 
   // ----- lobby -----
   const canStart = isHost && list.length >= 2
+  // A 1v1 only needs the one opponent — once they're in, stop inviting.
+  const lobbyFull = g.kind === '1v1' && list.length >= 2
+  const opponent = g.kind === '1v1' ? list.find((p) => p.user_id !== myId) : undefined
   return (
     <Frame>
       <Card>
@@ -160,24 +163,37 @@ export default function PlayGameScreen() {
           {g.kind === '1v1' ? '1 v 1 match' : `Group match · up to ${g.max_players} players`}
         </p>
 
-        {/* Invite */}
-        <div className="mt-4">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">Invite link</div>
-          <button
-            onClick={() => navigator.clipboard?.writeText(inviteUrl)}
-            className="w-full glass rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 text-left"
-          >
-            <span className="text-sm font-mono text-ink-2 truncate">{inviteUrl}</span>
-            <span className="text-ink-muted shrink-0">⧉</span>
-          </button>
-          <button
-            onClick={() => setShareOpen(true)}
-            className="mt-2 w-full rounded-full py-2.5 text-sm font-bold bg-gradient-brand text-white glow-rose"
-          >
-            ↗ Share invite (chat &amp; Telegram)
-          </button>
-          <p className="text-[11px] text-ink-muted mt-1">Anyone with the link can join — no account needed.</p>
-        </div>
+        {/* Invite — hidden once a 1v1 has its opponent. */}
+        {lobbyFull ? (
+          <div className="mt-4 rounded-2xl p-3 bg-success/10 ring-1 ring-success/30 flex items-center gap-3">
+            <span className="relative shrink-0">
+              <img src={avatarUrlOr(opponent?.profile?.avatar_url)} alt="" className="w-10 h-10 rounded-full object-cover" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-success ring-2 ring-surface-2 grid place-items-center text-[9px] text-white">✓</span>
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-ink truncate">{opponent ? `${playerLabel(opponent)} joined!` : 'Opponent joined!'}</div>
+              <div className="text-[12px] text-ink-2">{isHost ? 'Both players are in — start when ready.' : 'Waiting for the host to start…'}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">Invite link</div>
+            <button
+              onClick={() => navigator.clipboard?.writeText(inviteUrl)}
+              className="w-full glass rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 text-left"
+            >
+              <span className="text-sm font-mono text-ink-2 truncate">{inviteUrl}</span>
+              <span className="text-ink-muted shrink-0">⧉</span>
+            </button>
+            <button
+              onClick={() => setShareOpen(true)}
+              className="mt-2 w-full rounded-full py-2.5 text-sm font-bold bg-gradient-brand text-white glow-rose"
+            >
+              ↗ Share invite (chat &amp; Telegram)
+            </button>
+            <p className="text-[11px] text-ink-muted mt-1">Anyone with the link can join — no account needed.</p>
+          </div>
+        )}
 
         <PlayerList players={list} kind={g.kind} online={online} />
         {viewers > 0 && <p className="mt-2 text-[11px] text-ink-muted">👁 {viewers} watching</p>}
