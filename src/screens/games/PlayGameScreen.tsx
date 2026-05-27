@@ -11,7 +11,7 @@ import {
   useGameRound,
   useSetRoundImage,
   useSubmitSolve,
-  useAdvanceRound,
+  useAutoAdvanceRound,
   useReassignTurn,
   useCreateGame,
   useCloseGame,
@@ -261,7 +261,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   const round = useGameRound(g.id, g.current_round)
   const setImg = useSetRoundImage()
   const submit = useSubmitSolve()
-  const advance = useAdvanceRound()
+  const autoAdvance = useAutoAdvanceRound()
   const reassign = useReassignTurn()
   const createGame = useCreateGame()
   const upload = useUploadChatMedia()
@@ -298,6 +298,16 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
     setImg.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [g.current_round, r?.status])
+
+  // Auto-advance once a round is won — no host click needed. Show the winner
+  // briefly, then move on (or finish + show results on the last round). Players
+  // drive it; the DB serializes concurrent calls so only one actually advances.
+  useEffect(() => {
+    if (!amPlayer || g.status !== 'active' || !r || r.status !== 'done') return
+    const t = window.setTimeout(() => autoAdvance.mutate({ gameId: g.id, round: r.round_no }), 3500)
+    return () => window.clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amPlayer, g.status, g.id, r?.status, r?.round_no])
 
   async function pickRoundImage(file: File | undefined) {
     if (!file || !r) return
@@ -440,14 +450,10 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
               {winner ? (winner.user_id === myId ? 'You won the round!' : `${playerLabel(winner)} won the round`) : 'Round over'}
             </p>
             {r.winner_time_ms != null && <p className="text-sm text-ink-muted">{(r.winner_time_ms / 1000).toFixed(1)}s</p>}
-            {isHost ? (
-              <button onClick={() => advance.mutate(g.id)} disabled={advance.isPending}
-                className="mt-4 rounded-full px-6 py-2.5 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
-                {advance.isPending ? '…' : g.current_round >= g.rounds_total ? 'Finish game' : 'Next round'}
-              </button>
-            ) : (
-              <p className="mt-3 text-sm text-ink-muted">Next round starting…</p>
-            )}
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-ink-muted">
+              <span className="w-3.5 h-3.5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
+              <span>{g.current_round >= g.rounds_total ? 'Tallying final results…' : 'Next round starting…'}</span>
+            </div>
           </div>
         )}
 

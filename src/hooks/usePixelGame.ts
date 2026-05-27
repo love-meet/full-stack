@@ -302,6 +302,23 @@ export function useReassignTurn() {
   })
 }
 
+/** Auto-advance once a round is decided — callable by any participant, safe to
+ *  call from several clients at once (the DB serializes + no-ops the losers). */
+export function useAutoAdvanceRound() {
+  const qc = useQueryClient()
+  return useMutation({
+    retry: false,
+    mutationFn: async (vars: { gameId: string; round: number }) => {
+      const { error } = await supabase.rpc('auto_advance_round', { p_game_id: vars.gameId, p_round: vars.round })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['game'] })
+      qc.invalidateQueries({ queryKey: ['game-round'] })
+    },
+  })
+}
+
 export function useAdvanceRound() {
   const qc = useQueryClient()
   return useMutation({
