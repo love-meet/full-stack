@@ -438,11 +438,20 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
             <div className="flex items-center gap-3">
               {viewers > 0 && <span className="text-[11px] text-ink-muted">👁 {viewers}</span>}
               {isHost ? (
-                <button onClick={onClose} className="text-[11px] font-bold text-ink-muted hover:text-danger">Close</button>
+                <button onClick={onClose} aria-label="Close game"
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold bg-danger/15 text-danger ring-1 ring-danger/40 active:scale-95 transition">
+                  <span aria-hidden className="text-sm leading-none">⏻</span> Close
+                </button>
               ) : amPlayer ? (
-                <button onClick={onLeave} className="text-[11px] font-bold text-ink-muted hover:text-danger">Leave</button>
+                <button onClick={onLeave} aria-label="Leave game"
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold bg-danger/15 text-danger ring-1 ring-danger/40 active:scale-95 transition">
+                  <span aria-hidden className="text-sm leading-none">⏻</span> Leave
+                </button>
               ) : (
-                <button onClick={() => navigate('/feed')} className="text-[11px] font-bold text-ink-muted hover:text-ink">Exit</button>
+                <button onClick={() => navigate('/feed')} aria-label="Exit"
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold glass text-ink-2 ring-1 ring-white/10 active:scale-95 transition">
+                  <span aria-hidden className="text-sm leading-none">✕</span> Exit
+                </button>
               )}
             </div>
           </div>
@@ -578,8 +587,8 @@ function VSHeader({ players, kind, online, pctById, myId }: {
       <div className="flex items-center justify-between">
         <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team A</div><div className="text-2xl font-extrabold text-ink">{a}</div>{pa != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pa}%</div>}</div>
         <div className="flex flex-col items-center px-2">
+          {ta + tb > 0 && <span className="text-sm font-extrabold text-gold tabular-nums leading-none">🏆 {ta} : {tb}</span>}
           <span className="text-sm font-extrabold text-gradient-warm">VS</span>
-          {ta + tb > 0 && <span className="text-[11px] font-bold text-gold tabular-nums">🏆 {ta}–{tb}</span>}
         </div>
         <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team B</div><div className="text-2xl font-extrabold text-ink">{b}</div>{pb != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pb}%</div>}</div>
       </div>
@@ -592,8 +601,8 @@ function VSHeader({ players, kind, online, pctById, myId }: {
     <div className="flex items-center justify-between gap-2">
       <PlayerChip p={a} online={!!a && online.has(a.user_id)} align="left" pct={a ? pctById.get(a.user_id) : undefined} isMe={!!a && a.user_id === myId} />
       <div className="flex flex-col items-center shrink-0">
+        {trophyTally > 0 && <span className="text-sm font-extrabold text-gold tabular-nums leading-none">🏆 {a?.trophies ?? 0} : {b?.trophies ?? 0}</span>}
         <span className="text-sm font-extrabold text-gradient-warm">VS</span>
-        {trophyTally > 0 && <span className="text-[11px] font-bold text-gold tabular-nums">🏆 {a?.trophies ?? 0}–{b?.trophies ?? 0}</span>}
       </div>
       <PlayerChip p={b} online={!!b && online.has(b.user_id)} align="right" pct={b ? pctById.get(b.user_id) : undefined} isMe={!!b && b.user_id === myId} />
     </div>
