@@ -7,14 +7,15 @@ const PREVIEW_MS = 5000
  * Progressive difficulty: the picture is cut into a small grid early on and a
  * bigger one as rounds advance, so the game eases players in (3x3) and ramps to
  * hard (5x5). Derived purely from the round number so every client computes the
- * same size for the shared scramble.
- *   rounds 1–5   → 3x3  (easy)
- *   rounds 6–12  → 4x4  (medium)
- *   rounds 13+   → 5x5  (hard)
+ * same size for the shared scramble. Over a 9-round match this gives 4 easy,
+ * 3 medium, 2 hard:
+ *   rounds 1–4   → 3x3  (easy)
+ *   rounds 5–7   → 4x4  (medium)
+ *   rounds 8+    → 5x5  (hard)
  */
 export function gridForRound(round: number): number {
-  if (round <= 5) return 3
-  if (round <= 12) return 4
+  if (round <= 4) return 3
+  if (round <= 7) return 4
   return 5
 }
 
