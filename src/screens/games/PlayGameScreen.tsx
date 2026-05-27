@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
@@ -333,23 +333,58 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
     } catch { /* shown via mutation state */ }
   }
 
-  // ----- Finished — "Game over", with a winner if there was one. -----
+  // ----- Finished — per-viewer "You win/lose", with confetti for the winner. -----
   if (g.status === 'finished') {
     const hasWinner = !!(g.winner_player || g.winner_team)
     const champ = players.find((p) => p.user_id === g.winner_player)
+    const iWon = hasWinner && (g.kind === '1v1' ? g.winner_player === myId : !!me?.team && g.winner_team === me.team)
+    const iLost = amPlayer && hasWinner && !iWon
+
+    const headline = !hasWinner ? 'Game over'
+      : iWon ? 'You win!'
+      : iLost ? 'You lose'
+      : g.kind === '1v1' ? `${champ ? playerLabel(champ) : 'Someone'} wins!`
+      : `Team ${g.winner_team} wins!`
+    const icon = !hasWinner ? '🏁' : iWon ? '🏆' : iLost ? '💔' : '🏆'
+    const sub = !hasWinner ? 'The game has ended.'
+      : iWon ? 'Champion of the picture race! 🎉'
+      : iLost ? 'So close — run it back?'
+      : 'Final scores below.'
+
     return (
       <Frame>
-        <Card>
-          <div className="text-center">
-            <div className="text-6xl">{hasWinner ? '🏆' : '🏁'}</div>
-            <h1 className="mt-2 text-2xl font-extrabold text-gradient-warm">
-              {hasWinner
-                ? (g.kind === '1v1' ? `${champ ? playerLabel(champ) : 'Someone'} wins!` : `Team ${g.winner_team} wins!`)
-                : 'Game over'}
-            </h1>
-            {!hasWinner && <p className="text-sm text-ink-2 mt-1">The game has ended.</p>}
-          </div>
-          <Scoreboard players={players} kind={g.kind} online={online} />
+        <Card className="relative overflow-hidden text-center">
+          {iWon && <Confetti />}
+          <motion.div
+            initial={{ scale: 0, rotate: -25 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', stiffness: 240, damping: 13 }}
+            className="relative mx-auto w-24 h-24 grid place-items-center"
+          >
+            {iWon && (
+              <motion.span
+                className="absolute inset-0 rounded-full bg-gold/25 blur-xl"
+                animate={{ scale: [1, 1.25, 1], opacity: [0.5, 0.9, 0.5] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            )}
+            <span className="relative text-7xl drop-shadow">{icon}</span>
+          </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            className={`mt-2 text-3xl font-extrabold ${iLost ? 'text-ink' : 'text-gradient-warm'}`}
+          >
+            {headline}
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+            className="text-sm text-ink-2 mt-1"
+          >
+            {sub}
+          </motion.p>
+
+          <Scoreboard players={players} kind={g.kind} online={online} winnerPlayer={g.winner_player} winnerTeam={g.winner_team} />
+
           <div className="mt-5 flex flex-col gap-2">
             {isHost && (
               <button onClick={rematch} disabled={createGame.isPending} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
@@ -605,29 +640,34 @@ function SpectatorBoards({
   )
 }
 
-function Scoreboard({ players, kind, online }: { players: GamePlayer[]; kind: string; online: Set<string> }) {
+function Scoreboard({ players, kind, online, winnerPlayer, winnerTeam }: {
+  players: GamePlayer[]; kind: string; online: Set<string>
+  winnerPlayer?: string | null; winnerTeam?: string | null
+}) {
   if (kind === 'group') {
     const a = players.filter((p) => p.team === 'A').reduce((s, p) => s + p.score, 0)
     const b = players.filter((p) => p.team === 'B').reduce((s, p) => s + p.score, 0)
-    return (
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <div className="glass rounded-2xl p-3 text-center"><div className="text-[11px] text-rose font-bold">Team A</div><div className="text-2xl font-extrabold text-ink">{a}</div></div>
-        <div className="glass rounded-2xl p-3 text-center"><div className="text-[11px] text-rose font-bold">Team B</div><div className="text-2xl font-extrabold text-ink">{b}</div></div>
+    const box = (team: string, total: number) => (
+      <div className={`glass rounded-2xl p-3 text-center ${winnerTeam === team ? 'ring-2 ring-gold' : ''}`}>
+        <div className="text-[11px] text-rose font-bold">{winnerTeam === team && '👑 '}Team {team}</div>
+        <div className="text-2xl font-extrabold text-ink">{total}</div>
       </div>
     )
+    return <div className="mt-4 grid grid-cols-2 gap-3">{box('A', a)}{box('B', b)}</div>
   }
   return (
-    <ul className="mt-3 space-y-1.5">
+    <ul className="mt-4 space-y-1.5 text-left">
       {[...players].sort((x, y) => y.score - x.score).map((p) => {
         const isOn = online.has(p.user_id)
+        const won = winnerPlayer === p.user_id
         return (
-          <li key={p.id} className="flex items-center justify-between glass rounded-xl px-3 py-2">
+          <li key={p.id} className={`flex items-center justify-between glass rounded-xl px-3 py-2 ${won ? 'ring-2 ring-gold' : ''}`}>
             <span className="flex items-center gap-2 min-w-0">
               <span className="relative shrink-0">
                 <img src={avatarUrlOr(p.profile?.avatar_url)} alt="" className="w-6 h-6 rounded-full object-cover" />
                 <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-surface-2 ${isOn ? 'bg-success' : 'bg-ink-muted'}`} />
               </span>
-              <span className="text-sm text-ink truncate">{playerLabel(p)}</span>
+              <span className="text-sm text-ink truncate">{won && '👑 '}{playerLabel(p)}</span>
               {!isOn && <span className="text-[10px] text-ink-muted">left</span>}
             </span>
             <span className="text-sm font-extrabold text-gradient-warm">{p.score}</span>
@@ -646,11 +686,41 @@ function Frame({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
-function Card({ children }: { children: React.ReactNode }) {
+function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-3xl p-6">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`glass rounded-3xl p-6 ${className}`}>
       {children}
     </motion.div>
+  )
+}
+
+/** A short confetti burst for the winner's screen. */
+function Confetti() {
+  const pieces = useMemo(
+    () => Array.from({ length: 30 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      delay: Math.random() * 0.5,
+      dur: 1.7 + Math.random() * 1.4,
+      rot: (Math.random() - 0.5) * 720,
+      color: ['#ff4d8d', '#ffd166', '#06d6a0', '#5b8cff', '#c77dff'][i % 5],
+      w: 6 + Math.random() * 6,
+    })),
+    [],
+  )
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {pieces.map((p) => (
+        <motion.span
+          key={p.id}
+          className="absolute -top-3 rounded-[2px]"
+          style={{ left: `${p.x}%`, width: p.w, height: p.w * 1.5, background: p.color }}
+          initial={{ y: 0, opacity: 0, rotate: 0 }}
+          animate={{ y: '130%', opacity: [0, 1, 1, 0], rotate: p.rot }}
+          transition={{ duration: p.dur, delay: p.delay, repeat: Infinity, repeatDelay: 0.5, ease: 'easeIn' }}
+        />
+      ))}
+    </div>
   )
 }
 function Spinner() {
