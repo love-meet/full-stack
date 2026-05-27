@@ -16,14 +16,6 @@ const GAMES: Game[] = [
   { title: 'Pixel Rush',        blurb: 'Race to rebuild a scrambled photo. Fastest to fix it wins.', emoji: '🧩', players: '1v1 / Group', accent: 'var(--color-gold)', to: '/games/pixel-rush' },
   { title: 'Number Duel',       blurb: 'Pick a secret number; race to guess your rival’s. Higher or lower!', emoji: '🔢', players: '1v1', accent: 'var(--color-magenta)', to: '/games/number-duel' },
   { title: 'Truth or Dare',     blurb: 'Spicy prompts to break the ice — your rules.',        emoji: '🎯', players: 'Couples', accent: 'var(--color-rose)' },
-  { title: 'Would You Rather',  blurb: 'Reveal what you really want, one choice at a time.',   emoji: '🤔', players: 'Group',   accent: 'var(--color-magenta)' },
-  { title: 'Love Quiz',         blurb: 'How well do you really know each other?',              emoji: '💞', players: 'Couples', accent: 'var(--color-rose)' },
-  { title: 'Never Have I Ever', blurb: 'Confessions get the conversation flowing.',           emoji: '🙈', players: 'Group',   accent: 'var(--color-coral)' },
-  { title: 'Two Truths & a Lie',blurb: 'Spot the bluff and learn something new.',             emoji: '🎭', players: 'Group',   accent: 'var(--color-magenta)' },
-  { title: 'Date Night Roulette',blurb: 'Spin for your next move together.',                  emoji: '🎡', players: 'Couples', accent: 'var(--color-rose)' },
-  { title: 'Compliment Battle', blurb: 'Out-charm each other, sweetest line wins.',           emoji: '💌', players: 'Group',   accent: 'var(--color-coral)' },
-  { title: 'Guess the Vibe',    blurb: 'Read the room and match the mood.',                    emoji: '🎶', players: 'Group',   accent: 'var(--color-gold)' },
-  { title: 'Couple Goals',      blurb: 'Tiny challenges to do together this week.',            emoji: '🏆', players: 'Couples', accent: 'var(--color-rose)' },
 ]
 
 export default function GamesScreen() {
@@ -38,7 +30,7 @@ export default function GamesScreen() {
       <div className="px-5 sm:px-8 pb-28">
         <div className="glass rounded-2xl px-4 py-3 mb-5 text-sm text-ink-2 flex items-center gap-2">
           <span className="text-lg">🎮</span>
-          <span>Pixel Rush is live — tap to play. More games are on the way.</span>
+          <span>Pixel Rush &amp; Number Duel are live — tap to play. More games are on the way.</span>
         </div>
 
         <motion.div
