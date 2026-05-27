@@ -29,6 +29,8 @@ export type GamePlayer = {
   team: string | null
   is_host: boolean
   score: number
+  trophies: number
+  wants_rematch: boolean
   joined_at: string
   profile: { handle: string | null; display_name: string | null; avatar_url: string | null } | null
 }
@@ -299,6 +301,24 @@ export function useReassignTurn() {
       return data as GameRound
     },
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: gameRoundKey(v.gameId, v.round) }),
+  })
+}
+
+/** Vote to rematch the same game (no new link). Resets the match once everyone
+ *  has voted; keeps players + the trophy tally. */
+export function useRequestRematch() {
+  const qc = useQueryClient()
+  return useMutation({
+    retry: false,
+    mutationFn: async (gameId: string) => {
+      const { data, error } = await supabase.rpc('request_rematch', { p_game_id: gameId }).select().single()
+      if (error) throw error
+      return data as Game
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['game'] })
+      qc.invalidateQueries({ queryKey: ['game-players'] })
+    },
   })
 }
 

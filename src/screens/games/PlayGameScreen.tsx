@@ -13,7 +13,7 @@ import {
   useSubmitSolve,
   useAutoAdvanceRound,
   useReassignTurn,
-  useCreateGame,
+  useRequestRematch,
   useCloseGame,
   useLeaveGame,
   playerLabel,
@@ -280,7 +280,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   const submit = useSubmitSolve()
   const autoAdvance = useAutoAdvanceRound()
   const reassign = useReassignTurn()
-  const createGame = useCreateGame()
+  const rematchVote = useRequestRematch()
   const upload = useUploadChatMedia()
   const { progress, sendProgress } = useGameBroadcast(g.id)
   const live = useLiveReactions(g.id)
@@ -290,13 +290,6 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   const [myOrder, setMyOrder] = useState<number[] | null>(null)
   // Reset my tracked progress whenever the round changes.
   useEffect(() => { setMyOrder(null) }, [g.current_round])
-
-  async function rematch() {
-    try {
-      const ng = await createGame.mutateAsync({ kind: g.kind, maxPlayers: g.max_players })
-      navigate(`/play/${ng.invite_code}`)
-    } catch { /* shown via state */ }
-  }
 
   const me = players.find((p) => p.user_id === myId)
   const amPlayer = !!me
@@ -389,11 +382,28 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
           <InlineAd />
 
           <div className="mt-5 flex flex-col gap-2">
-            {isHost && (
-              <button onClick={rematch} disabled={createGame.isPending} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
-                {createGame.isPending ? '…' : 'Rematch'}
-              </button>
-            )}
+            {amPlayer && (() => {
+              const iWant = !!me?.wants_rematch
+              const oppWants = players.some((p) => p.user_id !== myId && p.wants_rematch)
+              const voted = players.filter((p) => p.wants_rematch).length
+              if (iWant) {
+                return (
+                  <div className="w-full rounded-full py-3 text-center font-bold glass text-ink-2 flex items-center justify-center gap-2">
+                    <span className="w-3.5 h-3.5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
+                    Waiting for opponent… ({voted}/{players.length})
+                  </div>
+                )
+              }
+              return (
+                <>
+                  {oppWants && <p className="text-sm text-success text-center font-semibold">🔁 Opponent wants a rematch!</p>}
+                  <button onClick={() => rematchVote.mutate(g.id)} disabled={rematchVote.isPending}
+                    className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
+                    {rematchVote.isPending ? '…' : oppWants ? '✅ Accept rematch' : '🔁 Rematch'}
+                  </button>
+                </>
+              )
+            })()}
             <button onClick={() => navigate('/games')} className="w-full rounded-full py-3 glass text-ink-2 hover:text-ink font-semibold">
               Back to games
             </button>
@@ -562,20 +572,29 @@ function VSHeader({ players, kind, online, pctById, myId }: {
       ? Math.round(t.reduce((s, p) => s + (pctById.get(p.user_id) ?? 0), 0) / t.length)
       : null
     const pa = avg(teamA), pb = avg(teamB)
+    const ta = teamA.reduce((m, p) => Math.max(m, p.trophies), 0)
+    const tb = teamB.reduce((m, p) => Math.max(m, p.trophies), 0)
     return (
       <div className="flex items-center justify-between">
         <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team A</div><div className="text-2xl font-extrabold text-ink">{a}</div>{pa != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pa}%</div>}</div>
-        <span className="text-sm font-extrabold text-gradient-warm px-2">VS</span>
+        <div className="flex flex-col items-center px-2">
+          <span className="text-sm font-extrabold text-gradient-warm">VS</span>
+          {ta + tb > 0 && <span className="text-[11px] font-bold text-gold tabular-nums">🏆 {ta}–{tb}</span>}
+        </div>
         <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team B</div><div className="text-2xl font-extrabold text-ink">{b}</div>{pb != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pb}%</div>}</div>
       </div>
     )
   }
   const a = players[0]
   const b = players[1]
+  const trophyTally = (a?.trophies ?? 0) + (b?.trophies ?? 0)
   return (
     <div className="flex items-center justify-between gap-2">
       <PlayerChip p={a} online={!!a && online.has(a.user_id)} align="left" pct={a ? pctById.get(a.user_id) : undefined} isMe={!!a && a.user_id === myId} />
-      <span className="text-sm font-extrabold text-gradient-warm shrink-0">VS</span>
+      <div className="flex flex-col items-center shrink-0">
+        <span className="text-sm font-extrabold text-gradient-warm">VS</span>
+        {trophyTally > 0 && <span className="text-[11px] font-bold text-gold tabular-nums">🏆 {a?.trophies ?? 0}–{b?.trophies ?? 0}</span>}
+      </div>
       <PlayerChip p={b} online={!!b && online.has(b.user_id)} align="right" pct={b ? pctById.get(b.user_id) : undefined} isMe={!!b && b.user_id === myId} />
     </div>
   )
