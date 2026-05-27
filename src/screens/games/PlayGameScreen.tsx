@@ -28,6 +28,7 @@ import { useGameBroadcast } from '../../hooks/useGameBroadcast'
 import { useLiveReactions } from '../../hooks/useLiveReactions'
 import { useProfile } from '../../hooks/useProfile'
 import LiveOverlay from '../../components/games/LiveOverlay'
+import { InlineAd } from '../../components/FeedAd'
 import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
 import { avatarUrlOr } from '../../lib/avatar'
 import ShareSheet from '../../components/ShareSheet'
@@ -385,6 +386,8 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
 
           <Scoreboard players={players} kind={g.kind} online={online} winnerPlayer={g.winner_player} winnerTeam={g.winner_team} />
 
+          <InlineAd />
+
           <div className="mt-5 flex flex-col gap-2">
             {isHost && (
               <button onClick={rematch} disabled={createGame.isPending} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
@@ -462,6 +465,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
                   Skip player →
                 </button>
               )}
+              <InlineAd />
             </div>
           )
         ) : r.status === 'racing' ? (
@@ -505,6 +509,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
               <span className="w-3.5 h-3.5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
               <span>{g.current_round >= g.rounds_total ? 'Tallying final results…' : 'Next round starting…'}</span>
             </div>
+            <InlineAd />
           </div>
         )}
 
