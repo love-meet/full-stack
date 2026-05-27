@@ -125,10 +125,10 @@ export default function PixelRushScreen() {
             <p className="text-sm text-ink-2 mt-1">Race to rebuild a scrambled photo. Fastest to fix it wins.</p>
             <ol className="mt-4 space-y-2 text-sm text-ink-2 list-decimal pl-5">
               <li>A photo is shown for <b>5 seconds</b> — study it.</li>
-              <li>It scatters into a <b>5×5</b> grid of 25 tiles.</li>
-              <li><b>Tap two tiles to swap them</b> and rebuild the original.</li>
+              <li>It scatters into a grid — easy <b>3×3</b> early rounds, building up to a hard <b>5×5</b>.</li>
+              <li><b>Drag a tile onto another, or tap two tiles, to swap them</b> and rebuild the original.</li>
               <li>Beat the clock — fewest seconds (and moves) wins the round.</li>
-              <li>In multiplayer, first to finish takes the round; best of 20 takes the trophy. 🏆</li>
+              <li>In multiplayer, first to finish takes the round; best of 9 takes the trophy. 🏆</li>
             </ol>
             <button onClick={() => setPhase('mode')} className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose">
               Got it — continue
