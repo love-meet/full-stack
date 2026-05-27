@@ -29,6 +29,7 @@ import { useLiveReactions } from '../../hooks/useLiveReactions'
 import { useProfile } from '../../hooks/useProfile'
 import LiveOverlay from '../../components/games/LiveOverlay'
 import { InlineAd } from '../../components/FeedAd'
+import DuelArena from '../../components/games/NumberDuelMatch'
 import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
 import { avatarUrlOr } from '../../lib/avatar'
 import ShareSheet from '../../components/ShareSheet'
@@ -461,7 +462,9 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
 
       {/* Content (clears the fixed header). */}
       <div className="max-w-md mx-auto px-4" style={{ paddingTop: 'calc(var(--lm-top-inset) + 6.5rem)', paddingBottom: '8rem' }}>
-        {!r || round.isPending ? (
+        {g.game_type === 'number_duel' ? (
+          <DuelArena g={g} players={players} myId={myId} amPlayer={amPlayer} />
+        ) : !r || round.isPending ? (
           <Spinner />
         ) : r.status === 'awaiting_image' ? (
           r.turn_user_id === myId ? (

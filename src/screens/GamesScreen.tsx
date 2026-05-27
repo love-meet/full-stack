@@ -7,13 +7,14 @@ type Game = {
   title: string
   blurb: string
   emoji: string
-  players: 'Couples' | 'Group' | '1v1 / Group'
+  players: 'Couples' | 'Group' | '1v1' | '1v1 / Group'
   accent: string
   to?: string // present = playable (no padlock)
 }
 
 const GAMES: Game[] = [
   { title: 'Pixel Rush',        blurb: 'Race to rebuild a scrambled photo. Fastest to fix it wins.', emoji: '🧩', players: '1v1 / Group', accent: 'var(--color-gold)', to: '/games/pixel-rush' },
+  { title: 'Number Duel',       blurb: 'Pick a secret number; race to guess your rival’s. Higher or lower!', emoji: '🔢', players: '1v1', accent: 'var(--color-magenta)', to: '/games/number-duel' },
   { title: 'Truth or Dare',     blurb: 'Spicy prompts to break the ice — your rules.',        emoji: '🎯', players: 'Couples', accent: 'var(--color-rose)' },
   { title: 'Would You Rather',  blurb: 'Reveal what you really want, one choice at a time.',   emoji: '🤔', players: 'Group',   accent: 'var(--color-magenta)' },
   { title: 'Love Quiz',         blurb: 'How well do you really know each other?',              emoji: '💞', players: 'Couples', accent: 'var(--color-rose)' },

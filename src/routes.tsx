@@ -18,6 +18,7 @@ import ChatDetailScreen from './screens/ChatDetailScreen'
 import SearchScreen from './screens/SearchScreen'
 import GamesScreen from './screens/GamesScreen'
 import PixelRushScreen from './screens/games/PixelRushScreen'
+import NumberDuelScreen from './screens/games/NumberDuelScreen'
 import PlayGameScreen from './screens/games/PlayGameScreen'
 import GiftDetailScreen from './screens/GiftDetailScreen'
 import GuideScreen from './screens/GuideScreen'
@@ -92,6 +93,7 @@ export const router = createBrowserRouter([
               { path: 'post',                  element: <PostScreen /> },
               { path: 'games',                 element: <GamesScreen /> },
               { path: 'games/pixel-rush',      element: <PixelRushScreen /> },
+              { path: 'games/number-duel',     element: <NumberDuelScreen /> },
               { path: 'gift/:giftId',          element: <GiftDetailScreen /> },
               { path: 'guide',                 element: <GuideScreen /> },
               { path: 'chat',                  element: <ChatScreen /> },

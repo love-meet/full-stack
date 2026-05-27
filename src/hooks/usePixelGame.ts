@@ -4,11 +4,13 @@ import { supabase } from '../lib/supabase'
 
 export type GameKind = '1v1' | 'group'
 export type GameStatus = 'lobby' | 'active' | 'finished'
+export type GameType = 'pixel_rush' | 'number_duel'
 
 export type Game = {
   id: string
   host_id: string
   kind: GameKind
+  game_type: GameType
   max_players: number
   status: GameStatus
   invite_code: string
@@ -142,9 +144,9 @@ export function useGamePlayers(gameId: string | undefined) {
 
 export function useCreateGame() {
   return useMutation({
-    mutationFn: async (vars: { kind: GameKind; maxPlayers?: number }) => {
+    mutationFn: async (vars: { kind: GameKind; maxPlayers?: number; type?: GameType }) => {
       const { data, error } = await supabase
-        .rpc('create_game', { p_kind: vars.kind, p_max: vars.maxPlayers ?? 2 })
+        .rpc('create_game', { p_kind: vars.kind, p_max: vars.maxPlayers ?? 2, p_type: vars.type ?? 'pixel_rush' })
         .select()
         .single()
       if (error) throw error

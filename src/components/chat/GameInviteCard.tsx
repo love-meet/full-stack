@@ -15,17 +15,18 @@ export default function GameInviteCard({ code }: { code: string }) {
   const live = g?.status === 'active'
   const joinable = g?.status === 'lobby'
 
+  const isDuel = g?.game_type === 'number_duel'
   const sub = isPending ? 'Loading…'
     : ended ? 'This match has ended.'
     : live ? 'Game is already live'
     : joinable ? 'You’re invited to a match'
-    : 'Pixel Rush match'
+    : 'Match invite'
   const cta = live ? '🔴 Watch live' : 'Join game'
 
   return (
     <div className="w-[244px] max-w-full rounded-2xl overflow-hidden bg-black/25 ring-1 ring-white/10">
       <div className="px-3.5 pt-3">
-        <div className="text-sm font-extrabold text-gradient-warm">🧩 Pixel Rush</div>
+        <div className="text-sm font-extrabold text-gradient-warm">{isDuel ? '🔢 Number Duel' : '🧩 Pixel Rush'}</div>
         <div className="text-[12px] text-ink-2 mt-0.5">{sub}</div>
       </div>
       <div className="p-3 pt-2.5">
