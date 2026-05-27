@@ -41,7 +41,7 @@ const STEPS: Step[] = [
   {
     emoji: '👑',
     title: 'Go premium to stand out',
-    body: 'Sweetheart boosts your visibility, unlocks groups, games and unlimited posts, and gives you the blue verified tick.',
+    body: 'Premium boosts your visibility, unlocks groups, games and unlimited posts, and gives you the blue verified tick.',
     to: '/subscription',
     cta: 'See plans',
   },
