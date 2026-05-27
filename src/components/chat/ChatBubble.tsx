@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import type { Message } from '../../hooks/useMessages'
 import { cloudinaryPlaceholderUrl } from '../../lib/cloudinary'
 import { Linkify } from '../../lib/linkify'
+import GameInviteCard, { playCodeFromText } from './GameInviteCard'
 
 type Props = {
   message: Message
@@ -109,7 +110,12 @@ export default function ChatBubble({
                 pending={!!message.pending}
               />
             ) : null}
-            {message.body && <span><Linkify text={message.body} /></span>}
+            {message.body && (() => {
+              const code = playCodeFromText(message.body)
+              return code
+                ? <GameInviteCard code={code} />
+                : <span><Linkify text={message.body} /></span>
+            })()}
           </>
         )}
 
