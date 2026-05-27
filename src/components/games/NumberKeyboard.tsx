@@ -27,26 +27,44 @@ export default function NumberKeyboard({
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫']
   const valid = value !== '' && value !== '.' && !Number.isNaN(Number(value))
 
+  // Brushed-steel key: top highlight + inner shadow + drop shadow, presses in.
+  const steelKey: React.CSSProperties = {
+    background: 'linear-gradient(180deg, #8b929c 0%, #5b6470 46%, #2c323c 100%)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -3px 5px rgba(0,0,0,0.55), 0 2px 4px rgba(0,0,0,0.5)',
+    border: '1px solid rgba(0,0,0,0.55)',
+    textShadow: '0 1px 1px rgba(0,0,0,0.7)',
+  }
+
   return (
     <div className="w-full max-w-xs mx-auto">
-      <div className="grid grid-cols-3 gap-2">
-        {keys.map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => (k === '⌫' ? back() : press(k))}
-            disabled={disabled}
-            className="h-12 rounded-xl glass text-xl font-bold text-ink active:scale-95 transition disabled:opacity-40"
-          >
-            {k}
-          </button>
-        ))}
+      {/* Stone slab the keys sit in. */}
+      <div
+        className="rounded-2xl p-2.5"
+        style={{
+          background: 'linear-gradient(180deg, #3a3f47 0%, #20242b 100%)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), inset 0 0 0 1px rgba(0,0,0,0.6), 0 6px 16px rgba(0,0,0,0.45)',
+        }}
+      >
+        <div className="grid grid-cols-3 gap-2">
+          {keys.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => (k === '⌫' ? back() : press(k))}
+              disabled={disabled}
+              style={steelKey}
+              className="h-12 rounded-xl text-xl font-extrabold text-zinc-100 select-none transition active:translate-y-px active:brightness-90 disabled:opacity-40"
+            >
+              {k}
+            </button>
+          ))}
+        </div>
       </div>
       <button
         type="button"
         onClick={onSubmit}
         disabled={disabled || !valid}
-        className="mt-2 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-40"
+        className="mt-2.5 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-40"
       >
         {actionLabel}
       </button>

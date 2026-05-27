@@ -140,12 +140,22 @@ export default function DuelArena({
         </div>
       </div>
 
-      {/* Main: guess their number. */}
+      {/* Main: guess their number. Only your LATEST guess shows — previous
+          ones vanish, so you have to remember your own higher/lower trail. */}
       <div className="text-center">
         <p className="text-sm text-ink-2 mb-1">Guess <b>{opponent ? playerLabel(opponent) : 'their'}</b> number</p>
-        {myGuesses.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-1.5 mb-2"><GuessList guesses={myGuesses} inline /></div>
-        )}
+        {(() => {
+          const last = myGuesses[myGuesses.length - 1]
+          if (!last) return <p className="text-[11px] text-ink-muted mb-2">Previous guesses won’t be shown — keep them in your head 🧠</p>
+          const label = last.feedback === 'higher' ? 'go higher' : last.feedback === 'lower' ? 'go lower' : 'correct!'
+          return (
+            <div className="mb-2 flex items-center justify-center gap-2 text-sm">
+              <span className="text-ink-muted">Last guess</span>
+              <GuessChip guess={last} inline />
+              <span className={last.feedback === 'higher' ? 'text-coral font-bold' : last.feedback === 'lower' ? 'text-rose font-bold' : 'text-success font-bold'}>{label}</span>
+            </div>
+          )
+        })()}
         <div className="text-4xl font-extrabold text-gradient-warm tabular-nums min-h-[3rem] mb-3">{input || '—'}</div>
         <NumberKeyboard
           value={input}
