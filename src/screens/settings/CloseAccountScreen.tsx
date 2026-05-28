@@ -24,7 +24,14 @@ export default function CloseAccountScreen() {
       await signOut()
       navigate('/', { replace: true })
     } catch (e) {
-      setError((e as Error).message)
+      const msg = (e as Error).message
+      // The supabase-js Functions client throws this when the fetch itself
+      // fails (function not deployed/unreachable, CORS, offline). Translate
+      // to something a user can act on.
+      const networkish = /edge function|failed to send|failed to fetch|network|fetch/i.test(msg)
+      setError(networkish
+        ? 'Couldn’t reach the account-delete service. Please try again in a moment, or contact support if this keeps happening.'
+        : msg)
     }
   }
 
