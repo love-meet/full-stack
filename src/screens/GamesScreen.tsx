@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import ScreenHeader from '../shell/ScreenHeader'
 import { stagger, itemUp } from '../shell/motion'
+import { PopunderAd } from '../components/FeedAd'
 
 type Game = {
   title: string
@@ -21,6 +22,7 @@ const GAMES: Game[] = [
 export default function GamesScreen() {
   return (
     <div className="min-h-full relative">
+      <PopunderAd />
       <ScreenHeader
         title="Games"
         subtitle="Play, flirt and bond — with your match or the whole room."

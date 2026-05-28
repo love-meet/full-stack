@@ -88,3 +88,49 @@ export function InlineAd() {
     </div>
   )
 }
+
+// ── Whole-page script ads (Popunder, Social Bar) ─────────────────────────
+// Adsterra "Popunder" and "Social Bar" units are single <script src> tags
+// that hook the whole page (popunder triggers on the next click, social bar
+// renders its own floating widget). We inject them ONCE per page-load for
+// non-subscribers, and leave them mounted across route changes.
+
+const SOCIAL_BAR_SRC =
+  (import.meta.env.VITE_ADSTERRA_SOCIAL_BAR_SRC as string | undefined) ||
+  'https://pl29573002.effectivecpmnetwork.com/e3/f0/fa/e3f0fa0badf120aa7f56b2478c568583.js'
+// TODO: paste the Popunder unit's "Get Code" src here, or set
+// VITE_ADSTERRA_POPUNDER_SRC in Netlify. Leaving it empty no-ops the popunder.
+const POPUNDER_SRC =
+  (import.meta.env.VITE_ADSTERRA_POPUNDER_SRC as string | undefined) || ''
+
+function useScriptAd(src: string, flagKey: string, enabled: boolean) {
+  useEffect(() => {
+    if (!enabled || !src) return
+    const w = window as unknown as Record<string, boolean>
+    if (w[flagKey]) return
+    const s = document.createElement('script')
+    s.src = src
+    s.async = true
+    s.dataset.adsterra = flagKey
+    document.body.appendChild(s)
+    w[flagKey] = true
+    // These scripts mount global page widgets — leaving them across route
+    // changes is fine and avoids duplicate loads.
+  }, [enabled, src, flagKey])
+}
+
+/** Adsterra Popunder — fires on the user's next click anywhere on the page.
+ *  Mount it on screens where popunder is allowed (games). Non-subscribers only. */
+export function PopunderAd() {
+  const isSubscriber = !!useMySubscription().data
+  useScriptAd(POPUNDER_SRC, '__lm_popunder', !isSubscriber)
+  return null
+}
+
+/** Adsterra Social Bar — floating sticky widget. Mount it on comment screens.
+ *  Non-subscribers only. */
+export function SocialBarAd() {
+  const isSubscriber = !!useMySubscription().data
+  useScriptAd(SOCIAL_BAR_SRC, '__lm_socialbar', !isSubscriber)
+  return null
+}

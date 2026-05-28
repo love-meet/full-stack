@@ -17,7 +17,7 @@ import { getSurface } from '../lib/surface'
 import GiftSheet from '../components/GiftSheet'
 import PostMoreDropdown from '../components/PostMoreDropdown'
 import CommentActionsSheet from '../components/CommentActionsSheet'
-import { InlineAd } from '../components/FeedAd'
+import { SocialBarAd } from '../components/FeedAd'
 import AuthorTick from '../components/AuthorTick'
 import { IconBack, IconComment, IconShare, IconMore } from '../components/icons'
 import type { FeedPost } from '../hooks/useFeed'
@@ -83,6 +83,7 @@ export default function PostDetailScreen() {
 
   return (
     <div className="min-h-screen flex flex-col text-ink pb-28">
+      <SocialBarAd />
       <Header onBack={() => navigate(-1)} />
 
       <div className="max-w-xl mx-auto w-full px-5 sm:px-8 pt-4">
@@ -345,10 +346,9 @@ function Comments({ postId }: { postId: string }) {
 
   return (
     <ul className="divide-y divide-white/[0.06]">
-      {shown.map((c, i) => (
+      {shown.map((c) => (
         <Fragment key={c.id}>
           <CommentRow postId={postId} comment={c} />
-          {i === 2 && <li className="py-1"><InlineAd /></li>}
         </Fragment>
       ))}
       {remaining > 0 && (

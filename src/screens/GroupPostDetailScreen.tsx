@@ -8,7 +8,7 @@ import { useProfile } from '../hooks/useProfile'
 import { useAuth } from '../stores/auth'
 import { avatarFor, avatarUrlOr } from '../lib/avatar'
 import { cloudinaryPlaceholderUrl } from '../lib/cloudinary'
-import { InlineAd } from '../components/FeedAd'
+import { SocialBarAd } from '../components/FeedAd'
 import AuthorTick from '../components/AuthorTick'
 
 export default function GroupPostDetailScreen() {
@@ -59,6 +59,7 @@ export default function GroupPostDetailScreen() {
 
   return (
     <div className="h-screen flex flex-col text-ink">
+      <SocialBarAd />
       <header
         className="shrink-0 glass border-b border-white/5"
         style={{ paddingTop: 'var(--lm-top-inset)' }}
@@ -102,7 +103,7 @@ export default function GroupPostDetailScreen() {
           )}
 
           <ul>
-            {roots.slice(0, rootVisible).map((c, i) => (
+            {roots.slice(0, rootVisible).map((c) => (
               <Fragment key={c.id}>
                 <li>
                   <CommentNode
@@ -114,7 +115,6 @@ export default function GroupPostDetailScreen() {
                     onDelete={(id) => del.mutate(id)}
                   />
                 </li>
-                {i === 2 && <li><InlineAd /></li>}
               </Fragment>
             ))}
           </ul>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useMySubscription } from '../../hooks/usePayments'
 import { useCreateGame } from '../../hooks/usePixelGame'
+import { PopunderAd } from '../../components/FeedAd'
 
 /** Intro + create flow for Number Duel. Reuses the shared game lobby at
  *  /play/:code — only the gameplay differs. 1v1 only. */
@@ -62,6 +63,7 @@ export default function NumberDuelScreen() {
 function Shell({ children, onBack }: { children: React.ReactNode; onBack: () => void }) {
   return (
     <div className="min-h-screen text-ink pb-24">
+      <PopunderAd />
       <header className="sticky top-0 z-10 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
           <button onClick={onBack} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>

@@ -28,7 +28,7 @@ import { useGameBroadcast } from '../../hooks/useGameBroadcast'
 import { useLiveReactions } from '../../hooks/useLiveReactions'
 import { useProfile } from '../../hooks/useProfile'
 import LiveOverlay from '../../components/games/LiveOverlay'
-import { InlineAd } from '../../components/FeedAd'
+import { InlineAd, PopunderAd } from '../../components/FeedAd'
 import DuelArena from '../../components/games/NumberDuelMatch'
 import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
 import { avatarUrlOr } from '../../lib/avatar'
@@ -431,6 +431,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
 
   return (
     <div className="min-h-screen bg-surface text-ink">
+      <PopunderAd />
       {/* Fixed VS header — opponents + scores + close/leave. */}
       <div className="fixed top-0 left-0 right-0 z-20 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
         <div className="max-w-md mx-auto px-3 py-2">
@@ -718,6 +719,7 @@ function Scoreboard({ players, kind, online, winnerPlayer, winnerTeam }: {
 function Frame({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-surface text-ink grid place-items-center px-5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
+      <PopunderAd />
       <div className="w-full max-w-md">{children}</div>
     </div>
   )
