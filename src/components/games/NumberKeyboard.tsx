@@ -1,7 +1,7 @@
 /** A number-only keypad (digits, decimal point, backspace) plus an action
  *  button. Used for picking a secret number and for guessing. */
 export default function NumberKeyboard({
-  value, onChange, onSubmit, actionLabel, disabled, maxLen = 9, maxDecimals = 2,
+  value, onChange, onSubmit, actionLabel, disabled, maxLen = 9, maxDecimals = 2, max,
 }: {
   value: string
   onChange: (v: string) => void
@@ -12,6 +12,8 @@ export default function NumberKeyboard({
   /** How many digits are allowed after the decimal point. 0 disables the
    *  decimal key entirely (integers only). */
   maxDecimals?: number
+  /** Maximum numeric value the input is allowed to reach. */
+  max?: number
 }) {
   function press(k: string) {
     if (disabled) return
@@ -25,8 +27,10 @@ export default function NumberKeyboard({
     // Respect the per-round decimal cap.
     if (value.includes('.') && (value.split('.')[1] ?? '').length >= maxDecimals) return
     // avoid a pointless leading zero like "05"
-    if (value === '0') { onChange(k); return }
-    onChange(value + k)
+    const next = value === '0' ? k : value + k
+    // Respect the upper bound (the display ends with "." for "0." → Number is fine).
+    if (max != null && Number(next) > max) return
+    onChange(next)
   }
   function back() { if (!disabled) onChange(value.slice(0, -1)) }
 

@@ -40,7 +40,7 @@ export default function NumberDuelScreen() {
           <h2 className="text-xl font-extrabold text-gradient-warm">🔢 Number Duel</h2>
           <p className="text-sm text-ink-2 mt-1">A head-to-head guessing duel.</p>
           <ol className="mt-4 space-y-2 text-sm text-ink-2 list-decimal pl-5">
-            <li>You each secretly pick a number — any figure (2.4, 17, 90…).</li>
+            <li>You each secretly pick a number from <b>0 to 100</b> (e.g. 17, 42, 90).</li>
             <li>Race to guess your opponent's number on the keypad.</li>
             <li>After each guess an arrow says <b>↑ higher</b> or <b>↓ lower</b>.</li>
             <li>First to guess the <b>exact</b> number takes the round.</li>

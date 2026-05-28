@@ -81,12 +81,13 @@ export default function DuelArena({
             <span className="rounded-full px-2.5 py-0.5 glass text-[11px] font-bold text-gradient-warm">{duelStageLabel(round)}</span>
           </div>
           <p className="text-sm text-ink-2 mb-1">Pick a <b>secret number</b></p>
-          <p className="text-[12px] text-ink-muted mb-3">{duelExampleForDecimals(dec)}</p>
+          <p className="text-[12px] text-ink-muted mb-3">0–100 · {duelExampleForDecimals(dec)}</p>
           <div className="text-4xl font-extrabold text-gradient-warm tabular-nums min-h-[3rem] mb-3">{input || '—'}</div>
           <NumberKeyboard
             value={input}
             onChange={setInput}
             maxDecimals={dec}
+            max={100}
             onSubmit={() => setSecret.mutate({ gameId: g.id, round, secret: Number(input) })}
             actionLabel={setSecret.isPending ? 'Locking…' : '🔒 Lock in my number'}
             disabled={setSecret.isPending}
@@ -190,6 +191,7 @@ export default function DuelArena({
           value={input}
           onChange={setInput}
           maxDecimals={duelDecimalsForRound(round)}
+          max={100}
           onSubmit={() => { guess.mutate({ gameId: g.id, round, value: Number(input) }); setInput('') }}
           actionLabel={guess.isPending ? 'Guessing…' : 'Guess'}
           disabled={guess.isPending}
