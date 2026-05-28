@@ -1,14 +1,18 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { StepProps } from '../types'
+import { COUNTRIES, STATES } from '../../../data/geo'
 
 type Status = 'idle' | 'asking' | 'error'
 
 export default function LocationStep({ data, set }: StepProps) {
   // Detected = we have coords AND a country name from the GPS lookup.
+  // Entered manually = no coords, but a country has been chosen.
   const detected = data.lat !== null && data.lon !== null && data.countryName.length > 0
+  const manual = !detected && data.countryName.length > 0
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [manualOpen, setManualOpen] = useState(false)
 
   function detect() {
     if (!('geolocation' in navigator)) {
@@ -51,7 +55,7 @@ export default function LocationStep({ data, set }: StepProps) {
   return (
     <div className="space-y-4">
       <AnimatePresence mode="wait" initial={false}>
-        {!detected ? (
+        {!detected && !manualOpen && !manual ? (
           <motion.div
             key="collapsed"
             initial={{ opacity: 0, y: 4 }}
@@ -76,9 +80,26 @@ export default function LocationStep({ data, set }: StepProps) {
               </span>
             </button>
             {status === 'error' && error && (
-              <p className="text-xs text-danger px-1">{error}</p>
+              <div className="space-y-2">
+                <p className="text-xs text-danger px-1">{error}</p>
+                <button
+                  onClick={() => setManualOpen(true)}
+                  className="w-full rounded-full py-2.5 text-sm font-bold bg-gradient-brand text-white glow-rose"
+                >
+                  Continue manually
+                </button>
+              </div>
             )}
           </motion.div>
+        ) : manualOpen || manual ? (
+          <ManualForm
+            data={data}
+            set={set}
+            onCancel={() => {
+              setManualOpen(false)
+              set({ countryCode: '', countryName: '', region: '', address: '', lat: null, lon: null })
+            }}
+          />
         ) : (
           <motion.div
             key="expanded"
@@ -109,6 +130,102 @@ export default function LocationStep({ data, set }: StepProps) {
         We use your location to show you relevant people. You can update this anytime in your profile.
       </p>
     </div>
+  )
+}
+
+/** Manual location entry — country & state are dropdowns (states only for the
+ *  countries we have data for; others fall back to a free-text region field),
+ *  city is a text input. Values write to the form on every change so the step
+ *  is "complete" as soon as a country is picked. */
+function ManualForm({
+  data, set, onCancel,
+}: { data: StepProps['data']; set: StepProps['set']; onCancel: () => void }) {
+  const country = data.countryCode
+  const states = STATES[country]
+
+  function pickCountry(code: string) {
+    const obj = COUNTRIES.find((c) => c.code === code)
+    set({
+      countryCode: code,
+      countryName: obj?.name ?? '',
+      region: '', // reset when country changes
+      lat: null,
+      lon: null,
+    })
+  }
+
+  return (
+    <motion.div
+      key="manual"
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      transition={{ duration: 0.2 }}
+      className="space-y-3"
+    >
+      <p className="text-xs text-ink-muted px-1">Enter your location manually.</p>
+
+      <Field label="Country">
+        <select
+          value={country}
+          onChange={(e) => pickCountry(e.target.value)}
+          className="lm-input w-full"
+        >
+          <option value="">Select country…</option>
+          {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+        </select>
+      </Field>
+
+      <Field label="State / region">
+        {states ? (
+          <select
+            value={data.region}
+            onChange={(e) => set({ region: e.target.value })}
+            className="lm-input w-full"
+            disabled={!country}
+          >
+            <option value="">Select state…</option>
+            {states.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        ) : (
+          <input
+            value={data.region}
+            onChange={(e) => set({ region: e.target.value })}
+            placeholder="e.g. Bavaria"
+            className="lm-input w-full"
+            disabled={!country}
+            maxLength={60}
+          />
+        )}
+      </Field>
+
+      <Field label="City">
+        <input
+          value={data.address}
+          onChange={(e) => set({ address: e.target.value })}
+          placeholder="e.g. Lagos"
+          className="lm-input w-full"
+          disabled={!country}
+          maxLength={60}
+        />
+      </Field>
+
+      <button
+        onClick={onCancel}
+        className="text-xs text-ink-muted hover:text-rose transition-colors pl-1"
+      >
+        ↻ Try detection instead
+      </button>
+    </motion.div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="block text-[10px] uppercase tracking-wider text-ink-muted mb-1 px-1">{label}</span>
+      {children}
+    </label>
   )
 }
 
