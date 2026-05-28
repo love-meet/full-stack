@@ -142,6 +142,9 @@ function ManualForm({
 }: { data: StepProps['data']; set: StepProps['set']; onCancel: () => void }) {
   const country = data.countryCode
   const states = STATES[country]
+  // Sort once per render with locale-aware comparison so accented names land
+  // in the right place (e.g. Åland near A, Réunion near R).
+  const sortedCountries = [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name))
 
   function pickCountry(code: string) {
     const obj = COUNTRIES.find((c) => c.code === code)
@@ -172,7 +175,7 @@ function ManualForm({
           className="lm-input w-full"
         >
           <option value="">Select country…</option>
-          {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+          {sortedCountries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
         </select>
       </Field>
 
