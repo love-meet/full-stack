@@ -95,9 +95,6 @@ export function InlineAd() {
 // renders its own floating widget). We inject them ONCE per page-load for
 // non-subscribers, and leave them mounted across route changes.
 
-const SOCIAL_BAR_SRC =
-  (import.meta.env.VITE_ADSTERRA_SOCIAL_BAR_SRC as string | undefined) ||
-  'https://pl29573002.effectivecpmnetwork.com/e3/f0/fa/e3f0fa0badf120aa7f56b2478c568583.js'
 // TODO: paste the Popunder unit's "Get Code" src here, or set
 // VITE_ADSTERRA_POPUNDER_SRC in Netlify. Leaving it empty no-ops the popunder.
 const POPUNDER_SRC =
@@ -127,10 +124,3 @@ export function PopunderAd() {
   return null
 }
 
-/** Adsterra Social Bar — floating sticky widget. Mount it on comment screens.
- *  Non-subscribers only. */
-export function SocialBarAd() {
-  const isSubscriber = !!useMySubscription().data
-  useScriptAd(SOCIAL_BAR_SRC, '__lm_socialbar', !isSubscriber)
-  return null
-}

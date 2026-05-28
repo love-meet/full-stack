@@ -8,12 +8,14 @@ import { useProfile } from '../hooks/useProfile'
 import { useAuth } from '../stores/auth'
 import { avatarFor, avatarUrlOr } from '../lib/avatar'
 import { cloudinaryPlaceholderUrl } from '../lib/cloudinary'
-import { SocialBarAd } from '../components/FeedAd'
+import { InlineAd } from '../components/FeedAd'
 import AuthorTick from '../components/AuthorTick'
 
 export default function GroupPostDetailScreen() {
   const { slug = '', postId = '' } = useParams<{ slug: string; postId: string }>()
   const navigate = useNavigate()
+  // Single Sponsored row inserted at a random 3–7 position in the comment list.
+  const adAt = useMemo(() => 3 + Math.floor(Math.random() * 5), [])
   const myId = useAuth((s) => s.session?.user.id ?? null)
   const profile = useProfile()
   const postQ = useGroupPost(postId)
@@ -59,7 +61,6 @@ export default function GroupPostDetailScreen() {
 
   return (
     <div className="h-screen flex flex-col text-ink">
-      <SocialBarAd />
       <header
         className="shrink-0 glass border-b border-white/5"
         style={{ paddingTop: 'var(--lm-top-inset)' }}
@@ -103,7 +104,7 @@ export default function GroupPostDetailScreen() {
           )}
 
           <ul>
-            {roots.slice(0, rootVisible).map((c) => (
+            {roots.slice(0, rootVisible).map((c, i) => (
               <Fragment key={c.id}>
                 <li>
                   <CommentNode
@@ -115,6 +116,7 @@ export default function GroupPostDetailScreen() {
                     onDelete={(id) => del.mutate(id)}
                   />
                 </li>
+                {i === adAt && <li><InlineAd /></li>}
               </Fragment>
             ))}
           </ul>
