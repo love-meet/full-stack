@@ -44,6 +44,7 @@ export default function NumberDuelScreen() {
             <li>Race to guess your opponent's number on the keypad.</li>
             <li>After each guess an arrow says <b>↑ higher</b> or <b>↓ lower</b>.</li>
             <li>First to guess the <b>exact</b> number takes the round.</li>
+            <li>Difficulty ramps up: <b>6 Easy</b> rounds (whole numbers), <b>4 Medium</b> (1 decimal), <b>2 Hard</b> (2 decimals).</li>
             <li>Best of 12 takes the trophy. 🏆 Viewers watch both numbers live.</li>
           </ol>
           <button onClick={host} disabled={createGame.isPending}

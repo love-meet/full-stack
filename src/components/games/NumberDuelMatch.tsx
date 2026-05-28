@@ -6,6 +6,26 @@ import { useDuelState, useSetDuelSecret, useSubmitDuelGuess, useAdvanceDuel, typ
 import NumberKeyboard from './NumberKeyboard'
 import { InlineAd } from '../FeedAd'
 
+/** Progressive difficulty across a 12-round match.
+ *   rounds 1–6   → Easy   · whole numbers
+ *   rounds 7–10  → Medium · 1 decimal
+ *   rounds 11–12 → Hard   · 2 decimals
+ */
+export function duelDecimalsForRound(round: number): number {
+  if (round <= 6) return 0
+  if (round <= 10) return 1
+  return 2
+}
+export function duelStageLabel(round: number): string {
+  const d = duelDecimalsForRound(round)
+  return d === 0 ? 'Easy · whole numbers'
+    : d === 1 ? 'Medium · 1 decimal'
+    : 'Hard · 2 decimals'
+}
+function duelExampleForDecimals(d: number): string {
+  return d === 0 ? 'e.g. 7, 42, 90' : d === 1 ? 'e.g. 2.4, 17.8, 0.5' : 'e.g. 2.43, 0.07, 90'
+}
+
 /** The Number Duel round area (everything below the shared VS header). */
 export default function DuelArena({
   g, players, myId, amPlayer,
@@ -53,14 +73,20 @@ export default function DuelArena({
       )
     }
     if (mySecret == null) {
+      const dec = duelDecimalsForRound(round)
       return (
         <div className="py-4 text-center">
-          <p className="text-sm text-ink-2 mb-1">Round {round} · Pick a <b>secret number</b></p>
-          <p className="text-[12px] text-ink-muted mb-3">Any figure — e.g. 2.4, 17 or 90. Up to 2 decimal places (0.22 ok, 0.999 not).</p>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">Round {round}</div>
+          <div className="inline-flex items-center gap-1.5 mb-2">
+            <span className="rounded-full px-2.5 py-0.5 glass text-[11px] font-bold text-gradient-warm">{duelStageLabel(round)}</span>
+          </div>
+          <p className="text-sm text-ink-2 mb-1">Pick a <b>secret number</b></p>
+          <p className="text-[12px] text-ink-muted mb-3">{duelExampleForDecimals(dec)}</p>
           <div className="text-4xl font-extrabold text-gradient-warm tabular-nums min-h-[3rem] mb-3">{input || '—'}</div>
           <NumberKeyboard
             value={input}
             onChange={setInput}
+            maxDecimals={dec}
             onSubmit={() => setSecret.mutate({ gameId: g.id, round, secret: Number(input) })}
             actionLabel={setSecret.isPending ? 'Locking…' : '🔒 Lock in my number'}
             disabled={setSecret.isPending}
@@ -143,6 +169,9 @@ export default function DuelArena({
       {/* Main: guess their number. Only your LATEST guess shows — previous
           ones vanish, so you have to remember your own higher/lower trail. */}
       <div className="text-center">
+        <div className="inline-flex items-center gap-1.5 mb-1">
+          <span className="rounded-full px-2 py-0.5 glass text-[10px] font-bold text-gradient-warm">{duelStageLabel(round)}</span>
+        </div>
         <p className="text-sm text-ink-2 mb-1">Guess <b>{opponent ? playerLabel(opponent) : 'their'}</b> number</p>
         {(() => {
           const last = myGuesses[myGuesses.length - 1]
@@ -160,6 +189,7 @@ export default function DuelArena({
         <NumberKeyboard
           value={input}
           onChange={setInput}
+          maxDecimals={duelDecimalsForRound(round)}
           onSubmit={() => { guess.mutate({ gameId: g.id, round, value: Number(input) }); setInput('') }}
           actionLabel={guess.isPending ? 'Guessing…' : 'Guess'}
           disabled={guess.isPending}

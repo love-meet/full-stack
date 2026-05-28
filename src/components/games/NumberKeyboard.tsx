@@ -1,7 +1,7 @@
 /** A number-only keypad (digits, decimal point, backspace) plus an action
  *  button. Used for picking a secret number and for guessing. */
 export default function NumberKeyboard({
-  value, onChange, onSubmit, actionLabel, disabled, maxLen = 9,
+  value, onChange, onSubmit, actionLabel, disabled, maxLen = 9, maxDecimals = 2,
 }: {
   value: string
   onChange: (v: string) => void
@@ -9,17 +9,21 @@ export default function NumberKeyboard({
   actionLabel: string
   disabled?: boolean
   maxLen?: number
+  /** How many digits are allowed after the decimal point. 0 disables the
+   *  decimal key entirely (integers only). */
+  maxDecimals?: number
 }) {
   function press(k: string) {
     if (disabled) return
     if (k === '.') {
+      if (maxDecimals === 0) return
       if (value.includes('.') || value.length >= maxLen) return
       onChange(value === '' ? '0.' : value + '.')
       return
     }
     if (value.length >= maxLen) return
-    // Cap decimals at 2 (so 0.22 is fine, 0.999 isn't).
-    if (value.includes('.') && (value.split('.')[1] ?? '').length >= 2) return
+    // Respect the per-round decimal cap.
+    if (value.includes('.') && (value.split('.')[1] ?? '').length >= maxDecimals) return
     // avoid a pointless leading zero like "05"
     if (value === '0') { onChange(k); return }
     onChange(value + k)
@@ -48,18 +52,21 @@ export default function NumberKeyboard({
         }}
       >
         <div className="grid grid-cols-3 gap-2">
-          {keys.map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => (k === '⌫' ? back() : press(k))}
-              disabled={disabled}
-              style={steelKey}
-              className="h-12 rounded-xl text-xl font-extrabold text-zinc-100 select-none transition active:translate-y-px active:brightness-90 disabled:opacity-40"
-            >
-              {k}
-            </button>
-          ))}
+          {keys.map((k) => {
+            const keyDisabled = disabled || (k === '.' && maxDecimals === 0)
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => (k === '⌫' ? back() : press(k))}
+                disabled={keyDisabled}
+                style={steelKey}
+                className="h-12 rounded-xl text-xl font-extrabold text-zinc-100 select-none transition active:translate-y-px active:brightness-90 disabled:opacity-40"
+              >
+                {k}
+              </button>
+            )
+          })}
         </div>
       </div>
       <button
