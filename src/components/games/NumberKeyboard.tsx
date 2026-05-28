@@ -18,6 +18,8 @@ export default function NumberKeyboard({
       return
     }
     if (value.length >= maxLen) return
+    // Cap decimals at 2 (so 0.22 is fine, 0.999 isn't).
+    if (value.includes('.') && (value.split('.')[1] ?? '').length >= 2) return
     // avoid a pointless leading zero like "05"
     if (value === '0') { onChange(k); return }
     onChange(value + k)

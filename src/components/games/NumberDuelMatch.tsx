@@ -56,7 +56,7 @@ export default function DuelArena({
       return (
         <div className="py-4 text-center">
           <p className="text-sm text-ink-2 mb-1">Round {round} · Pick a <b>secret number</b></p>
-          <p className="text-[12px] text-ink-muted mb-3">Any figure — e.g. 2.4, 17 or 90. Your opponent will try to guess it.</p>
+          <p className="text-[12px] text-ink-muted mb-3">Any figure — e.g. 2.4, 17 or 90. Up to 2 decimal places (0.22 ok, 0.999 not).</p>
           <div className="text-4xl font-extrabold text-gradient-warm tabular-nums min-h-[3rem] mb-3">{input || '—'}</div>
           <NumberKeyboard
             value={input}
@@ -151,7 +151,7 @@ export default function DuelArena({
           return (
             <div className="mb-2 flex items-center justify-center gap-2 text-sm">
               <span className="text-ink-muted">Last guess</span>
-              <GuessChip guess={last} inline />
+              <GuessChip guess={last} />
               <span className={last.feedback === 'higher' ? 'text-coral font-bold' : last.feedback === 'lower' ? 'text-rose font-bold' : 'text-success font-bold'}>{label}</span>
             </div>
           )
@@ -170,25 +170,30 @@ export default function DuelArena({
 }
 
 /** A guess with its higher/lower arrow. */
-function GuessChip({ guess, inline }: { guess: DuelGuess; inline?: boolean }) {
+function GuessChip({ guess }: { guess: DuelGuess }) {
   const arrow = guess.feedback === 'correct' ? '✅' : guess.feedback === 'higher' ? '↑' : '↓'
   const tint = guess.feedback === 'correct' ? 'text-success'
     : guess.feedback === 'higher' ? 'text-coral' : 'text-rose'
   return (
     <motion.span
       initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-      className={['inline-flex items-center gap-1 rounded-full bg-white/8 px-2 py-0.5 text-sm font-bold tabular-nums', inline ? '' : 'mr-1 mb-1', tint].join(' ')}
+      className={['inline-flex items-center gap-1 rounded-full bg-white/8 px-2 py-0.5 text-sm font-bold tabular-nums shrink-0', tint].join(' ')}
     >
       {guess.value}<span aria-hidden>{arrow}</span>
     </motion.span>
   )
 }
 
-function GuessList({ guesses, inline }: { guesses: DuelGuess[]; inline?: boolean }) {
+/** Guesses laid out as a single horizontally-scrolling line. */
+function GuessList({ guesses }: { guesses: DuelGuess[] }) {
   if (guesses.length === 0) return <span className="text-[12px] text-ink-muted">—</span>
   // newest first so the latest attempt is easy to see
   const ordered = [...guesses].reverse()
-  return <>{ordered.map((x) => <GuessChip key={x.id} guess={x} inline={inline} />)}</>
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 -mx-1 px-1">
+      {ordered.map((x) => <GuessChip key={x.id} guess={x} />)}
+    </div>
+  )
 }
 
 function Centered({ icon, children }: { icon: string; children: React.ReactNode }) {
