@@ -41,9 +41,12 @@ export default function ShareSheet({ url, text, title = 'Share', onClose }: {
   const [flash, setFlash] = useState<string | null>(null)
 
   // Contacts pulled from existing conversations (Friends + Other chats).
+  // Skip rows with no usable name — these are anonymous guest accounts (game
+  // joins) or profiles that never finished onboarding; rendering them as
+  // "unknown" is just noise.
   const chatContacts: Contact[] = useMemo(() => {
     return (convs.data ?? [])
-      .filter((c) => c.other_id)
+      .filter((c) => c.other_id && (c.other_handle || c.other_display_name))
       .map((c) => ({
         id: c.other_id!,
         conversationId: c.id,
@@ -68,6 +71,9 @@ export default function ShareSheet({ url, text, title = 'Share', onClose }: {
         .select('id, handle, display_name, avatar_url, created_at')
         .neq('id', myId!)
         .is('deleted_at', null)
+        // Only profiles that actually have something to display — drops
+        // anonymous game-guest accounts and half-onboarded profiles.
+        .or('handle.not.is.null,display_name.not.is.null')
         .order('created_at', { ascending: false })
         .limit(MORE_PEOPLE_LIMIT)
       const excludeIds = chatIds.length ? chatIds : ['00000000-0000-0000-0000-000000000000']
