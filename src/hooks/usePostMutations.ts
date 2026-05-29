@@ -191,6 +191,9 @@ export function useCreatePost() {
     onSuccess: () => {
       // New post arrives at the top — refetch the first page only.
       qc.invalidateQueries({ queryKey: feedQueryKey, refetchType: 'active' })
+      // The first-post nudge listens on has-posted; flip it now or it'll keep
+      // showing the modal until the next focus-refetch.
+      if (session) qc.invalidateQueries({ queryKey: ['has-posted', session.user.id] })
     },
   })
 }

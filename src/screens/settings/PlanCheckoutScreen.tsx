@@ -99,11 +99,20 @@ export default function PlanCheckoutScreen() {
 
   const fmt = cur.ready || cur.code === 'USD' ? cur.format : (u: number) => `$${u.toFixed(2)}`
 
+  // If the user backs out without finishing payment we drop a flag so the
+  // feed can nudge them with "you're on Free — pick a plan".
+  function backOut() {
+    if (status !== 'done' && !alreadyActive) {
+      sessionStorage.setItem('lm.checkout.cancelled', '1')
+    }
+    navigate(-1)
+  }
+
   return (
     <div className="min-h-screen text-ink pb-24">
       <header className="sticky top-0 z-10 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={() => navigate(-1)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <button onClick={backOut} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
           <div className="flex-1 text-center text-ink font-bold">{plan?.name ?? 'Checkout'}</div>
           <div className="w-10" aria-hidden />
         </div>
