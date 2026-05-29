@@ -19,6 +19,7 @@ export type Game = {
   winner_team: string | null
   winner_player: string | null
   created_at: string
+  lobby_since: string
   started_at: string | null
   finished_at: string | null
 }

@@ -80,15 +80,17 @@ export default function PlayGameScreen() {
 
   // Stall counter for the host-alone lobby. Tick every second while in a
   // lobby; at 3 minutes, auto-close. The server's sweep is a safety net.
+  // lobby_since resets when a mid-game stall reverts the game to lobby,
+  // so a reverted game gets a fresh 3-min window to find an opponent.
   const [lobbyElapsedSec, setLobbyElapsedSec] = useState(0)
   useEffect(() => {
     if (!g || g.status !== 'lobby') return
-    const start = new Date(g.created_at).getTime()
+    const start = new Date(g.lobby_since ?? g.created_at).getTime()
     const tick = () => setLobbyElapsedSec(Math.floor((Date.now() - start) / 1000))
     tick()
     const iv = window.setInterval(tick, 1000)
     return () => window.clearInterval(iv)
-  }, [g?.id, g?.status, g?.created_at])
+  }, [g?.id, g?.status, g?.lobby_since])
   useEffect(() => {
     const hostAlone = !!g && g.status === 'lobby' && isHost && list.length <= 1
     if (hostAlone && lobbyElapsedSec >= 180 && !closeGame.isPending) {
@@ -182,6 +184,10 @@ export default function PlayGameScreen() {
   // belt-and-braces safety net).
   const elapsedSec = lobbyElapsedSec
   const stalling = isHost && list.length <= 1 && g.status === 'lobby' && elapsedSec >= 30
+  // The server bumps lobby_since when a stalled match reverts to lobby, so
+  // we can detect "your previous opponent left" and tell the host.
+  const wasReverted =
+    new Date(g.lobby_since ?? g.created_at).getTime() > new Date(g.created_at).getTime() + 5000
   return (
     <Frame>
       <Card>
@@ -189,6 +195,21 @@ export default function PlayGameScreen() {
         <p className="text-sm text-ink-2 mt-1">
           {g.kind === '1v1' ? '1 v 1 match' : `Group match · up to ${g.max_players} players`}
         </p>
+
+        {/* Opponent walked away mid-game and we're back in the lobby. */}
+        {wasReverted && list.length <= 1 && (
+          <div className="mt-3 rounded-2xl p-3 bg-rose/10 ring-1 ring-rose/30 text-sm">
+            <div className="flex items-start gap-2">
+              <span aria-hidden>🚪</span>
+              <div className="min-w-0">
+                <div className="font-bold text-ink">Your opponent left.</div>
+                <p className="text-[12px] text-ink-muted mt-0.5">
+                  We've reset the match — invite someone new and pick up where you left off.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stall reminder + auto-close countdown (host alone, lobby idle ≥ 30s). */}
         {stalling && (
