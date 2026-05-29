@@ -145,6 +145,10 @@ function FreeCard({ isCurrent }: { isCurrent: boolean }) {
             <span>{f}</span>
           </li>
         ))}
+        <li className="text-sm text-ink-muted flex items-center gap-2">
+          <span>✖</span>
+          <span>Can't create or host games (members only)</span>
+        </li>
       </ul>
       <div className="mt-4 w-full rounded-full py-2.5 text-sm font-bold text-center bg-surface-3 text-ink-muted">
         {isCurrent ? 'Your current plan' : 'Default plan'}

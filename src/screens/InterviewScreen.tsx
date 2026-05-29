@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useProfile } from '../hooks/useProfile'
 import { useMatchPreferences, useSaveMatchPreferences } from '../hooks/useMatchPreferences'
-import { COUNTRIES } from '../data/geo'
+import { COUNTRIES, STATES } from '../data/geo'
 
 /** The kind of input each question uses. */
-type QKind = 'country' | 'choice'
+type QKind = 'country' | 'state' | 'choice'
 
 type Question = {
   id: string             // jsonb key
@@ -22,16 +22,22 @@ type Question = {
 const QUESTIONS: Question[] = [
   {
     id: 'country', emoji: '🌍', topic: 'Where from',
-    partnerPrompt: 'Where would you like {them} to come from?',
-    selfPrompt: 'And where are you from?',
+    partnerPrompt: 'Which country would you like {them} to come from?',
+    selfPrompt: 'And which country are you from?',
     kind: 'country',
+  },
+  {
+    id: 'state', emoji: '📍', topic: 'State / region',
+    partnerPrompt: 'Which state / region would you like {them} to be from?',
+    selfPrompt: 'And what state / region are you from?',
+    kind: 'state',
   },
   {
     id: 'career', emoji: '💼', topic: 'Career',
     partnerPrompt: 'What kind of work do you find attractive in {them}?',
     selfPrompt: 'What do you do?',
     kind: 'choice',
-    options: ['Tech', 'Healthcare', 'Education', 'Business', 'Arts', 'Trades', 'Student', 'Self-employed', 'Civil service', 'Other'],
+    options: ['Tech', 'Healthcare', 'Education', 'Business', 'Arts', 'Trades', 'Student', 'Self-employed', 'Civil service', 'Anything'],
   },
   {
     id: 'character', emoji: '😊', topic: 'Character',
@@ -45,21 +51,21 @@ const QUESTIONS: Question[] = [
     partnerPrompt: "{Their} favourite colour?",
     selfPrompt: 'And yours?',
     kind: 'choice',
-    options: ['Red', 'Pink', 'Blue', 'Black', 'White', 'Green', 'Yellow', 'Purple', 'Orange', 'Gold', 'Other'],
+    options: ['Red', 'Pink', 'Blue', 'Black', 'White', 'Green', 'Yellow', 'Purple', 'Orange', 'Gold', 'Anything'],
   },
   {
     id: 'religion', emoji: '🙏', topic: 'Faith',
     partnerPrompt: "{Their} faith or spirituality?",
     selfPrompt: 'Yours?',
     kind: 'choice',
-    options: ['Christian', 'Muslim', 'Traditional', 'Spiritual', 'None', 'Prefer not to say', 'Other'],
+    options: ['Christian', 'Muslim', 'Traditional', 'Spiritual', 'None', 'Prefer not to say', 'Anything'],
   },
   {
     id: 'education', emoji: '🎓', topic: 'Education',
     partnerPrompt: "{Their} education?",
     selfPrompt: 'Yours?',
     kind: 'choice',
-    options: ['High school', 'Diploma', "Bachelor's", "Master's", 'PhD', 'Self-taught', 'Other'],
+    options: ['High school', 'Diploma', "Bachelor's", "Master's", 'PhD', 'Self-taught', 'Anything'],
   },
   {
     id: 'height', emoji: '📏', topic: 'Height',
@@ -211,6 +217,8 @@ export default function InterviewScreen() {
               pron={pron}
               partner={partner[QUESTIONS[step].id] ?? ''}
               self={self[QUESTIONS[step].id] ?? ''}
+              partnerCountry={partner.country ?? ''}
+              selfCountry={self.country ?? ''}
               onPartner={(v) => setPartner((p) => ({ ...p, [QUESTIONS[step].id]: v }))}
               onSelf={(v) => setSelf((p) => ({ ...p, [QUESTIONS[step].id]: v }))}
               onNext={() => setStep((s) => s + 1)}
@@ -230,12 +238,14 @@ export default function InterviewScreen() {
 }
 
 function QuestionStep({
-  q, pron, partner, self, onPartner, onSelf, onNext,
+  q, pron, partner, self, partnerCountry, selfCountry, onPartner, onSelf, onNext,
 }: {
   q: Question
   pron: Pron
   partner: string
   self: string
+  partnerCountry: string
+  selfCountry: string
   onPartner: (v: string) => void
   onSelf: (v: string) => void
   onNext: () => void
@@ -253,7 +263,7 @@ function QuestionStep({
       </div>
 
       <Field label={`About ${pron.them}`} prompt={applyPron(q.partnerPrompt, pron)}>
-        <Picker q={q} value={partner} onChange={onPartner} />
+        <Picker q={q} value={partner} onChange={onPartner} countryCode={partnerCountry} />
       </Field>
 
       <div className="my-5 flex items-center gap-3 text-[10px] uppercase tracking-wider text-ink-muted">
@@ -263,7 +273,7 @@ function QuestionStep({
       </div>
 
       <Field label="About you" prompt={q.selfPrompt}>
-        <Picker q={q} value={self} onChange={onSelf} />
+        <Picker q={q} value={self} onChange={onSelf} countryCode={selfCountry} />
       </Field>
 
       <button
@@ -290,7 +300,14 @@ function Field({ label, prompt, children }: { label: string; prompt: string; chi
   )
 }
 
-function Picker({ q, value, onChange }: { q: Question; value: string; onChange: (v: string) => void }) {
+function Picker({
+  q, value, onChange, countryCode,
+}: {
+  q: Question
+  value: string
+  onChange: (v: string) => void
+  countryCode?: string
+}) {
   if (q.kind === 'country') {
     const sorted = [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name))
     return (
@@ -298,6 +315,27 @@ function Picker({ q, value, onChange }: { q: Question; value: string; onChange: 
         <option value="">Select…</option>
         {sorted.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
       </select>
+    )
+  }
+  if (q.kind === 'state') {
+    const states = countryCode ? STATES[countryCode] : undefined
+    if (states && states.length > 0) {
+      return (
+        <select value={value} onChange={(e) => onChange(e.target.value)} className="lm-input w-full">
+          <option value="">Select state…</option>
+          {states.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      )
+    }
+    return (
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={countryCode ? 'e.g. Bavaria' : 'Pick a country first'}
+        className="lm-input w-full"
+        disabled={!countryCode}
+        maxLength={60}
+      />
     )
   }
   return (
@@ -345,8 +383,15 @@ function FinalStep({
           tone="gold"
           icon="💎"
           title="A rich one"
-          tagline="Unlock VIP — surface to the most verified, premium matches."
-          benefits={['Everything in Premium', 'Nationality verification', 'Face verification', 'Top priority with verified hearts']}
+          highlight="The rich only meet the rich"
+          tagline="Unlock VIP — you'll be surfaced exclusively to other verified VIP members. Rich-to-rich, premium-to-premium."
+          benefits={[
+            'Everything in Premium',
+            'Nationality verification',
+            'Face verification',
+            'Surfaced ONLY to other VIP-verified members',
+            'Top priority with the most genuine, verified matches',
+          ]}
           cta="Unlock VIP"
           onPick={() => onPick('vip')}
           disabled={busy}
@@ -356,7 +401,19 @@ function FinalStep({
           icon="🤝"
           title="A middle-class one"
           tagline="Premium — be seen, be heard, be unmissable."
-          benefits={['Boosted visibility & recommendations', 'Create groups & host games', 'Unlimited posts', 'Choose who can message you', 'No ads · blue verified tick']}
+          benefits={[
+            'Boosted visibility — recommended to people matching your vibe, location & closeness',
+            'Create & host any game',
+            'Create your own groups',
+            'Start threads inside groups',
+            'Unlimited posts (Free is 3 a week)',
+            'Choose exactly who can message you',
+            '10 chat settings & toggles',
+            '8 privacy settings & toggles',
+            'Get recommended to people who already like you',
+            'No ads',
+            'Blue verified tick on your profile everywhere',
+          ]}
           cta="Get Premium"
           onPick={() => onPick('premium')}
           disabled={busy}
@@ -366,7 +423,12 @@ function FinalStep({
           icon="😌"
           title="I'm just there for the ride"
           tagline="Free — limited visibility, but you can still join games and meet people."
-          benefits={['3 posts a week', 'Default chat & privacy', 'Join groups & games others host']}
+          benefits={[
+            '3 posts a week',
+            'Default chat & privacy settings',
+            'Join groups & games others host',
+            '✖ Can\'t create or host games (members only)',
+          ]}
           cta="Stay on Free"
           onPick={() => onPick('free')}
           disabled={busy}
@@ -377,7 +439,7 @@ function FinalStep({
 }
 
 function PlanChoice({
-  tone, icon, title, tagline, benefits, cta, onPick, disabled,
+  tone, icon, title, tagline, benefits, cta, onPick, disabled, highlight,
 }: {
   tone: 'gold' | 'rose' | 'muted'
   icon: string
@@ -387,6 +449,7 @@ function PlanChoice({
   cta: string
   onPick: () => void
   disabled: boolean
+  highlight?: string
 }) {
   const ring = tone === 'gold' ? 'ring-gold/50'
     : tone === 'rose' ? 'ring-rose/40' : 'ring-white/10'
@@ -395,6 +458,11 @@ function PlanChoice({
     : 'bg-gradient-brand text-white glow-rose'
   return (
     <div className={`relative glass rounded-2xl p-4 ring-1 ${ring}`}>
+      {highlight && (
+        <div className="-mt-1 mb-2 inline-block rounded-full px-2.5 py-0.5 bg-gold/15 ring-1 ring-gold/40 text-[10px] uppercase tracking-wider font-extrabold text-gold">
+          👑 {highlight}
+        </div>
+      )}
       <div className="flex items-start gap-3">
         <span className="text-2xl shrink-0">{icon}</span>
         <div className="flex-1 min-w-0">
