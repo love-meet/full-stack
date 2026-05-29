@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import ScreenHeader from '../shell/ScreenHeader'
+import ReturnToGameBanner from '../components/ReturnToGameBanner'
 import { stagger, itemUp } from '../shell/motion'
 import { useConversations, type Conversation } from '../hooks/useConversations'
 import { useConversationsRealtime } from '../hooks/useChatRealtime'
@@ -38,6 +39,8 @@ export default function ChatScreen() {
         title="Chat"
         subtitle="Direct messages with the people you connect with."
       />
+
+      <ReturnToGameBanner />
 
       <div className="px-5 sm:px-8">
         <div className="glass rounded-full px-4 py-2.5 flex items-center gap-2 focus-within:ring-brand transition-shadow">

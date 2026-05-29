@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useConversation } from '../hooks/useConversations'
+import ReturnToGameBanner from '../components/ReturnToGameBanner'
 import { useMessages, type Message } from '../hooks/useMessages'
 import { useSendMessage } from '../hooks/useSendMessage'
 import { useEditMessage } from '../hooks/useMessageMutations'
@@ -106,6 +107,7 @@ export function ChatPane({
     /* bounded flex column so the messages list (overflow-y-auto) scrolls.
        className sets the height: h-screen on mobile, h-full in the rail. */
     <div className={`${className} flex flex-col text-ink min-h-0`}>
+      <ReturnToGameBanner />
       <header
         className="shrink-0 glass border-b border-white/5 px-4 py-3 flex items-center gap-3"
         style={{ paddingTop: 'calc(var(--lm-top-inset) + 0.75rem)' }}

@@ -1,15 +1,30 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Drawer } from 'vaul'
 import { useDrawerLock } from '../stores/ui'
 import { useConversations } from '../hooks/useConversations'
+import { useStartDM } from '../hooks/useStartDM'
+import { useRelations } from '../hooks/useFollow'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../stores/auth'
 import { getSurface } from '../lib/surface'
 import { avatarUrlOr } from '../lib/avatar'
 
+const MORE_PEOPLE_LIMIT = 30
+
+/** A minimal "person row" the share sheet renders. */
+type Contact = {
+  id: string                 // user id (the recipient)
+  conversationId: string | null // existing DM, if any
+  handle: string | null
+  displayName: string | null
+  avatarUrl: string | null
+}
+
 /**
- * Share a link (e.g. a game invite): copy, send to Telegram, native share, or
- * send straight into one of the user's chat conversations.
+ * Share a link (e.g. a game invite). Sends to a conversation directly when one
+ * exists, or opens a new DM and sends. Contacts are bucketed: Friends
+ * (followed) → Recent chats → More people (other users on the platform).
  */
 export default function ShareSheet({ url, text, title = 'Share', onClose }: {
   url: string
@@ -18,20 +33,68 @@ export default function ShareSheet({ url, text, title = 'Share', onClose }: {
   onClose: () => void
 }) {
   useDrawerLock()
-  const convs = useConversations()
   const myId = useAuth((s) => s.session?.user.id ?? null)
+  const convs = useConversations()
+  const startDM = useStartDM()
   const [sent, setSent] = useState<Record<string, boolean>>({})
   const [busy, setBusy] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
 
-  async function sendToChat(conversationId: string) {
-    if (!myId) return
-    setBusy(conversationId)
-    try {
-      const { error } = await supabase.from('messages')
-        .insert({ conversation_id: conversationId, sender_id: myId, body: text })
+  // Contacts pulled from existing conversations (Friends + Other chats).
+  const chatContacts: Contact[] = useMemo(() => {
+    return (convs.data ?? [])
+      .filter((c) => c.other_id)
+      .map((c) => ({
+        id: c.other_id!,
+        conversationId: c.id,
+        handle: c.other_handle,
+        displayName: c.other_display_name,
+        avatarUrl: c.other_avatar_url,
+      }))
+  }, [convs.data])
+
+  const chatIds = chatContacts.map((c) => c.id)
+  const relations = useRelations(chatIds)
+  const friends = chatContacts.filter((c) => relations.data?.get(c.id)?.is_following)
+  const otherChats = chatContacts.filter((c) => !relations.data?.get(c.id)?.is_following)
+
+  // "More people" — recent profiles I haven't already chatted with.
+  const more = useQuery<Contact[]>({
+    queryKey: ['share-sheet-people', myId, chatIds.join(',')],
+    enabled: !!myId,
+    queryFn: async () => {
+      let q = supabase
+        .from('profiles')
+        .select('id, handle, display_name, avatar_url, created_at')
+        .neq('id', myId!)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(MORE_PEOPLE_LIMIT)
+      const excludeIds = chatIds.length ? chatIds : ['00000000-0000-0000-0000-000000000000']
+      q = q.not('id', 'in', `(${excludeIds.join(',')})`)
+      const { data, error } = await q
       if (error) throw error
-      setSent((s) => ({ ...s, [conversationId]: true }))
+      return (data ?? []).map((r) => ({
+        id: r.id as string,
+        conversationId: null,
+        handle: (r as { handle: string | null }).handle ?? null,
+        displayName: (r as { display_name: string | null }).display_name ?? null,
+        avatarUrl: (r as { avatar_url: string | null }).avatar_url ?? null,
+      }))
+    },
+  })
+
+  async function send(target: Contact) {
+    if (!myId) return
+    const key = target.id
+    setBusy(key)
+    try {
+      let convoId = target.conversationId
+      if (!convoId) convoId = await startDM.mutateAsync(target.id)
+      const { error } = await supabase.from('messages')
+        .insert({ conversation_id: convoId, sender_id: myId, body: text })
+      if (error) throw error
+      setSent((s) => ({ ...s, [key]: true }))
     } catch { /* ignore — user can retry */ }
     finally { setBusy(null) }
   }
@@ -50,8 +113,6 @@ export default function ShareSheet({ url, text, title = 'Share', onClose }: {
     setFlash('Link copied')
     window.setTimeout(() => setFlash(null), 1500)
   }
-
-  const items = convs.data ?? []
 
   return (
     <Drawer.Root open onOpenChange={(o) => { if (!o) onClose() }} modal>
@@ -74,30 +135,62 @@ export default function ShareSheet({ url, text, title = 'Share', onClose }: {
           </div>
           {flash && <p className="px-5 mt-2 text-xs text-success">{flash}</p>}
 
-          <div className="px-5 mt-4 text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold shrink-0">Send to a chat</div>
-          <ul className="px-3 mt-1 overflow-y-auto no-scrollbar">
-            {convs.status === 'success' && items.length === 0 && (
-              <li className="px-2 py-4 text-sm text-ink-muted">No conversations yet.</li>
+          <div className="overflow-y-auto no-scrollbar">
+            {friends.length > 0 && (
+              <Section title="Friends">
+                {friends.map((c) => <Row key={c.id} c={c} busy={busy} sent={sent} onSend={send} />)}
+              </Section>
             )}
-            {items.map((c) => (
-              <li key={c.id} className="flex items-center gap-3 px-2 py-2">
-                <img src={avatarUrlOr(c.other_avatar_url)} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
-                <span className="flex-1 text-sm text-ink truncate">@{c.other_handle ?? c.other_display_name ?? 'unknown'}</span>
-                <button
-                  onClick={() => sendToChat(c.id)}
-                  disabled={busy === c.id || sent[c.id]}
-                  className={[
-                    'rounded-full px-4 py-1.5 text-xs font-bold',
-                    sent[c.id] ? 'bg-success/15 text-success' : 'bg-gradient-brand text-white',
-                  ].join(' ')}
-                >
-                  {sent[c.id] ? 'Sent ✓' : busy === c.id ? '…' : 'Send'}
-                </button>
-              </li>
-            ))}
-          </ul>
+            {otherChats.length > 0 && (
+              <Section title="Recent chats">
+                {otherChats.map((c) => <Row key={c.id} c={c} busy={busy} sent={sent} onSend={send} />)}
+              </Section>
+            )}
+            <Section title="More people">
+              {more.status === 'pending' && (
+                <li className="px-2 py-3 text-xs text-ink-muted">Loading…</li>
+              )}
+              {more.status === 'success' && more.data.length === 0 && friends.length + otherChats.length === 0 && (
+                <li className="px-2 py-4 text-sm text-ink-muted">No contacts yet — copy the link or share via Telegram above.</li>
+              )}
+              {(more.data ?? []).map((c) => <Row key={c.id} c={c} busy={busy} sent={sent} onSend={send} />)}
+            </Section>
+          </div>
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>
+  )
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <>
+      <div className="px-5 mt-4 text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">{title}</div>
+      <ul className="px-3 mt-1">{children}</ul>
+    </>
+  )
+}
+
+function Row({
+  c, busy, sent, onSend,
+}: { c: Contact; busy: string | null; sent: Record<string, boolean>; onSend: (c: Contact) => void }) {
+  const label = c.handle ? `@${c.handle}` : c.displayName ?? 'unknown'
+  const isBusy = busy === c.id
+  const isSent = !!sent[c.id]
+  return (
+    <li className="flex items-center gap-3 px-2 py-2">
+      <img src={avatarUrlOr(c.avatarUrl)} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
+      <span className="flex-1 text-sm text-ink truncate">{label}</span>
+      <button
+        onClick={() => onSend(c)}
+        disabled={isBusy || isSent}
+        className={[
+          'rounded-full px-4 py-1.5 text-xs font-bold',
+          isSent ? 'bg-success/15 text-success' : 'bg-gradient-brand text-white',
+        ].join(' ')}
+      >
+        {isSent ? 'Sent ✓' : isBusy ? '…' : 'Send'}
+      </button>
+    </li>
   )
 }

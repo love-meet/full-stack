@@ -25,6 +25,7 @@ import { useOnline } from '../../hooks/useOnline'
 import { useUploadChatMedia } from '../../hooks/useUploadChatMedia'
 import { useGamePresence } from '../../hooks/useGamePresence'
 import { useGameBroadcast } from '../../hooks/useGameBroadcast'
+import { useConversations } from '../../hooks/useConversations'
 import { useLiveReactions } from '../../hooks/useLiveReactions'
 import { useProfile } from '../../hooks/useProfile'
 import LiveOverlay from '../../components/games/LiveOverlay'
@@ -76,6 +77,25 @@ export default function PlayGameScreen() {
   const g = game.data
   const inviteUrl = g ? `${window.location.origin}/play/${g.invite_code}` : ''
   const shareText = `Join my Pixel Rush game on Love meet 🧩 ${inviteUrl}`
+
+  // Stall counter for the host-alone lobby. Tick every second while in a
+  // lobby; at 3 minutes, auto-close. The server's sweep is a safety net.
+  const [lobbyElapsedSec, setLobbyElapsedSec] = useState(0)
+  useEffect(() => {
+    if (!g || g.status !== 'lobby') return
+    const start = new Date(g.created_at).getTime()
+    const tick = () => setLobbyElapsedSec(Math.floor((Date.now() - start) / 1000))
+    tick()
+    const iv = window.setInterval(tick, 1000)
+    return () => window.clearInterval(iv)
+  }, [g?.id, g?.status, g?.created_at])
+  useEffect(() => {
+    const hostAlone = !!g && g.status === 'lobby' && isHost && list.length <= 1
+    if (hostAlone && lobbyElapsedSec >= 180 && !closeGame.isPending) {
+      closeGame.mutate(g!.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lobbyElapsedSec, isHost, list.length, g?.status])
   const playerIds = new Set(list.map((p) => p.user_id))
   const viewers = [...online].filter((id) => !playerIds.has(id)).length
 
@@ -157,6 +177,11 @@ export default function PlayGameScreen() {
   // A 1v1 only needs the one opponent — once they're in, stop inviting.
   const lobbyFull = g.kind === '1v1' && list.length >= 2
   const opponent = g.kind === '1v1' ? list.find((p) => p.user_id !== myId) : undefined
+  // Stall-handling: every second, recompute how long the host has been alone.
+  // At 3 min with no joiners we auto-close the lobby (the server sweep is a
+  // belt-and-braces safety net).
+  const elapsedSec = lobbyElapsedSec
+  const stalling = isHost && list.length <= 1 && g.status === 'lobby' && elapsedSec >= 30
   return (
     <Frame>
       <Card>
@@ -164,6 +189,23 @@ export default function PlayGameScreen() {
         <p className="text-sm text-ink-2 mt-1">
           {g.kind === '1v1' ? '1 v 1 match' : `Group match · up to ${g.max_players} players`}
         </p>
+
+        {/* Stall reminder + auto-close countdown (host alone, lobby idle ≥ 30s). */}
+        {stalling && (
+          <div className="mt-3 rounded-2xl p-3 bg-gold/10 ring-1 ring-gold/30 text-sm text-ink-2">
+            <div className="flex items-start gap-2">
+              <span aria-hidden>⏰</span>
+              <div className="min-w-0">
+                <div className="font-bold text-ink">Still waiting — share the link!</div>
+                <p className="text-[12px] text-ink-muted mt-0.5">
+                  {elapsedSec >= 150
+                    ? `Auto-closing in ${180 - elapsedSec}s if no one joins.`
+                    : `${elapsedSec}s with no joiners. Closes automatically at 3 min.`}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Invite — hidden once a 1v1 has its opponent. */}
         {lobbyFull ? (
@@ -439,6 +481,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
             <span className="text-[11px] font-bold text-ink-2">Round {g.current_round}/{g.rounds_total}</span>
             <div className="flex items-center gap-3">
               {viewers > 0 && <span className="text-[11px] text-ink-muted">👁 {viewers}</span>}
+              <MessagesPill />
               {isHost ? (
                 <button onClick={onClose} aria-label="Close game"
                   className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold bg-danger/15 text-danger ring-1 ring-danger/40 active:scale-95 transition">
@@ -772,5 +815,25 @@ function Center({ icon, title, sub }: { icon: string; title: string; sub: string
       <p className="text-sm text-ink-muted mt-1">{sub}</p>
       <Link to="/" className="mt-4 inline-block text-rose font-semibold">← Go to Love meet</Link>
     </div>
+  )
+}
+
+/** Chat pill in the in-game header — shows unread count, opens the chat list. */
+function MessagesPill() {
+  const unread = (useConversations().data ?? []).filter((c) => c.unread_count > 0).length
+  return (
+    <Link
+      to="/chat"
+      aria-label="Messages"
+      className="relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold glass text-ink-2 ring-1 ring-white/10 active:scale-95 transition"
+    >
+      <span aria-hidden className="text-sm leading-none">💬</span>
+      <span>Chat</span>
+      {unread > 0 && (
+        <span className="absolute -top-1 -right-1 min-w-[1.05rem] h-[1.05rem] px-1 rounded-full bg-rose text-white text-[10px] font-bold grid place-items-center">
+          {unread > 99 ? '99+' : unread}
+        </span>
+      )}
+    </Link>
   )
 }

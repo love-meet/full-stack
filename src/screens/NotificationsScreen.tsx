@@ -44,6 +44,10 @@ export default function NotificationsScreen() {
     else if (n.type === 'chat_reminder' || n.type === 'chat_message') navigate('/chat')
     else if (n.type === 'support_user_msg') navigate('/admin/support')
     else if (n.type === 'support_reply') navigate('/support')
+    // Game-related notifications carry the invite code in body → /play/CODE.
+    else if ((n.type === 'game_invite' || n.type === 'game_join' || n.type === 'game_waiting') && n.body) {
+      navigate(`/play/${n.body}`)
+    }
   }
 
   return (
@@ -136,6 +140,9 @@ function message(n: AppNotification): React.ReactNode {
     case 'match_post': return <>{who} — who matches your preferences — just posted. ✨</>
     case 'support_user_msg': return <>{who} messaged live support: <span className="text-ink-2">“{n.body}”</span></>
     case 'support_reply': return <>Support replied{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : ''} 🛟</>
+    case 'game_invite': return <>{who} invited you to play a game 🎮 Tap to join.</>
+    case 'game_join': return <>{who} joined your game 🎮 Tap to open the lobby.</>
+    case 'game_waiting': return <>⏰ It's your turn — your opponent is waiting. Tap to play.</>
     // Transactional / system notifications carry their full text in body.
     case 'welcome':
     case 'welcome_signup':
@@ -176,6 +183,9 @@ function glyph(type: AppNotification['type']): string {
     case 'subscription_expired': return '💔'
     case 'referral_joined': return '🤝'
     case 'follow': return '👤'
+    case 'game_invite': return '🎮'
+    case 'game_join': return '🎮'
+    case 'game_waiting': return '⏰'
     default: return '🔔'
   }
 }

@@ -74,6 +74,31 @@ export type LiveGame = {
   players: LivePlayer[]
 }
 
+/** The viewer's own most-recent active or lobby-state game (if any), so the
+ *  chat screens can show a "↩ Return to game" banner. */
+export function useMyActiveGame() {
+  return useQuery<{ id: string; invite_code: string; status: GameStatus } | null>({
+    queryKey: ['my-active-game'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return null
+      const { data: rows, error } = await supabase
+        .from('game_players')
+        .select('game:games(id, invite_code, status, started_at)')
+        .eq('user_id', user.id)
+      if (error) throw error
+      const live = (rows ?? [])
+        .map((r) => (r as unknown as { game: { id: string; invite_code: string; status: GameStatus; started_at: string | null } | null }).game)
+        .filter((g): g is { id: string; invite_code: string; status: GameStatus; started_at: string | null } =>
+          !!g && (g.status === 'lobby' || g.status === 'active'))
+        .sort((a, b) => (b.started_at ?? '').localeCompare(a.started_at ?? ''))
+      return live[0] ? { id: live[0].id, invite_code: live[0].invite_code, status: live[0].status } : null
+    },
+    refetchOnWindowFocus: true,
+    staleTime: 15_000,
+  })
+}
+
 /** Currently-active games, newest first — surfaced in the feed for spectating. */
 export function useLiveGames() {
   return useQuery<LiveGame[]>({
