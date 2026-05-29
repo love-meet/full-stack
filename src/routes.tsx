@@ -81,6 +81,9 @@ export const router = createBrowserRouter([
           // Group thread (full-screen, pinned composer like chat).
           { path: 'g/:slug/p/:postId',    element: <GroupPostDetailScreen /> },
 
+          // Match-preferences interview — full-screen, no bottom nav.
+          { path: 'interview',            element: <InterviewScreen /> },
+
           // Shell-wrapped main app.
           {
             element: <Shell />,
@@ -95,7 +98,6 @@ export const router = createBrowserRouter([
               { path: 'games',                 element: <GamesScreen /> },
               { path: 'games/pixel-rush',      element: <PixelRushScreen /> },
               { path: 'games/number-duel',     element: <NumberDuelScreen /> },
-              { path: 'interview',             element: <InterviewScreen /> },
               { path: 'gift/:giftId',          element: <GiftDetailScreen /> },
               { path: 'guide',                 element: <GuideScreen /> },
               { path: 'chat',                  element: <ChatScreen /> },

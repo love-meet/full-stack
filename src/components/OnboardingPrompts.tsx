@@ -1,12 +1,8 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../stores/auth'
 import { useProfile } from '../hooks/useProfile'
 import { useHasPosted, useMatchPreferences } from '../hooks/useMatchPreferences'
-
-const POST_DISMISS = 'lm.firstPost.dismissed'
-const INTERVIEW_DISMISS = 'lm.interview.dismissed'
 
 /**
  * Two onboarding nudges that appear over the feed for new users.
@@ -25,50 +21,21 @@ export default function OnboardingPrompts() {
   const hasPosted = useHasPosted(onboarded ? myId : null)
   const prefs = useMatchPreferences()
 
-  // Session-scoped dismissals.
-  const [dismissedPost, setDismissedPost] = useState(() =>
-    typeof window !== 'undefined' && sessionStorage.getItem(POST_DISMISS) === '1')
-  const [dismissedInterview, setDismissedInterview] = useState(() =>
-    typeof window !== 'undefined' && sessionStorage.getItem(INTERVIEW_DISMISS) === '1')
-
-  // Reset the post-dismissal once they've actually posted, so the interview
-  // prompt can show on the same session.
-  useEffect(() => {
-    if (hasPosted.data === true) sessionStorage.removeItem(POST_DISMISS)
-  }, [hasPosted.data])
-
   if (!ready || !session || !onboarded) return null
 
-  // Decide which prompt (if any) to show — only one at a time.
-  const wantPost = hasPosted.data === false && !dismissedPost
-  const wantInterview =
-    hasPosted.data === true && prefs.data?.completed_at == null && !dismissedInterview
+  // Both modals are compulsory — no skip; each stays until the user completes it.
+  const wantPost = hasPosted.data === false
+  const wantInterview = hasPosted.data === true && prefs.data?.completed_at == null
 
   return (
     <AnimatePresence>
-      {wantPost && (
-        <FirstPostModal
-          key="first-post"
-          onSkip={() => {
-            sessionStorage.setItem(POST_DISMISS, '1')
-            setDismissedPost(true)
-          }}
-        />
-      )}
-      {!wantPost && wantInterview && (
-        <InterviewInviteModal
-          key="interview"
-          onSkip={() => {
-            sessionStorage.setItem(INTERVIEW_DISMISS, '1')
-            setDismissedInterview(true)
-          }}
-        />
-      )}
+      {wantPost && <FirstPostModal key="first-post" />}
+      {!wantPost && wantInterview && <InterviewInviteModal key="interview" />}
     </AnimatePresence>
   )
 }
 
-function FirstPostModal({ onSkip }: { onSkip: () => void }) {
+function FirstPostModal() {
   return (
     <ModalShell>
       <div className="text-5xl mb-3">📸</div>
@@ -88,14 +55,12 @@ function FirstPostModal({ onSkip }: { onSkip: () => void }) {
       >
         Share my first post
       </Link>
-      <button onClick={onSkip} className="mt-3 text-sm text-ink-muted hover:text-ink">
-        Maybe later
-      </button>
+      <p className="mt-3 text-[11px] text-ink-muted">This step is required to start meeting people.</p>
     </ModalShell>
   )
 }
 
-function InterviewInviteModal({ onSkip }: { onSkip: () => void }) {
+function InterviewInviteModal() {
   return (
     <ModalShell>
       <div className="text-5xl mb-3">💞</div>
@@ -115,9 +80,7 @@ function InterviewInviteModal({ onSkip }: { onSkip: () => void }) {
       >
         Take the 2-minute interview
       </Link>
-      <button onClick={onSkip} className="mt-3 text-sm text-ink-muted hover:text-ink">
-        Not now
-      </button>
+      <p className="mt-3 text-[11px] text-ink-muted">This step is required before you can use the feed.</p>
     </ModalShell>
   )
 }
