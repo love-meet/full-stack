@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useMySubscription } from '../../hooks/usePayments'
 import { useCreateGame } from '../../hooks/usePixelGame'
 import { PopunderAd } from '../../components/FeedAd'
 
@@ -14,7 +13,6 @@ type Phase = 'guide' | 'mode' | 'setup' | 'preview' | 'play' | 'won'
 
 export default function PixelRushScreen() {
   const navigate = useNavigate()
-  const isSubscriber = !!useMySubscription().data
   const createGame = useCreateGame()
   const [groupCount, setGroupCount] = useState(4)
   const [createErr, setCreateErr] = useState<string | null>(null)
@@ -95,27 +93,8 @@ export default function PixelRushScreen() {
     setPhase('preview')
   }
 
-  // ----- gates -----
-  if (!isSubscriber) {
-    return (
-      <Shell onBack={() => navigate(-1)}>
-        <div className="glass rounded-3xl p-6 text-center space-y-3 border border-rose/30 mt-6">
-          <div className="text-4xl">👑</div>
-          <h2 className="text-lg font-extrabold text-gradient-warm">Creating games is for members</h2>
-          <p className="text-sm text-ink-2">
-            Pixel Rush is a premium game. Upgrade your plan to create and host games — free members can
-            still join a game they're invited to.
-          </p>
-          <button
-            onClick={() => navigate('/subscription')}
-            className="rounded-full px-5 py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose"
-          >
-            See plans
-          </button>
-        </div>
-      </Shell>
-    )
-  }
+  // Members-only gate is temporarily open while we grow usage — it'll come
+  // back later. (isSubscriber is still computed in case we need it.)
 
   return (
     <Shell onBack={() => navigate(-1)}>

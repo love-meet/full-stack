@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useMySubscription } from '../../hooks/usePayments'
 import { useCreateGame } from '../../hooks/usePixelGame'
 import { PopunderAd } from '../../components/FeedAd'
 
@@ -9,7 +8,6 @@ import { PopunderAd } from '../../components/FeedAd'
  *  /play/:code — only the gameplay differs. 1v1 only. */
 export default function NumberDuelScreen() {
   const navigate = useNavigate()
-  const isSubscriber = !!useMySubscription().data
   const createGame = useCreateGame()
   const [err, setErr] = useState<string | null>(null)
 
@@ -23,39 +21,24 @@ export default function NumberDuelScreen() {
 
   return (
     <Shell onBack={() => navigate(-1)}>
-      {!isSubscriber ? (
-        <Step>
-          <div className="text-center space-y-3">
-            <div className="text-4xl">👑</div>
-            <h2 className="text-lg font-extrabold text-gradient-warm">Creating games is for members</h2>
-            <p className="text-sm text-ink-2">
-              Upgrade your plan to create and host games — free members can still join a game they're invited to.
-            </p>
-            <button onClick={() => navigate('/subscription')} className="rounded-full px-5 py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose">
-              See plans
-            </button>
-          </div>
-        </Step>
-      ) : (
-        <Step>
-          <h2 className="text-xl font-extrabold text-gradient-warm">🔢 Number Duel</h2>
-          <p className="text-sm text-ink-2 mt-1">A head-to-head guessing duel.</p>
-          <ol className="mt-4 space-y-2 text-sm text-ink-2 list-decimal pl-5">
-            <li>You each secretly pick a number from <b>0 to 100</b> (e.g. 17, 42, 90).</li>
-            <li>Race to guess your opponent's number on the keypad.</li>
-            <li>After each guess an arrow says <b>↑ higher</b> or <b>↓ lower</b>.</li>
-            <li>First to guess the <b>exact</b> number takes the round.</li>
-            <li>Difficulty ramps up: <b>6 Easy</b> rounds (whole numbers), <b>4 Medium</b> (1 decimal), <b>2 Hard</b> (2 decimals).</li>
-            <li>Best of 12 takes the trophy. 🏆 Viewers watch both numbers live.</li>
-          </ol>
-          <button onClick={host} disabled={createGame.isPending}
-            className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
-            {createGame.isPending ? 'Creating…' : 'Create 1 v 1 match'}
-          </button>
-          <p className="mt-2 text-[11px] text-ink-muted text-center">You'll get an invite link — no account needed to join.</p>
-          {err && <p className="mt-3 text-xs text-danger text-center">{err}</p>}
-        </Step>
-      )}
+      <Step>
+        <h2 className="text-xl font-extrabold text-gradient-warm">🔢 Number Duel</h2>
+        <p className="text-sm text-ink-2 mt-1">A head-to-head guessing duel.</p>
+        <ol className="mt-4 space-y-2 text-sm text-ink-2 list-decimal pl-5">
+          <li>You each secretly pick a number from <b>0 to 100</b> (e.g. 17, 42, 90).</li>
+          <li>Race to guess your opponent's number on the keypad.</li>
+          <li>After each guess an arrow says <b>↑ higher</b> or <b>↓ lower</b>.</li>
+          <li>First to guess the <b>exact</b> number takes the round.</li>
+          <li>Difficulty ramps up: <b>6 Easy</b> rounds (whole numbers), <b>4 Medium</b> (1 decimal), <b>2 Hard</b> (2 decimals).</li>
+          <li>Best of 12 takes the trophy. 🏆 Viewers watch both numbers live.</li>
+        </ol>
+        <button onClick={host} disabled={createGame.isPending}
+          className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
+          {createGame.isPending ? 'Creating…' : 'Create 1 v 1 match'}
+        </button>
+        <p className="mt-2 text-[11px] text-ink-muted text-center">You'll get an invite link — no account needed to join.</p>
+        {err && <p className="mt-3 text-xs text-danger text-center">{err}</p>}
+      </Step>
     </Shell>
   )
 }
