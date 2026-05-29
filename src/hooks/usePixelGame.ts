@@ -85,7 +85,7 @@ export function useLiveGames() {
         .select('id, invite_code, kind, current_round, rounds_total, players:game_players(user_id, team, joined_at, profile:user_id(handle, display_name, avatar_url))')
         .eq('status', 'active')
         .order('started_at', { ascending: false })
-        .limit(5)
+        .limit(50)
       if (error) throw error
       return (data ?? []) as unknown as LiveGame[]
     },

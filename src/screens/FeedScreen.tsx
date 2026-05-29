@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, Fragment, useCallback, useMemo } from 'rea
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useFeed, type FeedPost } from '../hooks/useFeed'
+import OnboardingPrompts from '../components/OnboardingPrompts'
 import { useToggleLike } from '../hooks/usePostMutations'
 import { useFeedRealtime } from '../hooks/useFeedRealtime'
 import { useUnreadNotifications, useNotificationsRealtime } from '../hooks/useNotifications'
@@ -78,6 +79,7 @@ export default function FeedScreen() {
 
   return (
     <>
+      <OnboardingPrompts />
       {/* Floating top bar — transparent over the media, icons stay tappable. */}
       <div className="fixed top-0 left-0 right-0 lg:left-64 xl:right-[22rem] z-30 pointer-events-none">
         <div className="bg-gradient-to-b from-black/55 to-transparent" style={{ paddingTop: 'var(--lm-top-inset)' }}>
@@ -127,7 +129,7 @@ export default function FeedScreen() {
           </div>
         )}
 
-        {liveGames.map((lg) => <LiveGameSlide key={lg.id} game={lg} />)}
+        {liveGames.length > 0 && <LiveGamesSlide games={liveGames} />}
 
         {posts.map((post, i) => (
           <Fragment key={post.id}>
@@ -187,41 +189,52 @@ function AdSlide() {
   )
 }
 
-// A live Pixel Rush game — tap to watch (spectate). Full-screen snap slide.
-function LiveGameSlide({ game }: { game: LiveGame }) {
+// All currently-live games in ONE slide, scrollable horizontally so 70 live
+// games don't flood the feed as 70 separate slides.
+function LiveGamesSlide({ games }: { games: LiveGame[] }) {
   return (
-    <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center px-5">
-      <Link
-        to={`/play/${game.invite_code}`}
-        className="w-full max-w-md mx-auto glass rounded-3xl p-8 text-center block hover:ring-1 hover:ring-gold/40 transition-shadow"
-        style={{ background: 'radial-gradient(700px 500px at 50% 0%, rgba(53,205,232,0.18), transparent 60%)' }}
-      >
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-white bg-rose rounded-full px-3 py-1">
-          <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Live
-        </span>
-
-        {/* Two players, 50/50 with VS in the middle. */}
-        {(() => {
-          const ps = [...(game.players ?? [])].sort((a, b) => a.joined_at.localeCompare(b.joined_at))
-          return (
-            <div className="mt-6 flex items-center justify-center gap-4">
-              <PlayerFace p={ps[0]} />
-              <span className="text-2xl font-extrabold text-gradient-warm shrink-0">VS</span>
-              <PlayerFace p={ps[1]} />
-            </div>
-          )
-        })()}
-
-        <h2 className="mt-4 text-xl font-extrabold text-gradient-warm">Pixel Rush</h2>
-        <p className="mt-1 text-sm text-ink-2">
-          {game.kind === '1v1' ? '1 v 1 match' : 'Team match'} · Round {game.current_round}/{game.rounds_total}
-        </p>
-        <span className="mt-5 inline-block rounded-full px-6 py-2.5 bg-gradient-brand text-white font-bold glow-rose">
-          ▶ Watch live
-        </span>
-        <p className="mt-3 text-[11px] text-white/55">Spectators can watch — only players can play.</p>
-      </Link>
+    <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center px-3">
+      <div className="w-full max-w-3xl mx-auto">
+        <div className="flex items-center justify-center gap-2 mb-3">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-white bg-rose rounded-full px-3 py-1">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> {games.length} live now
+          </span>
+        </div>
+        <p className="text-center text-xs text-white/60 mb-2">Swipe to peek into any live game</p>
+        <div className="overflow-x-auto no-scrollbar -mx-3 px-3 pb-2 snap-x snap-mandatory">
+          <div className="flex gap-3 w-max">
+            {games.map((g) => <LiveGameCard key={g.id} game={g} />)}
+          </div>
+        </div>
+      </div>
     </section>
+  )
+}
+
+function LiveGameCard({ game }: { game: LiveGame }) {
+  const ps = [...(game.players ?? [])].sort((a, b) => a.joined_at.localeCompare(b.joined_at))
+  return (
+    <Link
+      to={`/play/${game.invite_code}`}
+      className="w-[260px] shrink-0 snap-center glass rounded-2xl p-5 text-center block hover:ring-1 hover:ring-gold/40 transition-shadow"
+      style={{ background: 'radial-gradient(380px 280px at 50% 0%, rgba(53,205,232,0.20), transparent 60%)' }}
+    >
+      <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-white bg-rose rounded-full px-2 py-0.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Live
+      </span>
+      <div className="mt-3 flex items-center justify-center gap-2">
+        <PlayerFace p={ps[0]} />
+        <span className="text-base font-extrabold text-gradient-warm shrink-0">VS</span>
+        <PlayerFace p={ps[1]} />
+      </div>
+      <h3 className="mt-3 text-base font-extrabold text-gradient-warm">Pixel Rush</h3>
+      <p className="mt-0.5 text-[11px] text-ink-2">
+        {game.kind === '1v1' ? '1 v 1' : 'Team'} · Round {game.current_round}/{game.rounds_total}
+      </p>
+      <span className="mt-3 inline-block rounded-full px-4 py-1.5 bg-gradient-brand text-white text-xs font-bold glow-rose">
+        ▶ Watch
+      </span>
+    </Link>
   )
 }
 
