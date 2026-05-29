@@ -1,41 +1,19 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   useMySubscription,
-  useSubscribe,
   useSubscriptionPlans,
   type SubscriptionPlan,
 } from '../../hooks/usePayments'
-import { useWallet } from '../../hooks/useWallet'
 import { useUserCurrency } from '../../hooks/useFx'
-import ConfirmDialog from '../../components/ConfirmDialog'
-
-const MONTH_OPTIONS = [1, 3, 6, 12] as const
 
 export default function SubscriptionScreen() {
   const navigate = useNavigate()
   const plans = useSubscriptionPlans()
   const sub = useMySubscription()
-  const wallet = useWallet()
-  const subscribe = useSubscribe()
   const fx = useUserCurrency()
-  const [picking, setPicking] = useState<{ plan: SubscriptionPlan; months: number } | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
-  const balance = wallet.data?.balance_usdt ?? 0
   const active = sub.data
   const onFree = !active
-
-  async function confirm() {
-    if (!picking) return
-    setError(null)
-    try {
-      await subscribe.mutateAsync({ planId: picking.plan.id, months: picking.months })
-      setPicking(null)
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  }
 
   return (
     <div className="min-h-screen text-ink pb-24">
@@ -79,10 +57,8 @@ export default function SubscriptionScreen() {
         )}
 
         <p className="text-sm text-ink-2">
-          Paid from your wallet balance. To top up, go to{' '}
-          <button onClick={() => navigate('/wallet/deposit')} className="text-rose hover:underline font-semibold">
-            Add funds
-          </button>.
+          Pay securely with <span className="font-semibold text-ink">ALATPay</span> — card, bank
+          transfer or USSD. Your plan unlocks as soon as payment confirms.
         </p>
 
         <div className="space-y-3">
@@ -100,30 +76,14 @@ export default function SubscriptionScreen() {
             <PlanCard
               key={p.id}
               plan={p}
-              balance={balance}
               isCurrent={active?.plan_id === p.id}
               format={fx.ready || fx.code === 'USD' ? fx.format : (u) => `$${u.toFixed(2)}`}
-              onPick={(months) => setPicking({ plan: p, months })}
+              onPick={() => navigate(`/plans/${p.id}`)}
             />
           ))}
         </div>
 
-        {error && <p className="text-xs text-danger">{error}</p>}
       </main>
-
-      <ConfirmDialog
-        open={picking != null}
-        title={`Subscribe to ${picking?.plan.name}?`}
-        message={
-          picking
-            ? `${(fx.ready || fx.code === 'USD' ? fx.format(picking.plan.price_usdt * picking.months) : `$${(picking.plan.price_usdt * picking.months).toFixed(2)}`)} will be debited from your wallet now for ${picking.months} month${picking.months === 1 ? '' : 's'} of ${picking.plan.name}.`
-            : ''
-        }
-        confirmLabel="Subscribe"
-        busy={subscribe.isPending}
-        onCancel={() => setPicking(null)}
-        onConfirm={confirm}
-      />
     </div>
   )
 }
@@ -158,18 +118,13 @@ function FreeCard({ isCurrent }: { isCurrent: boolean }) {
 }
 
 function PlanCard({
-  plan, balance, isCurrent, format, onPick,
+  plan, isCurrent, format, onPick,
 }: {
   plan: SubscriptionPlan
-  balance: number
   isCurrent: boolean
   format: (usd: number) => string
-  onPick: (months: number) => void
+  onPick: () => void
 }) {
-  const [months, setMonths] = useState(1)
-  const total = plan.price_usdt * months
-  const canAfford = balance >= total
-
   return (
     <div
       className={[
@@ -200,36 +155,12 @@ function PlanCard({
       )}
 
       {!plan.coming_soon && !isCurrent && (
-        <>
-          {/* Months selector — pay for more than a month up front. */}
-          <div className="mt-4 flex gap-2">
-            {MONTH_OPTIONS.map((m) => (
-              <button
-                key={m}
-                onClick={() => setMonths(m)}
-                className={[
-                  'flex-1 rounded-xl py-2 text-xs font-bold transition-colors',
-                  months === m ? 'bg-rose/20 text-rose ring-1 ring-rose/40' : 'bg-surface-3 text-ink-muted',
-                ].join(' ')}
-              >
-                {m} mo
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={() => onPick(months)}
-            disabled={!canAfford}
-            className={[
-              'mt-3 w-full rounded-full py-2.5 text-sm font-bold transition-opacity',
-              canAfford ? 'bg-gradient-brand text-white glow-rose' : 'bg-surface-3 text-ink-muted',
-            ].join(' ')}
-          >
-            {canAfford
-              ? `Subscribe — ${format(total)}${months > 1 ? ` (${months} mo)` : ''}`
-              : `Need ${format(total - balance)} more`}
-          </button>
-        </>
+        <button
+          onClick={onPick}
+          className="mt-4 w-full rounded-full py-2.5 text-sm font-bold bg-gradient-brand text-white glow-rose"
+        >
+          Subscribe now
+        </button>
       )}
 
       {isCurrent && (

@@ -18,6 +18,7 @@ import ChatDetailScreen from './screens/ChatDetailScreen'
 import SearchScreen from './screens/SearchScreen'
 import GamesScreen from './screens/GamesScreen'
 import InterviewScreen from './screens/InterviewScreen'
+import PlanCheckoutScreen from './screens/settings/PlanCheckoutScreen'
 import PixelRushScreen from './screens/games/PixelRushScreen'
 import NumberDuelScreen from './screens/games/NumberDuelScreen'
 import PlayGameScreen from './screens/games/PlayGameScreen'
@@ -83,6 +84,9 @@ export const router = createBrowserRouter([
 
           // Match-preferences interview — full-screen, no bottom nav.
           { path: 'interview',            element: <InterviewScreen /> },
+
+          // Pay-and-unlock plan checkout — direct ALATPay, no wallet detour.
+          { path: 'plans/:planId',        element: <PlanCheckoutScreen /> },
 
           // Shell-wrapped main app.
           {

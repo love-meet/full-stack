@@ -174,14 +174,16 @@ export default function InterviewScreen() {
 
   async function finish(picked: 'free' | 'premium' | 'vip') {
     setPlan(picked)
+    // Map the interview choice to the actual DB plan id.
+    const planRoute = picked === 'premium' ? '/plans/sweetheart'
+      : picked === 'vip' ? '/plans/soulmate'
+      : '/feed'
     try {
       await save.mutateAsync({ partner, self, planGoal: picked, completed: true })
-      if (picked === 'free') navigate('/feed', { replace: true })
-      else navigate('/subscription', { replace: true })
-    } catch (e) {
+    } catch {
       // best-effort: even on save error we still let the user move on
-      navigate(picked === 'free' ? '/feed' : '/subscription', { replace: true })
     }
+    navigate(planRoute, { replace: true })
   }
 
   return (
