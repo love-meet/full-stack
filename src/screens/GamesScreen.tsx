@@ -17,6 +17,7 @@ type Game = {
 const GAMES: Game[] = [
   { title: 'Pixel Rush',        blurb: 'Race to rebuild a scrambled photo. Fastest to fix it wins.', emoji: '🧩', players: '1v1 / Group', accent: 'var(--color-gold)', to: '/games/pixel-rush' },
   { title: 'Number Duel',       blurb: 'Pick a secret number; race to guess your rival’s. Higher or lower!', emoji: '🔢', players: '1v1', accent: 'var(--color-magenta)', to: '/games/number-duel' },
+  { title: 'Draughts',          blurb: 'Classic checkers — jump, capture, crown your king. Best of 3 takes the trophy.', emoji: '♟', players: '1v1', accent: 'var(--color-gold)', to: '/games/draughts' },
   { title: 'Truth or Dare',     blurb: 'Spicy prompts to break the ice — your rules.',        emoji: '🎯', players: 'Couples', accent: 'var(--color-rose)' },
 ]
 

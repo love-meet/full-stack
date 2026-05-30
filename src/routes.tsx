@@ -21,6 +21,7 @@ import InterviewScreen from './screens/InterviewScreen'
 import PlanCheckoutScreen from './screens/settings/PlanCheckoutScreen'
 import PixelRushScreen from './screens/games/PixelRushScreen'
 import NumberDuelScreen from './screens/games/NumberDuelScreen'
+import DraughtsScreen from './screens/games/DraughtsScreen'
 import PlayGameScreen from './screens/games/PlayGameScreen'
 import GiftDetailScreen from './screens/GiftDetailScreen'
 import GuideScreen from './screens/GuideScreen'
@@ -102,6 +103,7 @@ export const router = createBrowserRouter([
               { path: 'games',                 element: <GamesScreen /> },
               { path: 'games/pixel-rush',      element: <PixelRushScreen /> },
               { path: 'games/number-duel',     element: <NumberDuelScreen /> },
+              { path: 'games/draughts',        element: <DraughtsScreen /> },
               { path: 'gift/:giftId',          element: <GiftDetailScreen /> },
               { path: 'guide',                 element: <GuideScreen /> },
               { path: 'chat',                  element: <ChatScreen /> },

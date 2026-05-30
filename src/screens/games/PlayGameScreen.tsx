@@ -33,6 +33,8 @@ import { IconMail } from '../../components/icons'
 import TopIcons from '../../shell/TopIcons'
 import { InlineAd, PopunderAd } from '../../components/FeedAd'
 import DuelArena from '../../components/games/NumberDuelMatch'
+import DraughtsBoard from '../../components/games/DraughtsBoard'
+import { useDraughtsRound } from '../../hooks/useDraughts'
 import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
 import { avatarUrlOr } from '../../lib/avatar'
 import ShareSheet from '../../components/ShareSheet'
@@ -549,6 +551,8 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
       <div className="max-w-md mx-auto px-4" style={{ paddingTop: 'calc(var(--lm-top-inset) + 6.5rem)', paddingBottom: '8rem' }}>
         {g.game_type === 'number_duel' ? (
           <DuelArena g={g} players={players} myId={myId} amPlayer={amPlayer} />
+        ) : g.game_type === 'draughts' ? (
+          <DraughtsArena g={g} myId={myId} amPlayer={amPlayer} />
         ) : !r || round.isPending ? (
           <Spinner />
         ) : r.status === 'awaiting_image' ? (
@@ -877,6 +881,49 @@ function endedPhrase(iso: string): string {
     return `ended ${d} day${d === 1 ? '' : 's'} ago`
   }
   return `ended on ${new Date(iso).toLocaleDateString()}`
+}
+
+/** Draughts content area — fetches the current board via realtime, decides
+ *  the viewer's colour from the host_id, and renders DraughtsBoard. Also
+ *  drives auto-advance to the next board after a 3.5s pause when a round
+ *  ends (matches Pixel Rush behaviour). */
+function DraughtsArena({
+  g, myId, amPlayer,
+}: { g: Game; myId: string | null; amPlayer: boolean }) {
+  const rq = useDraughtsRound(g.id, g.current_round)
+  const autoAdvance = useAutoAdvanceRound()
+  const status = rq.data?.status
+  const roundNo = rq.data?.round_no
+  useEffect(() => {
+    if (!amPlayer || g.status !== 'active' || status !== 'done' || !roundNo) return
+    const t = window.setTimeout(() => autoAdvance.mutate({ gameId: g.id, round: roundNo }), 3500)
+    return () => window.clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amPlayer, g.status, g.id, status, roundNo])
+
+  if (rq.isPending || !rq.data) {
+    return <div className="py-10 text-center text-ink-muted text-sm">Setting up the board…</div>
+  }
+  const round = rq.data
+  const myColor = amPlayer ? (myId === g.host_id ? 'r' : 'b') : null
+  const myTurn = amPlayer && round.turn_user_id === myId && round.status === 'playing'
+  return (
+    <div>
+      <DraughtsBoard
+        gameId={g.id}
+        round={g.current_round}
+        board={round.board}
+        myColor={myColor}
+        myTurn={myTurn}
+      />
+      {round.status === 'done' && (
+        <div className="mt-4 text-center text-sm text-ink-2 flex items-center justify-center gap-2">
+          <span className="w-3.5 h-3.5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
+          <span>{g.current_round >= g.rounds_total ? 'Tallying final results…' : 'Next board starting…'}</span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 /** Chat icon in the in-game header — same icon as the feed top bar. */

@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 
 export type GameKind = '1v1' | 'group'
 export type GameStatus = 'lobby' | 'active' | 'finished'
-export type GameType = 'pixel_rush' | 'number_duel'
+export type GameType = 'pixel_rush' | 'number_duel' | 'draughts'
 
 export type Game = {
   id: string
