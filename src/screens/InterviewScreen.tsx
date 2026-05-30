@@ -428,7 +428,9 @@ function FinalStep({
           benefits={[
             '3 posts a week',
             'Default chat & privacy settings',
-            'Create & join groups and games',
+            'Join groups & games others host',
+            "✖ Can't create or host games (members only)",
+            "✖ Can't message Premium / VIP members",
           ]}
           cta="Stay on Free"
           onPick={() => onPick('free')}

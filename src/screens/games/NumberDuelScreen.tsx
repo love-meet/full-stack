@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useCreateGame } from '../../hooks/usePixelGame'
+import { useMySubscription } from '../../hooks/usePayments'
 import { PopunderAd } from '../../components/FeedAd'
 
 /** Intro + create flow for Number Duel. Reuses the shared game lobby at
@@ -9,6 +10,7 @@ import { PopunderAd } from '../../components/FeedAd'
 export default function NumberDuelScreen() {
   const navigate = useNavigate()
   const createGame = useCreateGame()
+  const isSubscriber = !!useMySubscription().data
   const [err, setErr] = useState<string | null>(null)
 
   async function host() {
@@ -17,6 +19,29 @@ export default function NumberDuelScreen() {
       const g = await createGame.mutateAsync({ kind: '1v1', type: 'number_duel' })
       navigate(`/play/${g.invite_code}`)
     } catch (e) { setErr((e as Error).message) }
+  }
+
+  if (!isSubscriber) {
+    return (
+      <Shell onBack={() => navigate(-1)}>
+        <Step>
+          <div className="text-center space-y-3">
+            <div className="text-4xl">👑</div>
+            <h2 className="text-lg font-extrabold text-gradient-warm">Games are for serious people</h2>
+            <p className="text-sm text-ink-2">
+              Hosting a game is a <b>Premium</b> and <b>VIP</b> perk. Upgrade your plan to create
+              and host matches.
+            </p>
+            <p className="text-[12px] text-ink-muted">
+              Free members can still join any game they're invited to — no plan required.
+            </p>
+            <button onClick={() => navigate('/subscription')} className="rounded-full px-5 py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose">
+              See plans
+            </button>
+          </div>
+        </Step>
+      </Shell>
+    )
   }
 
   return (
