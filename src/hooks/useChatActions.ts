@@ -21,6 +21,24 @@ export function useTogglePinConversation() {
   })
 }
 
+/** Soft-leave a 1:1 conversation: removes my membership row so the chat
+ *  disappears from my list. The other party still sees the history. */
+export function useDeleteConversation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (conversationId: string) => {
+      const { error } = await supabase.rpc('delete_conversation_for_me', {
+        p_conversation_id: conversationId,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: conversationsKey })
+      qc.invalidateQueries({ queryKey: ['conversation'] })
+    },
+  })
+}
+
 /** Bump my last_read_at backwards so the conversation shows unread again. */
 export function useMarkConversationUnread() {
   const qc = useQueryClient()

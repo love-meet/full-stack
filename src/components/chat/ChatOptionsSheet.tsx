@@ -10,6 +10,7 @@ import {
   useUnmuteUser,
 } from '../../hooks/usePostActions'
 import {
+  useDeleteConversation,
   useMarkConversationUnread,
   useTogglePinConversation,
 } from '../../hooks/useChatActions'
@@ -26,7 +27,7 @@ type Props = {
   onClose: () => void
 }
 
-type Confirm = 'block' | null
+type Confirm = 'block' | 'delete' | null
 type Item = {
   icon: string
   label: string
@@ -56,6 +57,7 @@ export default function ChatOptionsSheet({
   const muting = useIsMuting(otherUserId)
   const pin = useTogglePinConversation()
   const markUnread = useMarkConversationUnread()
+  const deleteConv = useDeleteConversation()
 
   const [confirm, setConfirm] = useState<Confirm>(null)
   const [busyLabel, setBusyLabel] = useState<string | null>(null)
@@ -150,6 +152,13 @@ export default function ChatOptionsSheet({
       },
     },
     {
+      icon: '🗑',
+      label: 'Delete chat',
+      hint: 'Removes this conversation from your list (they keep history)',
+      destructive: true,
+      onClick: () => setConfirm('delete'),
+    },
+    {
       icon: '🚫',
       label: `Block @${otherHandle ?? 'user'}`,
       hint: 'Strongest — no posts, no DMs',
@@ -241,6 +250,25 @@ export default function ChatOptionsSheet({
           try {
             await withBusy('Blocking…', () => block.mutateAsync(otherUserId))
             flash('Blocked')
+            onClose()
+            navigate('/chat', { replace: true })
+          } catch { /* flash already shown */ }
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirm === 'delete'}
+        title="Delete this chat?"
+        message="It'll vanish from your chat list. The other person keeps the history and you can start a fresh chat with them anytime."
+        confirmLabel="Delete"
+        destructive
+        busy={busyLabel === 'Deleting…'}
+        onCancel={() => setConfirm(null)}
+        onConfirm={async () => {
+          if (!conversationId) { setConfirm(null); return }
+          setConfirm(null)
+          try {
+            await withBusy('Deleting…', () => deleteConv.mutateAsync(conversationId))
             onClose()
             navigate('/chat', { replace: true })
           } catch { /* flash already shown */ }

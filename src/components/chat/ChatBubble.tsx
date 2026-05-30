@@ -57,8 +57,12 @@ export default function ChatBubble({
         onPointerLeave={cancelPress}
         onPointerCancel={cancelPress}
         onContextMenu={(e) => { e.preventDefault(); onOpenActions() }}
+        // Selection is disabled — the long-press / right-click action sheet
+        // is how to copy. -webkit-touch-callout:none kills iOS's "magnifier
+        // loupe + Copy/Look up" overlay on a held tap.
+        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
         className={[
-          'relative max-w-[78%] px-3.5 py-2 rounded-2xl text-[15px] leading-snug whitespace-pre-wrap break-words shadow-sm select-text',
+          'relative max-w-[78%] px-3.5 py-2 rounded-2xl text-[15px] leading-snug whitespace-pre-wrap break-words shadow-sm select-none',
           isMine
             ? 'bg-gradient-brand text-white rounded-br-md'
             : 'glass text-ink rounded-bl-md',
