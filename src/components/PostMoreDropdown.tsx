@@ -68,15 +68,26 @@ export default function PostMoreDropdown({ post, isMine, anchorRef, onClose }: P
     })
   }, [anchorRef])
 
-  // Close on outside pointer, scroll, resize, or Escape.
+  // Close on outside pointer, scroll, resize, or Escape — but NOT if the
+  // pointer landed inside our own confirm modal (it's portaled to <body>,
+  // so it's "outside" the panel in the DOM, but it's still our UI: closing
+  // here would unmount the modal mid-tap and the Delete click would land
+  // on whatever's behind it). Same for any nested form sheet.
   useEffect(() => {
+    function isInsideOurChildOverlay(t: Node): boolean {
+      if (!(t instanceof Element)) return false
+      return !!t.closest(
+        '[data-confirm-modal],[data-edit-sheet],[data-report-sheet]',
+      )
+    }
     function onDown(e: PointerEvent) {
       const t = e.target as Node
       if (panelRef.current?.contains(t)) return
       if (anchorRef.current?.contains(t)) return
+      if (isInsideOurChildOverlay(t)) return
       onClose()
     }
-    function bye() { onClose() }
+    function bye() { if (confirm !== null) return; onClose() }
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
     document.addEventListener('pointerdown', onDown, true)
     window.addEventListener('scroll', bye, true)
@@ -88,7 +99,7 @@ export default function PostMoreDropdown({ post, isMine, anchorRef, onClose }: P
       window.removeEventListener('resize', bye)
       document.removeEventListener('keydown', onKey)
     }
-  }, [anchorRef, onClose])
+  }, [anchorRef, onClose, confirm])
 
   function flash(msg: string) {
     setToast(msg)
