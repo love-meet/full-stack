@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useConversation } from '../hooks/useConversations'
 import ReturnToGameBanner from '../components/ReturnToGameBanner'
 import { useMessages, type Message } from '../hooks/useMessages'
@@ -119,37 +119,33 @@ export function ChatPane({
         >
           ←
         </button>
-        <div className="relative shrink-0">
-          <img
-            src={avatarUrlOr(conv.data?.other_avatar_url)}
-            alt=""
-            className="w-10 h-10 rounded-full object-cover"
+        {/* Avatar + name area is a Link to the user's profile. Wrapping both
+            gives one big tap target ("see who I'm chatting with"). */}
+        {conv.data?.other_id ? (
+          <Link
+            to={`/profile/${conv.data.other_id}`}
+            className="flex items-center gap-3 flex-1 min-w-0 -my-1 active:opacity-70"
+            aria-label="Open profile"
+          >
+            <ProfileHeaderBlock
+              avatarUrl={conv.data.other_avatar_url}
+              handle={conv.data.other_handle}
+              displayName={conv.data.other_display_name}
+              online={otherOnline}
+              typing={theyAreTyping}
+              verified={otherVerified}
+            />
+          </Link>
+        ) : (
+          <ProfileHeaderBlock
+            avatarUrl={conv.data?.other_avatar_url}
+            handle={conv.data?.other_handle}
+            displayName={conv.data?.other_display_name}
+            online={otherOnline}
+            typing={theyAreTyping}
+            verified={otherVerified}
           />
-          {/* Status dot — green when online, dim grey otherwise. Big enough
-              to actually read at a glance; ring matches the header surface. */}
-          <span
-            className={[
-              'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-surface-2',
-              otherOnline ? 'bg-success' : 'bg-ink-muted',
-            ].join(' ')}
-            aria-label={otherOnline ? 'Online' : 'Offline'}
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-ink truncate flex items-center gap-1">
-            <span className="truncate">@{conv.data?.other_handle ?? conv.data?.other_display_name ?? '…'}</span>
-            {otherVerified && <BlueTick size={15} />}
-          </div>
-          <div className="text-[11px] truncate">
-            {theyAreTyping ? (
-              <span className="text-success font-semibold">typing…</span>
-            ) : otherOnline ? (
-              <span className="text-success font-semibold">● Online</span>
-            ) : (
-              <span className="text-ink-muted">Offline</span>
-            )}
-          </div>
-        </div>
+        )}
         {conv.data?.other_id && (
           <button
             onClick={() => setChatMenuOpen(true)}
@@ -427,6 +423,49 @@ function MessagesList({
         </AnimatePresence>
       </ul>
     </div>
+  )
+}
+
+/** Avatar + status dot + handle + online/offline line — extracted so the
+ *  whole block can be wrapped in a Link to the user's profile. */
+function ProfileHeaderBlock({
+  avatarUrl, handle, displayName, online, typing, verified,
+}: {
+  avatarUrl?: string | null
+  handle?: string | null
+  displayName?: string | null
+  online: boolean
+  typing: boolean
+  verified: boolean
+}) {
+  return (
+    <>
+      <div className="relative shrink-0">
+        <img src={avatarUrlOr(avatarUrl)} alt="" className="w-10 h-10 rounded-full object-cover" />
+        <span
+          className={[
+            'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-surface-2',
+            online ? 'bg-success' : 'bg-ink-muted',
+          ].join(' ')}
+          aria-label={online ? 'Online' : 'Offline'}
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-ink truncate flex items-center gap-1">
+          <span className="truncate">@{handle ?? displayName ?? '…'}</span>
+          {verified && <BlueTick size={15} />}
+        </div>
+        <div className="text-[11px] truncate">
+          {typing ? (
+            <span className="text-success font-semibold">typing…</span>
+          ) : online ? (
+            <span className="text-success font-semibold">● Online</span>
+          ) : (
+            <span className="text-ink-muted">Offline</span>
+          )}
+        </div>
+      </div>
+    </>
   )
 }
 

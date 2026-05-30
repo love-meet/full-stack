@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { createPortal } from 'react-dom'
 
 type Props = {
   open: boolean
@@ -28,7 +29,12 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: Props) {
-  return (
+  if (typeof document === 'undefined') return null
+  // Portal to <body> so the DOM under the modal is just <body>, not the post
+  // it was rendered next to. Without this, a tap on Confirm that unmounts
+  // the modal mid-press can register as a "ghost click" on the post image
+  // underneath, opening the lightbox instead of (or as well as) deleting.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -55,14 +61,14 @@ export default function ConfirmDialog({
 
             <div className="mt-6 flex gap-3">
               <button
-                onClick={onCancel}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCancel() }}
                 disabled={busy}
                 className="flex-1 rounded-full py-3 text-sm font-semibold glass text-ink-2 hover:text-ink disabled:opacity-60"
               >
                 {cancelLabel}
               </button>
               <button
-                onClick={onConfirm}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onConfirm() }}
                 disabled={busy}
                 className={[
                   'flex-1 rounded-full py-3 text-sm font-semibold disabled:opacity-60 transition-opacity',
@@ -77,6 +83,7 @@ export default function ConfirmDialog({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
