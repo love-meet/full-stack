@@ -102,3 +102,23 @@ export function useConcedeDraughtsRound() {
     },
   })
 }
+
+/** Advance to the next draughts round (or finish the match) after a board
+ *  is won — server serialises the call and only fires when the round is
+ *  actually `done`, so it's safe to call from every connected client. */
+export function useAdvanceDraughts() {
+  const qc = useQueryClient()
+  return useMutation({
+    retry: false,
+    mutationFn: async (v: { gameId: string; round: number }) => {
+      const { error } = await supabase.rpc('advance_draughts', {
+        p_game_id: v.gameId, p_round: v.round,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['game'] })
+      qc.invalidateQueries({ queryKey: ['game-players'] })
+    },
+  })
+}

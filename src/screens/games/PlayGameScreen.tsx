@@ -34,7 +34,7 @@ import TopIcons from '../../shell/TopIcons'
 import { InlineAd, PopunderAd } from '../../components/FeedAd'
 import DuelArena from '../../components/games/NumberDuelMatch'
 import DraughtsBoard from '../../components/games/DraughtsBoard'
-import { useDraughtsRound } from '../../hooks/useDraughts'
+import { useDraughtsRound, useAdvanceDraughts } from '../../hooks/useDraughts'
 import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
 import { avatarUrlOr } from '../../lib/avatar'
 import ShareSheet from '../../components/ShareSheet'
@@ -912,12 +912,14 @@ function DraughtsArena({
   g, players, myId, amPlayer,
 }: { g: Game; players: GamePlayer[]; myId: string | null; amPlayer: boolean }) {
   const rq = useDraughtsRound(g.id, g.current_round)
-  const autoAdvance = useAutoAdvanceRound()
+  const advance = useAdvanceDraughts()
   const status = rq.data?.status
   const roundNo = rq.data?.round_no
+  // Players drive auto-advance; the server serialises so only one of them
+  // actually advances and the rest are no-ops.
   useEffect(() => {
     if (!amPlayer || g.status !== 'active' || status !== 'done' || !roundNo) return
-    const t = window.setTimeout(() => autoAdvance.mutate({ gameId: g.id, round: roundNo }), 3500)
+    const t = window.setTimeout(() => advance.mutate({ gameId: g.id, round: roundNo }), 3500)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amPlayer, g.status, g.id, status, roundNo])
@@ -928,9 +930,39 @@ function DraughtsArena({
   const round = rq.data
   const myColor = amPlayer ? (myId === g.host_id ? 'r' : 'b') : null
   const myTurn = amPlayer && round.turn_user_id === myId && round.status === 'playing'
+  // Viewer-on-right ordering (matches the VS header convention).
+  const meIdx = players.findIndex((p) => p.user_id === myId)
+  const left  = meIdx >= 0 ? players[1 - meIdx] : players[0]
+  const right = meIdx >= 0 ? players[meIdx]     : players[1]
   const opponentId = players.find((p) => p.user_id !== myId)?.user_id ?? null
+
+  // Best-of-3 → first to 2 wins. Show ceil(N/2) chip slots per player.
+  const targetWins = Math.ceil(g.rounds_total / 2)
+
   return (
     <div>
+      {/* Round-win chip stacks. Each filled chip = a board this side has
+          won; empty chips show the road to victory. Filling a slot is
+          animated (slide up + scale in) instead of just appearing. */}
+      <div className="mb-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <ChipStack
+          align="left"
+          player={left}
+          target={targetWins}
+        />
+        <div className="text-center">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">
+            Round {g.current_round}/{g.rounds_total}
+          </div>
+          <div className="text-[10px] text-ink-2 font-bold mt-0.5">First to {targetWins}</div>
+        </div>
+        <ChipStack
+          align="right"
+          player={right}
+          target={targetWins}
+        />
+      </div>
+
       <DraughtsBoard
         gameId={g.id}
         round={g.current_round}
@@ -945,6 +977,47 @@ function DraughtsArena({
           <span>{g.current_round >= g.rounds_total ? 'Tallying final results…' : 'Next board starting…'}</span>
         </div>
       )}
+    </div>
+  )
+}
+
+/** Win-tally chip row for a player. Filled coin = a board they've won so
+ *  far; empty slots show what's left. A newly-won chip slides up + scales
+ *  in so the user sees the stack grow. */
+function ChipStack({
+  align, player, target,
+}: { align: 'left' | 'right'; player?: GamePlayer; target: number }) {
+  const won = Math.min(player?.score ?? 0, target)
+  const chips = Array.from({ length: target }, (_, i) => i < won)
+  // For the right column we render the chips reversed so newer wins sit
+  // closer to the player's name.
+  const seq = align === 'right' ? [...chips].reverse() : chips
+  return (
+    <div className={`flex items-center gap-2 min-w-0 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+      <span className="relative shrink-0">
+        <img src={avatarUrlOr(player?.profile?.avatar_url)} alt="" className="w-8 h-8 rounded-full object-cover" />
+      </span>
+      <div className={`flex-1 min-w-0 ${align === 'right' ? 'text-right' : ''}`}>
+        <div className="text-[11px] font-bold text-ink truncate">
+          {player ? playerLabel(player) : '—'}
+        </div>
+        <div className={`flex gap-1 mt-0.5 ${align === 'right' ? 'justify-end' : ''}`}>
+          {seq.map((filled, i) => (
+            <motion.span
+              key={`${player?.id}-${i}`}
+              initial={filled ? { y: 14, scale: 0.4, opacity: 0 } : false}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 22, delay: filled ? i * 0.06 : 0 }}
+              className={[
+                'w-4 h-4 rounded-full ring-2',
+                filled
+                  ? 'bg-gradient-to-br from-gold to-coral ring-gold/70 shadow-[0_0_8px_rgba(255,200,80,0.6)]'
+                  : 'bg-white/[0.06] ring-white/15',
+              ].join(' ')}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
