@@ -29,6 +29,8 @@ import { useConversations } from '../../hooks/useConversations'
 import { useLiveReactions } from '../../hooks/useLiveReactions'
 import { useProfile } from '../../hooks/useProfile'
 import LiveOverlay from '../../components/games/LiveOverlay'
+import { IconMail } from '../../components/icons'
+import TopIcons from '../../shell/TopIcons'
 import { InlineAd, PopunderAd } from '../../components/FeedAd'
 import DuelArena from '../../components/games/NumberDuelMatch'
 import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
@@ -206,7 +208,10 @@ export default function PlayGameScreen() {
   return (
     <Frame>
       <Card>
-        <h1 className="text-xl font-extrabold text-gradient-warm">🧩 Pixel Rush lobby</h1>
+        <div className="flex items-start justify-between gap-2">
+          <h1 className="text-xl font-extrabold text-gradient-warm">🧩 Pixel Rush lobby</h1>
+          <div className="-mr-2 -mt-1"><TopIcons /></div>
+        </div>
         <p className="text-sm text-ink-2 mt-1">
           {g.kind === '1v1' ? '1 v 1 match' : `Group match · up to ${g.max_players} players`}
         </p>
@@ -874,19 +879,18 @@ function endedPhrase(iso: string): string {
   return `ended on ${new Date(iso).toLocaleDateString()}`
 }
 
-/** Chat pill in the in-game header — shows unread count, opens the chat list. */
+/** Chat icon in the in-game header — same icon as the feed top bar. */
 function MessagesPill() {
   const unread = (useConversations().data ?? []).filter((c) => c.unread_count > 0).length
   return (
     <Link
       to="/chat"
       aria-label="Messages"
-      className="relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold glass text-ink-2 ring-1 ring-white/10 active:scale-95 transition"
+      className="relative w-10 h-10 grid place-items-center text-ink-2 hover:text-ink transition-colors"
     >
-      <span aria-hidden className="text-sm leading-none">💬</span>
-      <span>Chat</span>
+      <IconMail size={22} />
       {unread > 0 && (
-        <span className="absolute -top-1 -right-1 min-w-[1.05rem] h-[1.05rem] px-1 rounded-full bg-rose text-white text-[10px] font-bold grid place-items-center">
+        <span className="absolute top-1 right-1 min-w-[1.05rem] h-[1.05rem] px-1 rounded-full bg-rose text-white text-[10px] font-bold grid place-items-center">
           {unread > 99 ? '99+' : unread}
         </span>
       )}

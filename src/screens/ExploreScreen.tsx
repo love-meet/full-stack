@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { motion, useMotionTemplate, useMotionValue, useSpring, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import ScreenHeader from '../shell/ScreenHeader'
+import TopIcons from '../shell/TopIcons'
 import { stagger, itemUp } from '../shell/motion'
 import { useGroups, type Group } from '../hooks/useGroups'
 import { useProfile } from '../hooks/useProfile'
@@ -75,6 +76,7 @@ export default function ExploreScreen() {
         title="Explore"
         subtitle="Public rooms. Pick a topic, jump in."
         tone="brand"
+        right={<TopIcons />}
       />
 
       {/* Search + category filters */}

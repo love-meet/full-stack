@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import ScreenHeader from '../shell/ScreenHeader'
+import TopIcons from '../shell/TopIcons'
 import { stagger, itemUp } from '../shell/motion'
 import { PopunderAd } from '../components/FeedAd'
 
@@ -27,6 +28,7 @@ export default function GamesScreen() {
         title="Games"
         subtitle="Play, flirt and bond — with your match or the whole room."
         tone="brand"
+        right={<TopIcons />}
       />
 
       <div className="px-5 sm:px-8 pb-28">

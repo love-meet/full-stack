@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useAuth } from '../stores/auth'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 
@@ -98,6 +99,52 @@ export function useMyActiveGame() {
     refetchOnWindowFocus: true,
     staleTime: 15_000,
   })
+}
+
+/** The viewer's own pending lobby (if any) — a lobby they host that's still
+ *  waiting for a second player. Lets the app drop a "back to your game"
+ *  floating button everywhere the host wanders. Realtime kept fresh via the
+ *  Realtime publication on games + game_players (already in place). */
+export function useMyPendingLobby() {
+  const userId = useAuth((s) => s.session?.user.id ?? null)
+  const qc = useQueryClient()
+  const q = useQuery<{ id: string; invite_code: string; playerCount: number } | null>({
+    queryKey: ['my-pending-lobby', userId ?? null],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('games')
+        .select('id, invite_code, host_id, status, players:game_players(user_id)')
+        .eq('host_id', userId!)
+        .eq('status', 'lobby')
+        .order('created_at', { ascending: false })
+        .limit(1)
+      if (error) throw error
+      const g = (data ?? [])[0] as unknown as
+        | { id: string; invite_code: string; players?: { user_id: string }[] }
+        | undefined
+      if (!g) return null
+      return {
+        id: g.id,
+        invite_code: g.invite_code,
+        playerCount: g.players?.length ?? 0,
+      }
+    },
+  })
+
+  // Live updates so a fresh join / close instantly flips the floating button.
+  useEffect(() => {
+    if (!userId) return
+    const ch = supabase.channel(`my-pending-lobby-${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `host_id=eq.${userId}` },
+        () => qc.invalidateQueries({ queryKey: ['my-pending-lobby', userId] }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players' },
+        () => qc.invalidateQueries({ queryKey: ['my-pending-lobby', userId] }))
+      .subscribe()
+    return () => { void supabase.removeChannel(ch) }
+  }, [userId, qc])
+
+  return q
 }
 
 /** Currently-active games, newest first — surfaced in the feed for spectating. */

@@ -3,10 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useFeed, type FeedPost } from '../hooks/useFeed'
 import OnboardingPrompts from '../components/OnboardingPrompts'
+import TopIcons from '../shell/TopIcons'
 import { useToggleLike } from '../hooks/usePostMutations'
 import { useFeedRealtime } from '../hooks/useFeedRealtime'
-import { useUnreadNotifications, useNotificationsRealtime } from '../hooks/useNotifications'
-import { useConversations } from '../hooks/useConversations'
 import { useMySubscription } from '../hooks/usePayments'
 import { useRelations, useToggleFollow, type Relation } from '../hooks/useFollow'
 import { useLiveGames, type LiveGame } from '../hooks/usePixelGame'
@@ -18,7 +17,7 @@ import { avatarUrlOr } from '../lib/avatar'
 import GiftSheet from '../components/GiftSheet'
 import FeedAd from '../components/FeedAd'
 import PostMoreDropdown from '../components/PostMoreDropdown'
-import { IconComment, IconShare, IconMore, IconPlay, IconBell, IconMail, IconSearch } from '../components/icons'
+import { IconComment, IconShare, IconMore, IconPlay } from '../components/icons'
 
 // Sponsored slides appear at RANDOM gaps (not a fixed count) for free-mode
 // users, so an ad can surface as the next post at any time. Gaps stay within
@@ -49,9 +48,6 @@ function computeAdPositions(count: number, seed: number): Set<number> {
 
 export default function FeedScreen() {
   useFeedRealtime()
-  useNotificationsRealtime()
-  const unread = useUnreadNotifications().data ?? 0
-  const unreadChats = (useConversations().data ?? []).filter((c) => c.unread_count > 0).length
   const isSubscriber = !!useMySubscription().data
   const showAds = !isSubscriber
   const feed = useFeed()
@@ -89,10 +85,8 @@ export default function FeedScreen() {
               <span className="font-extrabold tracking-tight text-white text-lg drop-shadow">Meet</span>
             </Link>
             <div className="hidden lg:block" />
-            <div className="flex items-center gap-1 pointer-events-auto">
-              <TopIcon to="/search" label="Search" icon={<IconSearch size={22} />} />
-              <TopIcon to="/notifications" label="Notifications" icon={<IconBell size={22} />} badge={unread} />
-              <TopIcon to="/chat" label="Chats" icon={<IconMail size={22} />} badge={unreadChats} />
+            <div className="pointer-events-auto">
+              <TopIcons tone="light" />
             </div>
           </div>
         </div>
@@ -145,23 +139,6 @@ export default function FeedScreen() {
         )}
       </div>
     </>
-  )
-}
-
-function TopIcon({ to, label, icon, badge }: { to: string; label: string; icon: React.ReactNode; badge?: number }) {
-  return (
-    <Link
-      to={to}
-      aria-label={label}
-      className="relative w-10 h-10 grid place-items-center text-white/90 hover:text-white transition-colors drop-shadow"
-    >
-      {icon}
-      {!!badge && badge > 0 && (
-        <span className="absolute top-1 right-1 min-w-[1.05rem] h-[1.05rem] px-1 rounded-full bg-rose text-white text-[10px] font-bold grid place-items-center">
-          {badge > 99 ? '99+' : badge}
-        </span>
-      )}
-    </Link>
   )
 }
 
