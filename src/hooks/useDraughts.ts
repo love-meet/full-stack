@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import type { Board, Square } from '../lib/draughts'
+import { applyMove, type Board, type Square } from '../lib/draughts'
 
 export type DraughtsRound = {
   game_id: string
@@ -47,12 +47,20 @@ export function useDraughtsRound(gameId: string | undefined, round: number | und
   return q
 }
 
+/** Submit a move, optimistically applying it locally first so the piece
+ *  jumps to its destination immediately. Realtime then syncs the canonical
+ *  state from the server; if the server rejects the move we roll back. */
 export function useSubmitDraughtsMove() {
+  const qc = useQueryClient()
   return useMutation({
     retry: false,
     mutationFn: async (v: {
       gameId: string; round: number
       from: Square; to: Square; captures: Square[]
+      /** The OTHER player's user id — we flip turn_user_id locally so the
+       *  player can't accidentally play another move while the server
+       *  confirms. */
+      opponentId: string | null
     }) => {
       const { error } = await supabase.rpc('submit_draughts_move', {
         p_game_id: v.gameId,
@@ -62,6 +70,23 @@ export function useSubmitDraughtsMove() {
         p_captures: v.captures,
       })
       if (error) throw error
+    },
+    onMutate: async (v) => {
+      const key = roundKey(v.gameId, v.round)
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData<DraughtsRound | null>(key)
+      if (prev) {
+        const nextBoard = applyMove(prev.board, {
+          from: v.from, to: v.to, captures: v.captures,
+        })
+        qc.setQueryData<DraughtsRound | null>(key, {
+          ...prev, board: nextBoard, turn_user_id: v.opponentId,
+        })
+      }
+      return { prev }
+    },
+    onError: (_e, v, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(roundKey(v.gameId, v.round), ctx.prev)
     },
   })
 }

@@ -570,7 +570,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
         {g.game_type === 'number_duel' ? (
           <DuelArena g={g} players={players} myId={myId} amPlayer={amPlayer} />
         ) : g.game_type === 'draughts' ? (
-          <DraughtsArena g={g} myId={myId} amPlayer={amPlayer} />
+          <DraughtsArena g={g} players={players} myId={myId} amPlayer={amPlayer} />
         ) : !r || round.isPending ? (
           <Spinner />
         ) : r.status === 'awaiting_image' ? (
@@ -909,8 +909,8 @@ function endedPhrase(iso: string): string {
  *  drives auto-advance to the next board after a 3.5s pause when a round
  *  ends (matches Pixel Rush behaviour). */
 function DraughtsArena({
-  g, myId, amPlayer,
-}: { g: Game; myId: string | null; amPlayer: boolean }) {
+  g, players, myId, amPlayer,
+}: { g: Game; players: GamePlayer[]; myId: string | null; amPlayer: boolean }) {
   const rq = useDraughtsRound(g.id, g.current_round)
   const autoAdvance = useAutoAdvanceRound()
   const status = rq.data?.status
@@ -928,6 +928,7 @@ function DraughtsArena({
   const round = rq.data
   const myColor = amPlayer ? (myId === g.host_id ? 'r' : 'b') : null
   const myTurn = amPlayer && round.turn_user_id === myId && round.status === 'playing'
+  const opponentId = players.find((p) => p.user_id !== myId)?.user_id ?? null
   return (
     <div>
       <DraughtsBoard
@@ -936,6 +937,7 @@ function DraughtsArena({
         board={round.board}
         myColor={myColor}
         myTurn={myTurn}
+        opponentId={opponentId}
       />
       {round.status === 'done' && (
         <div className="mt-4 text-center text-sm text-ink-2 flex items-center justify-center gap-2">
