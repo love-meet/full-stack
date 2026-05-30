@@ -169,7 +169,11 @@ export default function ChatOptionsSheet({
 
   return (
     <>
-      <Drawer.Root open onOpenChange={(o) => { if (!o) onClose() }} modal>
+      {/* modal={false}: vaul's modal mode applies inert + pointer-events
+       *  trap to everything outside Drawer.Content. ConfirmDialog (portaled
+       *  to body) would receive no clicks. Non-modal keeps the drawer
+       *  visually identical but lets the dialog above it work. */}
+      <Drawer.Root open onOpenChange={(o) => { if (!o) onClose() }} modal={false}>
         <Drawer.Portal>
           <Drawer.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
           <Drawer.Content

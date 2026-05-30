@@ -59,7 +59,13 @@ export default function MessageActionsSheet({
 
   return (
     <>
-      <Drawer.Root open onOpenChange={(o) => { if (!o) onClose() }} modal>
+      {/* modal={false}: vaul's modal mode applies inert + pointer-events trap
+       *  to everything outside Drawer.Content, which kills the ConfirmDialog
+       *  (portaled to <body>) we open from the Delete item — Cancel/Delete
+       *  taps just don't register. Non-modal keeps the drawer working
+       *  (overlay still closes on tap) and lets the dialog above it receive
+       *  events normally. */}
+      <Drawer.Root open onOpenChange={(o) => { if (!o) onClose() }} modal={false}>
         <Drawer.Portal>
           <Drawer.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
           <Drawer.Content
