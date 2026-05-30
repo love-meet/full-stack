@@ -190,19 +190,22 @@ function AdSlide() {
 }
 
 // All currently-live games in ONE slide, scrollable horizontally so 70 live
-// games don't flood the feed as 70 separate slides.
+// games don't flood the feed as 70 separate slides. Width matches the rest
+// of the feed (max-w-xl) so swiping vertically doesn't reveal a layout jump.
 function LiveGamesSlide({ games }: { games: LiveGame[] }) {
+  // Centre the row when it fits the viewport (≤ 2 cards); flow-start so
+  // longer rows scroll naturally from the leading edge.
   return (
-    <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center px-3">
-      <div className="w-full max-w-3xl mx-auto">
+    <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center overflow-hidden">
+      <div className="w-full max-w-xl mx-auto px-4">
         <div className="flex items-center justify-center gap-2 mb-3">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-white bg-rose rounded-full px-3 py-1">
             <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> {games.length} live now
           </span>
         </div>
         <p className="text-center text-xs text-white/60 mb-2">Swipe to peek into any live game</p>
-        <div className="overflow-x-auto no-scrollbar -mx-3 px-3 pb-2 snap-x snap-mandatory">
-          <div className="flex gap-3 w-max">
+        <div className="overflow-x-auto no-scrollbar pb-2 snap-x snap-mandatory">
+          <div className={['flex gap-3 min-w-min', games.length <= 2 ? 'justify-center' : ''].join(' ')}>
             {games.map((g) => <LiveGameCard key={g.id} game={g} />)}
           </div>
         </div>

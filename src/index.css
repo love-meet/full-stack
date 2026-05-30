@@ -108,7 +108,9 @@
   &::-webkit-scrollbar { display: none; width: 0; height: 0; }
 }
 
-/* Shared form-input look, used by Edit profile + similar settings forms. */
+/* Shared form-input look, used by Edit profile + similar settings forms.
+ * font-size MUST be ≥ 16px — iOS Safari zooms the viewport in when a field
+ * with a smaller font is focused, which the user then has to manually undo. */
 @utility lm-input {
   width: 100%;
   background-color: color-mix(in oklab, var(--color-surface-2) 60%, transparent);
@@ -116,7 +118,7 @@
   border-radius: 0.875rem;
   padding: 0.625rem 0.875rem;
   color: var(--color-ink);
-  font-size: 0.95rem;
+  font-size: 16px;
   line-height: 1.35;
   outline: none;
   &:focus,
@@ -131,6 +133,20 @@
 html, body, #root {
   height: 100%;
   margin: 0;
+  /* Belt-and-braces against horizontal overflow — any wide child (a stray
+   * background, a long word, etc.) is clipped instead of pushing the layout
+   * off-screen. `clip` preserves position:sticky inside descendants, unlike
+   * `hidden`. */
+  overflow-x: clip;
+}
+
+/* iOS Safari zooms the viewport when the focused input's font-size < 16px.
+ * Force 16px on every native form control so it never happens — text-* size
+ * utilities on the field's PARENT still work for visual sizing if needed. */
+@media (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px;
+  }
 }
 
 body {
