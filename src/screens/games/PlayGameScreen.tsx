@@ -130,6 +130,21 @@ export default function PlayGameScreen() {
   if (anonError) return <Frame><Center icon="🚪" title="Couldn't join as guest" sub={anonError} /></Frame>
   if (game.isPending) return <Frame><Spinner /></Frame>
   if (!g) return <Frame><Center icon="🔍" title="Game not found" sub="This invite link is invalid or the game was removed." /></Frame>
+  // Someone clicked the invite AFTER the match was over and they were never
+  // a player → show a clean "ended Xh ago" message instead of the winner
+  // scoreboard a participant would see.
+  if (g.status === 'finished' && !inGame) {
+    const when = g.finished_at ?? g.created_at
+    return (
+      <Frame>
+        <Center
+          icon="🏁"
+          title={`This game ${endedPhrase(when)}`}
+          sub="Ask the host for a fresh invite link to their next match."
+        />
+      </Frame>
+    )
+  }
 
   // ----- not yet joined → join card -----
   if (!inGame && g.status === 'lobby') {
@@ -837,6 +852,26 @@ function Center({ icon, title, sub }: { icon: string; title: string; sub: string
       <Link to="/" className="mt-4 inline-block text-rose font-semibold">← Go to Love meet</Link>
     </div>
   )
+}
+
+/** Natural relative phrase for the ended-game message: "just ended",
+ *  "ended 7 minutes ago", "ended 2 hours ago", "ended 3 days ago", etc. */
+function endedPhrase(iso: string): string {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
+  if (s < 60) return 'just ended'
+  if (s < 3600) {
+    const m = Math.floor(s / 60)
+    return `ended ${m} minute${m === 1 ? '' : 's'} ago`
+  }
+  if (s < 86400) {
+    const h = Math.floor(s / 3600)
+    return `ended ${h} hour${h === 1 ? '' : 's'} ago`
+  }
+  if (s < 86400 * 7) {
+    const d = Math.floor(s / 86400)
+    return `ended ${d} day${d === 1 ? '' : 's'} ago`
+  }
+  return `ended on ${new Date(iso).toLocaleDateString()}`
 }
 
 /** Chat pill in the in-game header — shows unread count, opens the chat list. */
