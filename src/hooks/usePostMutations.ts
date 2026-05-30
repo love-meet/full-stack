@@ -42,18 +42,31 @@ export function useToggleLike() {
     },
     onMutate: async (vars) => {
       await qc.cancelQueries({ queryKey: feedQueryKey })
-      const prev = qc.getQueryData<FeedPages>(feedQueryKey)
+      await qc.cancelQueries({ queryKey: ['post', vars.postId] })
+      const prevFeed = qc.getQueryData<FeedPages>(feedQueryKey)
+      const prevPost = qc.getQueryData<FeedPost | null>(['post', vars.postId])
+
+      const patch = (p: FeedPost): FeedPost => ({
+        ...p,
+        liked_by_me: vars.nextLiked,
+        like_count: Math.max(0, p.like_count + (vars.nextLiked ? 1 : -1)),
+      })
+
+      // Feed pages — what the feed reads from.
       qc.setQueryData<FeedPages>(feedQueryKey, (old) =>
-        patchFeedPost(old, vars.postId, (p) => ({
-          ...p,
-          liked_by_me: vars.nextLiked,
-          like_count: Math.max(0, p.like_count + (vars.nextLiked ? 1 : -1)),
-        })),
+        patchFeedPost(old, vars.postId, patch),
       )
-      return { prev }
+      // Single-post cache — what PostDetailScreen reads from. Without this
+      // patch the heart + count don't flip until a refresh, even though the
+      // feed bubble does.
+      qc.setQueryData<FeedPost | null>(['post', vars.postId], (old) =>
+        old ? patch(old) : old,
+      )
+      return { prevFeed, prevPost }
     },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(feedQueryKey, ctx.prev)
+    onError: (_err, vars, ctx) => {
+      if (ctx?.prevFeed !== undefined) qc.setQueryData(feedQueryKey, ctx.prevFeed)
+      if (ctx?.prevPost !== undefined) qc.setQueryData(['post', vars.postId], ctx.prevPost)
     },
     // No onSettled refetch — Realtime keeps counts honest; refetching here
     // would flicker during the rapid-tap case.
@@ -130,6 +143,7 @@ export function useUpdatePost() {
 
 /** Hard-delete a post you own. Cascades to its likes / comments / gifts via FK. */
 export function useDeletePost() {
+  const session = useAuth((s) => s.session)
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (postId: string) => {
@@ -151,6 +165,12 @@ export function useDeletePost() {
     },
     onError: (_e, _id, ctx) => {
       if (ctx?.prev) qc.setQueryData(feedQueryKey, ctx.prev)
+    },
+    onSuccess: () => {
+      // The first-post nudge listens on has-posted. If the user just deleted
+      // their LAST post, the count drops to 0 and the modal should pop again
+      // asking them to share one. Invalidate so the next paint re-checks.
+      if (session) qc.invalidateQueries({ queryKey: ['has-posted', session.user.id] })
     },
   })
 }
