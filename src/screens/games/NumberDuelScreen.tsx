@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useCreateGame } from '../../hooks/usePixelGame'
 import { useMySubscription } from '../../hooks/usePayments'
 import { PopunderAd } from '../../components/FeedAd'
+import MembersOnlyGate from '../../components/games/MembersOnlyGate'
 
 /** Intro + create flow for Number Duel. Reuses the shared game lobby at
  *  /play/:code — only the gameplay differs. 1v1 only. */
@@ -24,22 +25,7 @@ export default function NumberDuelScreen() {
   if (!isSubscriber) {
     return (
       <Shell onBack={() => navigate(-1)}>
-        <Step>
-          <div className="text-center space-y-3">
-            <div className="text-4xl">👑</div>
-            <h2 className="text-lg font-extrabold text-gradient-warm">Games are for serious people</h2>
-            <p className="text-sm text-ink-2">
-              Hosting a game is a <b>Premium</b> and <b>VIP</b> perk. Upgrade your plan to create
-              and host matches.
-            </p>
-            <p className="text-[12px] text-ink-muted">
-              Free members can still join any game they're invited to — no plan required.
-            </p>
-            <button onClick={() => navigate('/subscription')} className="rounded-full px-5 py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose">
-              See plans
-            </button>
-          </div>
-        </Step>
+        <MembersOnlyGate headline="Want to host a Number Duel?" />
       </Shell>
     )
   }
