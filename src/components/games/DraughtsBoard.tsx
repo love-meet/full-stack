@@ -5,15 +5,18 @@ import { isLost, legalMoves, legalMovesFrom } from '../../lib/draughts'
 import { useConcedeDraughtsRound, useSubmitDraughtsMove } from '../../hooks/useDraughts'
 
 /**
- * Interactive 8×8 Draughts board.
+ * Interactive Draughts board with smoothly-animated pieces.
  *
- * - When it's the viewer's turn, tapping one of their pieces highlights its
- *   legal moves; tapping a destination square submits the move to the server.
- * - Forced-capture rule is enforced via legalMoves(): if any capture is
- *   available somewhere on the board, only capturing moves are offered.
- * - When the viewer's side has no legal move, we automatically concede the
- *   round (server awards the win to the opponent) — saves the user from
- *   having to know about it.
+ * Layout: a single absolutely-positioned layer of cells (clickable, for
+ * selecting / placing) sits beneath a second layer of pieces (motion divs,
+ * non-interactive, animated by id between board positions). When a piece
+ * moves we update its row/col on the same React element — Framer Motion's
+ * spring interpolates it across the squares, so movement actually looks
+ * like movement instead of a teleport.
+ *
+ * The board is rotated so the VIEWER always sees their own pieces at the
+ * bottom — red player gets a flipped board, black sees the natural one,
+ * spectators see the natural one too.
  */
 export default function DraughtsBoard({
   gameId, round, board, myColor, myTurn,
@@ -21,32 +24,23 @@ export default function DraughtsBoard({
   gameId: string
   round: number
   board: Board
-  /** 'r' / 'b' if we're a player; null if a spectator (board is read-only). */
   myColor: PieceColor | null
-  /** Only true when it's our turn AND we have legal moves. */
   myTurn: boolean
 }) {
   const [selected, setSelected] = useState<Square | null>(null)
   const move = useSubmitDraughtsMove()
   const concede = useConcedeDraughtsRound()
 
-  // All legal moves for the current side (used for the forced-capture rule
-  // even before a piece is selected).
   const myLegal = useMemo(
     () => (myColor && myTurn ? legalMoves(board, myColor) : []),
     [board, myColor, myTurn],
   )
-  // Reset selection when the board changes (a move just landed).
   useEffect(() => { setSelected(null) }, [board])
 
-  // If it's our turn and we have ZERO legal moves, concede so the opponent
-  // gets the round and the match advances.
+  // No-move auto-concede.
   useEffect(() => {
     if (myColor && myTurn && myLegal.length === 0) {
-      // Slight delay so the realtime tick doesn't double-fire on a refresh.
-      const t = window.setTimeout(() => {
-        concede.mutate({ gameId, round })
-      }, 600)
+      const t = window.setTimeout(() => concede.mutate({ gameId, round }), 600)
       return () => window.clearTimeout(t)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,106 +50,121 @@ export default function DraughtsBoard({
     () => (selected && myColor ? legalMovesFrom(board, selected, myColor) : []),
     [selected, board, myColor],
   )
-
-  function squareLegalDest(r: number, c: number): Move | null {
-    return movesFromSelected.find((m) => m.to.r === r && m.to.c === c) ?? null
-  }
-
-  function squareIsMyPiece(r: number, c: number): boolean {
-    return !!board.find((p) => p.r === r && p.c === c && p.color === myColor)
-  }
-
-  function squareHasLegalMove(r: number, c: number): boolean {
-    return myLegal.some((m) => m.from.r === r && m.from.c === c)
-  }
+  const squareLegalDest = (r: number, c: number) =>
+    movesFromSelected.find((m) => m.to.r === r && m.to.c === c) ?? null
+  const squareIsMyPiece = (r: number, c: number) =>
+    !!board.find((p) => p.r === r && p.c === c && p.color === myColor)
+  const squareHasLegalMove = (r: number, c: number) =>
+    myLegal.some((m) => m.from.r === r && m.from.c === c)
 
   function onSquareTap(r: number, c: number) {
     if (!myColor || !myTurn) return
-    // Tapping a destination of the selected piece → submit the move.
     const dest = squareLegalDest(r, c)
     if (dest) {
-      move.mutate({
-        gameId, round,
-        from: dest.from, to: dest.to, captures: dest.captures,
-      })
+      move.mutate({ gameId, round, from: dest.from, to: dest.to, captures: dest.captures })
       setSelected(null)
       return
     }
-    // Tapping one of my pieces with at least one legal move → select it.
     if (squareIsMyPiece(r, c) && squareHasLegalMove(r, c)) {
       setSelected({ r, c })
       return
     }
-    // Anything else → clear selection.
     setSelected(null)
   }
 
-  // Render the board from the viewer's perspective: black plays from the
-  // bottom, so if I'm black I see the board flipped vertically.
-  const flip = myColor === 'b'
-  const rowOrder = flip ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7]
-  const colOrder = flip ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7]
+  // Viewer-at-bottom rotation: red's home is rows 0-2, so red flips; black
+  // and spectators see the natural orientation (black home at rows 5-7).
+  const flip = myColor === 'r'
+  const toDisp = (r: number, c: number) => ({
+    dr: flip ? 7 - r : r,
+    dc: flip ? 7 - c : c,
+  })
 
-  // Detection of game-over for the viewer side, for an empty-state hint.
   const gameOver = myColor ? isLost(board, myColor === 'r' ? 'b' : 'r') : false
 
   return (
     <div className="w-full max-w-md mx-auto">
       <div
-        className="aspect-square w-full rounded-lg overflow-hidden ring-1 ring-white/10 shadow-2xl select-none"
-        style={{ display: 'grid', gridTemplateColumns: `repeat(${8}, 1fr)`, gridTemplateRows: `repeat(${8}, 1fr)` }}
+        className="relative aspect-square w-full rounded-lg overflow-hidden ring-1 ring-white/10 shadow-2xl select-none"
+        style={{ touchAction: 'manipulation' }}
       >
-        {rowOrder.flatMap((r) => colOrder.map((c) => {
+        {/* Cells layer — captures taps. */}
+        {Array.from({ length: 64 }).map((_, i) => {
+          const r = Math.floor(i / 8)
+          const c = i % 8
+          const { dr, dc } = toDisp(r, c)
           const dark = (r + c) % 2 === 1
-          const piece = board.find((p) => p.r === r && p.c === c)
-          const isSelected = !!selected && selected.r === r && selected.c === c
           const dest = squareLegalDest(r, c)
-          const canSelect = squareIsMyPiece(r, c) && squareHasLegalMove(r, c)
+          const isSelected = !!selected && selected.r === r && selected.c === c
           return (
             <button
-              key={`${r}-${c}`}
+              key={`cell-${r}-${c}`}
               onClick={() => onSquareTap(r, c)}
               disabled={!myTurn}
+              style={{
+                position: 'absolute',
+                top: `${dr * 12.5}%`,
+                left: `${dc * 12.5}%`,
+                width: '12.5%',
+                height: '12.5%',
+              }}
               className={[
-                'relative grid place-items-center transition-colors',
+                'transition-colors',
                 dark ? 'bg-[#3a2a4a]' : 'bg-[#b89880]',
+                isSelected ? 'ring-2 ring-inset ring-gold/60' : '',
                 myTurn ? 'cursor-pointer' : 'cursor-default',
               ].join(' ')}
             >
-              {/* legal-move target dot */}
               {dest && (
-                <span className="absolute w-1/3 h-1/3 rounded-full bg-gold/70 ring-2 ring-gold animate-pulse" />
+                <span className="absolute inset-0 grid place-items-center pointer-events-none">
+                  <span className="w-1/3 h-1/3 rounded-full bg-gold/70 ring-2 ring-gold animate-pulse" />
+                </span>
               )}
-              {/* piece */}
-              <AnimatePresence>
-                {piece && (
-                  <motion.span
-                    key={`p-${piece.color}-${piece.king}`}
-                    layout
-                    layoutId={`piece-${r}-${c}`}
-                    initial={{ scale: 0.6, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={{ type: 'spring', stiffness: 380, damping: 26 }}
+            </button>
+          )
+        })}
+
+        {/* Pieces layer — animated by stable id. */}
+        <div className="absolute inset-0 pointer-events-none">
+          <AnimatePresence>
+            {board.map((piece) => {
+              const { dr, dc } = toDisp(piece.r, piece.c)
+              const isSelected = !!selected && selected.r === piece.r && selected.c === piece.c
+              const canSelect = piece.color === myColor && squareHasLegalMove(piece.r, piece.c)
+              return (
+                <motion.div
+                  key={piece.id}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{
+                    top: `${dr * 12.5}%`,
+                    left: `${dc * 12.5}%`,
+                    scale: isSelected ? 1.08 : 1,
+                    opacity: 1,
+                  }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                  style={{ position: 'absolute', width: '12.5%', height: '12.5%' }}
+                  className="grid place-items-center"
+                >
+                  <span
                     className={[
                       'w-[78%] aspect-square rounded-full grid place-items-center text-xl shadow-lg',
                       piece.color === 'r'
                         ? 'bg-gradient-to-br from-rose to-magenta text-white'
                         : 'bg-gradient-to-br from-zinc-200 to-zinc-400 text-zinc-800',
-                      isSelected ? 'ring-4 ring-gold scale-105' : '',
-                      canSelect && !isSelected ? 'ring-1 ring-gold/40' : '',
+                      isSelected ? 'ring-4 ring-gold' : '',
+                      canSelect && !isSelected ? 'ring-2 ring-gold/40' : '',
                     ].join(' ')}
                   >
                     {piece.king ? '👑' : ''}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-          )
-        }))}
+                  </span>
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
+        </div>
       </div>
 
-      {/* Status line */}
       <div className="mt-3 text-center text-sm text-ink-2">
         {!myColor ? (
           <span>You're watching this match.</span>
@@ -163,7 +172,9 @@ export default function DraughtsBoard({
           myLegal.length === 0 ? (
             <span className="text-danger font-semibold">No legal moves — conceding…</span>
           ) : (
-            <span className="text-gold font-semibold">Your turn{myLegal.some((m) => m.captures.length > 0) ? ' (capture available!)' : ''}</span>
+            <span className="text-gold font-semibold">
+              Your turn{myLegal.some((m) => m.captures.length > 0) ? ' (capture available!)' : ''}
+            </span>
           )
         ) : (
           <span>Waiting for the other player…</span>

@@ -50,13 +50,31 @@ export default function PlayGameScreen() {
   const ready = useAuth((s) => s.ready)
 
   // Account-less guests get an anonymous session so they can join via RLS.
+  // We race the call against a 10s timeout — if it stalls (network, blocked
+  // endpoint, or the Supabase project has anonymous sign-ins disabled and
+  // hangs instead of erroring), the user gets an actionable message instead
+  // of an infinite spinner on the invite link.
   const [anonError, setAnonError] = useState<string | null>(null)
   useEffect(() => {
-    if (ready && !session) {
-      supabase.auth.signInAnonymously().catch((e) =>
-        setAnonError((e as Error).message || 'Could not start a guest session.'),
+    if (!ready || session) return
+    let cancelled = false
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) setAnonError(
+        "Couldn't start a guest session. Refresh the page and try again, or sign in to join the game.",
       )
-    }
+    }, 10000)
+    supabase.auth.signInAnonymously()
+      .then(({ error }) => {
+        if (cancelled) return
+        window.clearTimeout(timeout)
+        if (error) setAnonError(error.message || 'Could not start a guest session.')
+      })
+      .catch((e) => {
+        if (cancelled) return
+        window.clearTimeout(timeout)
+        setAnonError((e as Error).message || 'Could not start a guest session.')
+      })
+    return () => { cancelled = true; window.clearTimeout(timeout) }
   }, [ready, session])
 
   const navigate = useNavigate()
@@ -686,8 +704,11 @@ function VSHeader({ players, kind, online, pctById, myId }: {
       </div>
     )
   }
-  const a = players[0]
-  const b = players[1]
+  // If the viewer is a player, always put THEM on the right. Spectators
+  // keep the default (host left / joiner right by joined_at order).
+  const meIdx = players.findIndex((p) => p.user_id === myId)
+  const a = meIdx >= 0 ? players[1 - meIdx] : players[0]
+  const b = meIdx >= 0 ? players[meIdx] : players[1]
   const trophyTally = (a?.trophies ?? 0) + (b?.trophies ?? 0)
   return (
     <div className="flex items-center justify-between gap-2">

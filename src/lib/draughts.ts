@@ -6,7 +6,15 @@
  */
 
 export type PieceColor = 'r' | 'b'
-export type Piece = { r: number; c: number; color: PieceColor; king: boolean }
+export type Piece = {
+  /** Stable per-piece identity that survives moves — used by the board UI
+   *  to animate a piece between squares instead of fade-out+fade-in. */
+  id: number
+  r: number
+  c: number
+  color: PieceColor
+  king: boolean
+}
 export type Board = Piece[]
 export type Square = { r: number; c: number }
 
@@ -22,14 +30,15 @@ export const BOARD_SIZE = 8
 
 export function initialBoard(): Board {
   const out: Board = []
+  let id = 0
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 8; c++) {
-      if ((r + c) % 2 === 1) out.push({ r, c, color: 'r', king: false })
+      if ((r + c) % 2 === 1) out.push({ id: id++, r, c, color: 'r', king: false })
     }
   }
   for (let r = 5; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
-      if ((r + c) % 2 === 1) out.push({ r, c, color: 'b', king: false })
+      if ((r + c) % 2 === 1) out.push({ id: id++, r, c, color: 'b', king: false })
     }
   }
   return out
@@ -144,6 +153,7 @@ export function applyMove(board: Board, move: Move): Board {
     (survivor.color === 'r' && move.to.r === 7) ||
     (survivor.color === 'b' && move.to.r === 0)
   next.push({
+    id: survivor.id,
     r: move.to.r,
     c: move.to.c,
     color: survivor.color,
