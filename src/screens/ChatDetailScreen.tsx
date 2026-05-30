@@ -28,7 +28,7 @@ type ComposerMode =
 export default function ChatDetailScreen() {
   const { conversationId } = useParams<{ conversationId: string }>()
   const navigate = useNavigate()
-  return <ChatPane conversationId={conversationId ?? null} onBack={() => navigate(-1)} className="h-screen" />
+  return <ChatPane conversationId={conversationId ?? null} onBack={() => navigate(-1)} className="h-[100dvh]" />
 }
 
 /**
@@ -38,7 +38,7 @@ export default function ChatDetailScreen() {
 export function ChatPane({
   conversationId,
   onBack,
-  className = 'h-screen',
+  className = 'h-[100dvh]',
 }: {
   conversationId: string | null
   onBack: () => void
@@ -125,26 +125,29 @@ export function ChatPane({
             alt=""
             className="w-10 h-10 rounded-full object-cover"
           />
-          {otherOnline && (
-            <span
-              className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-success ring-2 ring-surface-2"
-              aria-label="Online"
-            />
-          )}
+          {/* Status dot — green when online, dim grey otherwise. Big enough
+              to actually read at a glance; ring matches the header surface. */}
+          <span
+            className={[
+              'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-surface-2',
+              otherOnline ? 'bg-success' : 'bg-ink-muted',
+            ].join(' ')}
+            aria-label={otherOnline ? 'Online' : 'Offline'}
+          />
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-ink truncate flex items-center gap-1">
             <span className="truncate">@{conv.data?.other_handle ?? conv.data?.other_display_name ?? '…'}</span>
             {otherVerified && <BlueTick size={15} />}
           </div>
-          <div className="text-[11px] text-ink-muted truncate">
+          <div className="text-[11px] truncate">
             {theyAreTyping ? (
               <span className="text-success font-semibold">typing…</span>
             ) : otherOnline ? (
-              <span className="text-success">Online</span>
-            ) : conv.data?.other_display_name && conv.data?.other_handle ? (
-              conv.data.other_display_name
-            ) : null}
+              <span className="text-success font-semibold">● Online</span>
+            ) : (
+              <span className="text-ink-muted">Offline</span>
+            )}
           </div>
         </div>
         {conv.data?.other_id && (
@@ -202,6 +205,13 @@ export function ChatPane({
         myId={myId}
         onCancelMode={() => setMode({ kind: 'idle' })}
         onTyping={notifyTyping}
+        onFocus={() => {
+          // Tap the input → snap to the newest message so the keyboard
+          // doesn't cover unread context (the layout already shrinks via
+          // 100dvh so the list itself remains scrollable above the keyboard).
+          const el = document.querySelector<HTMLElement>('[data-chat-scroller]')
+          if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight })
+        }}
         onSubmit={async (body, media) => {
           if (mode.kind === 'edit') {
             // Edits are text-only; ignore any pending media.
@@ -352,6 +362,7 @@ function MessagesList({
   return (
     <div
       ref={scrollRef}
+      data-chat-scroller
       onScroll={onScroll}
       /* flex-1 + min-h-0 inside a bounded flex column = scrolls.
          no-scrollbar hides the native track on every platform. */
@@ -430,11 +441,12 @@ type ComposerProps = {
   myId: string | null
   onCancelMode: () => void
   onTyping: () => void
+  onFocus?: () => void
   onSubmit: (body: string | null, media: ChatMediaUpload | null) => Promise<void>
 }
 
 function Composer({
-  disabled, sending, error, mode, replyTarget, myId, onCancelMode, onTyping, onSubmit,
+  disabled, sending, error, mode, replyTarget, myId, onCancelMode, onTyping, onFocus, onSubmit,
 }: ComposerProps) {
   const [text, setText] = useState('')
   const [pendingMedia, setPendingMedia] = useState<ChatMediaUpload | null>(null)
@@ -745,6 +757,7 @@ function Composer({
                 setText(e.target.value)
                 if (e.target.value.length > 0 && mode.kind !== 'edit') onTyping()
               }}
+              onFocus={onFocus}
               onKeyDown={onKeyDown}
               rows={1}
               placeholder={
