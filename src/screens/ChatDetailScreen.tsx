@@ -13,6 +13,7 @@ import { useIsOnline } from '../stores/presence'
 import { useAuth } from '../stores/auth'
 import { useRelations } from '../hooks/useFollow'
 import { avatarUrlOr } from '../lib/avatar'
+import { detectOffPlatformContact, violationLabel } from '../lib/chatGate'
 import BlueTick from '../components/BlueTick'
 import ChatBubble from '../components/chat/ChatBubble'
 import TypingIndicatorBubble from '../components/chat/TypingIndicatorBubble'
@@ -493,6 +494,9 @@ function Composer({
   const taRef = useRef<HTMLTextAreaElement | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const upload = useUploadChatMedia()
+  // Live off-platform-contact detection mirrors the server trigger so we can
+  // warn before the send fires.
+  const violation = detectOffPlatformContact(text)
 
   // ---- Voice-note recording ----
   const [recording, setRecording] = useState(false)
@@ -589,10 +593,14 @@ function Composer({
   const trimmed = text.trim()
   const editing = mode.kind === 'edit'
   // Sendable when: editing → text non-empty; otherwise → text OR media.
+  // Also block sending when the message contains an off-platform contact
+  // attempt — server will reject it anyway, but blocking here makes the
+  // rule visible BEFORE the user hits send.
   const canSend =
     !disabled &&
     !sending &&
     !upload.isPending &&
+    !violation &&
     trimmed.length <= 4000 &&
     (editing ? trimmed.length > 0 : trimmed.length > 0 || !!pendingMedia)
 
@@ -693,6 +701,17 @@ function Composer({
               ✕
             </button>
           )}
+        </div>
+      )}
+
+      {/* Off-platform-contact warning — fires before the send so users see
+          the rule the moment their typing crosses the line. */}
+      {violation && (
+        <div className="mb-2 mx-1 flex items-center gap-2 rounded-2xl bg-danger/10 ring-1 ring-danger/30 px-3 py-2">
+          <span aria-hidden className="text-base">🛑</span>
+          <span className="text-[12px] leading-snug text-danger">
+            {violationLabel(violation)} Keep conversations on Love meet.
+          </span>
         </div>
       )}
 
