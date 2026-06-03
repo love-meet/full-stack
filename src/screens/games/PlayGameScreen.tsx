@@ -37,6 +37,7 @@ import DraughtsBoard from '../../components/games/DraughtsBoard'
 import { useDraughtsRound, useAdvanceDraughts } from '../../hooks/useDraughts'
 import { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
 import PixelRushCanvas from '../../games/pixel-rush/PixelRushCanvas'
+import PixelRushLobby from '../../games/pixel-rush/PixelRushLobby'
 import { avatarUrlOr } from '../../lib/avatar'
 import ShareSheet from '../../components/ShareSheet'
 
@@ -226,6 +227,51 @@ export default function PlayGameScreen() {
   // we can detect "your previous opponent left" and tell the host.
   const wasReverted =
     new Date(g.lobby_since ?? g.created_at).getTime() > new Date(g.created_at).getTime() + 5000
+
+  // Pixel Rush gets a fully canvas-based lobby — themed Pixel Rush
+  // background, avatar slots in the top corners, INVITE A FRIEND canvas
+  // button, 3-2-1 countdown when the opponent joins. The DOM lobby below
+  // is kept for the other game types until they're migrated to canvas too.
+  if (g.game_type === 'pixel_rush') {
+    const hostPlayer = list.find((p) => p.is_host) ?? list[0]
+    const joinerPlayer = list.find(
+      (p) => !p.is_host && p.user_id !== hostPlayer?.user_id,
+    )
+    return (
+      <>
+        <PixelRushLobby
+          inviteCode={g.invite_code}
+          inviteUrl={inviteUrl}
+          host={{
+            name: hostPlayer ? playerLabel(hostPlayer) : 'Host',
+            avatarUrl: avatarUrlOr(hostPlayer?.profile?.avatar_url),
+          }}
+          joiner={
+            joinerPlayer
+              ? {
+                  name: playerLabel(joinerPlayer),
+                  avatarUrl: avatarUrlOr(joinerPlayer?.profile?.avatar_url),
+                }
+              : null
+          }
+          isHost={isHost}
+          onShareClick={() => setShareOpen(true)}
+          onCloseClick={doClose}
+          onAutoStart={isHost ? () => g && start.mutate(g.id) : undefined}
+          revertedFromMatch={wasReverted}
+        />
+        {shareOpen && (
+          <ShareSheet
+            url={inviteUrl}
+            text={shareText}
+            title="Invite to Pixel Rush"
+            onClose={() => setShareOpen(false)}
+          />
+        )}
+      </>
+    )
+  }
+
   return (
     <Frame>
       <Card>

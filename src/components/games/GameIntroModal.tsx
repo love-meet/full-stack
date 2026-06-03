@@ -218,6 +218,34 @@ function LoadingOverlay({
           {error ? 'Could not start' : 'Preparing match…'}
         </p>
 
+        {/* Themed progress bar — fills 0% → 95% over 1.4s and parks there
+            until the create-game mutation resolves and we navigate away.
+            Gives the loading screen the "real game booting" feel rather
+            than an indeterminate spinner. */}
+        {!error && (
+          <div className="mt-7 w-full max-w-xs">
+            <div
+              className="h-2 rounded-full overflow-hidden"
+              style={{ background: 'rgba(255,255,255,0.10)' }}
+            >
+              <motion.div
+                className="h-full rounded-full"
+                style={{
+                  background: `linear-gradient(90deg, ${game.accent}, #ffffff)`,
+                  boxShadow: `0 0 12px ${game.accent}`,
+                }}
+                initial={{ width: '0%' }}
+                animate={{ width: '95%' }}
+                transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+              />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-[10px] text-white/55 uppercase tracking-[0.18em] font-bold">
+              <span>Loading assets</span>
+              <span>Almost there…</span>
+            </div>
+          </div>
+        )}
+
         {error && (
           <p className="mt-4 text-sm text-white/85 max-w-xs">{error}</p>
         )}
