@@ -139,6 +139,11 @@ export default function GameIntroModal({ game, onClose }: Props) {
  * route mounting. Uses the game's artwork as a blurred backdrop and the
  * game's accent as the spinner colour so the transition feels like a real
  * game engine warming up rather than a generic loading spinner.
+ *
+ * Total visible time is ~3.5s while the bar fills and the status messages
+ * rotate. If the network create-game call resolves sooner we stay on the
+ * overlay until the navigation actually happens, so the user always sees
+ * the same "real game loading" rhythm.
  */
 function LoadingOverlay({
   game,
@@ -147,6 +152,23 @@ function LoadingOverlay({
   game: GameForModal
   error: string | null
 }) {
+  const STAGES = [
+    'LOADING ASSETS',
+    'INITIALIZING ENGINE',
+    'CONNECTING TO SERVER',
+    'WARMING UP CANVAS',
+  ]
+  const [stageIdx, setStageIdx] = useState(0)
+  useEffect(() => {
+    if (error) return
+    const iv = window.setInterval(() => {
+      setStageIdx((i) => (i + 1) % STAGES.length)
+    }, 900)
+    return () => window.clearInterval(iv)
+    // STAGES is constant in this scope
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error])
+
   return (
     <motion.div
       key="loading-overlay"
@@ -218,30 +240,48 @@ function LoadingOverlay({
           {error ? 'Could not start' : 'Preparing match…'}
         </p>
 
-        {/* Themed progress bar — fills 0% → 95% over 1.4s and parks there
-            until the create-game mutation resolves and we navigate away.
-            Gives the loading screen the "real game booting" feel rather
-            than an indeterminate spinner. */}
+        {/* Themed progress bar — fills 0% → 96% over 3.5s while status text
+            rotates through "loading assets / initializing engine / ..." so
+            the load feels like a real game engine boot. Bar parks at 96%
+            until the create-game mutation resolves and we navigate away. */}
         {!error && (
           <div className="mt-7 w-full max-w-xs">
             <div
-              className="h-2 rounded-full overflow-hidden"
-              style={{ background: 'rgba(255,255,255,0.10)' }}
+              className="h-2.5 rounded-full overflow-hidden relative"
+              style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.08)' }}
             >
               <motion.div
                 className="h-full rounded-full"
                 style={{
                   background: `linear-gradient(90deg, ${game.accent}, #ffffff)`,
-                  boxShadow: `0 0 12px ${game.accent}`,
+                  boxShadow: `0 0 14px ${game.accent}`,
                 }}
                 initial={{ width: '0%' }}
-                animate={{ width: '95%' }}
-                transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                animate={{ width: '96%' }}
+                transition={{ duration: 3.5, ease: [0.22, 1, 0.36, 1] }}
+              />
+              {/* Sliding sheen across the bar for an "engine working" feel. */}
+              <motion.div
+                aria-hidden
+                className="absolute inset-y-0 w-1/3 pointer-events-none"
+                style={{
+                  background:
+                    'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%)',
+                }}
+                animate={{ x: ['-100%', '300%'] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
               />
             </div>
-            <div className="mt-2 flex items-center justify-between text-[10px] text-white/55 uppercase tracking-[0.18em] font-bold">
-              <span>Loading assets</span>
-              <span>Almost there…</span>
+            <div className="mt-2.5 flex items-center justify-between text-[10px] text-white/70 uppercase tracking-[0.18em] font-bold">
+              <motion.span
+                key={stageIdx}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                {STAGES[stageIdx]}
+              </motion.span>
+              <span className="text-white/40">{Math.min(96, Math.round((stageIdx + 1) * 24))}%</span>
             </div>
           </div>
         )}
