@@ -38,6 +38,7 @@ import { useDraughtsRound, useAdvanceDraughts } from '../../hooks/useDraughts'
 import { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
 import PixelRushCanvas from '../../games/pixel-rush/PixelRushCanvas'
 import PixelRushLobby from '../../games/pixel-rush/PixelRushLobby'
+import PixelRushHUDCanvas from '../../games/pixel-rush/PixelRushHUDCanvas'
 import { avatarUrlOr } from '../../lib/avatar'
 import ShareSheet from '../../components/ShareSheet'
 
@@ -629,6 +630,67 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
            radial-gradient(900px 600px at 92% 92%, rgba(108,232,250,0.08), transparent 60%)`,
       }
     : undefined
+
+  // ── Pixel Rush — fully canvas-based racing surface ─────────────────────
+  // When pixel_rush is in active racing AND the viewer is a player, render
+  // the canvas HUD + PixelRushCanvas with no surrounding DOM (no fixed-top
+  // DOM header, no DOM "rebuild this picture" preview, no DOM instructions).
+  // Other states (awaiting_image / done / finished) keep their DOM
+  // implementations until subsequent sessions migrate them.
+  if (isPixelRush && g.status === 'active' && amPlayer && r?.status === 'racing') {
+    const meIdx = players.findIndex((p) => p.user_id === myId)
+    const opponent = meIdx >= 0 ? players[1 - meIdx] : players[0]
+    const myP = meIdx >= 0 ? players[meIdx] : players[1]
+    const toChip = (p: GamePlayer | undefined, isMe: boolean) => {
+      if (!p) return null
+      return {
+        userId: p.user_id,
+        name: playerLabel(p),
+        avatarUrl: avatarUrlOr(p.profile?.avatar_url),
+        score: p.score,
+        trophies: p.trophies,
+        pct: pctById.get(p.user_id) ?? null,
+        online: online.has(p.user_id),
+        isMe,
+        isHost: !!p.is_host,
+      }
+    }
+    return (
+      <div className="min-h-screen relative" style={pixelRushBg}>
+        <PixelRushHUDCanvas
+          left={toChip(opponent, false)}
+          right={toChip(myP, true)}
+          currentRound={g.current_round}
+          totalRounds={g.rounds_total}
+          trophiesLeft={opponent?.trophies}
+          trophiesRight={myP?.trophies}
+          isHost={isHost}
+          isPlayer={amPlayer}
+          onLeaveClick={onLeave}
+        />
+        {/* Gameplay canvas — padded to clear the fixed HUD (118px) + Telegram inset. */}
+        <div
+          className="flex items-start justify-center"
+          style={{
+            paddingTop: 'calc(var(--lm-top-inset) + 118px + 16px)',
+            paddingBottom: '2rem',
+            paddingLeft: '12px',
+            paddingRight: '12px',
+          }}
+        >
+          <PixelRushCanvas
+            image={r.image_url!}
+            seed={seedFor(g.id, r.round_no)}
+            grid={gridForRound(r.round_no)}
+            startedAt={r.started_at ? Date.parse(r.started_at) : Date.now()}
+            locked={false}
+            onSolve={(timeMs) => submit.mutate({ gameId: g.id, round: r.round_no, timeMs })}
+            onProgress={(order, done) => { setMyOrder(order); if (myId) sendProgress(myId, order, done) }}
+          />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
