@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import ScreenHeader from '../shell/ScreenHeader'
+import TopIcons from '../shell/TopIcons'
 import ReturnToGameBanner from '../components/ReturnToGameBanner'
 import { stagger, itemUp } from '../shell/motion'
 import { useConversations, type Conversation } from '../hooks/useConversations'
@@ -35,10 +36,7 @@ export default function ChatScreen() {
 
   return (
     <div className="min-h-full relative">
-      <ScreenHeader
-        title="Chat"
-        subtitle="Direct messages with the people you connect with."
-      />
+      <ScreenHeader title="Chat" right={<TopIcons />} />
 
       <ReturnToGameBanner />
 
