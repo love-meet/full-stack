@@ -13,6 +13,10 @@ export default function NumberDuelScreen() {
   const createGame = useCreateGame()
   const isSubscriber = !!useMySubscription().data
   const [err, setErr] = useState<string | null>(null)
+  // If reached via the Games-list modal (which already showed the rules),
+  // hide the rules block here so the user lands on a focused Host card.
+  const skipIntro = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('skip-intro') === '1'
 
   async function host() {
     setErr(null)
@@ -34,15 +38,19 @@ export default function NumberDuelScreen() {
     <Shell onBack={() => navigate(-1)}>
       <Step>
         <h2 className="text-xl font-extrabold text-gradient-warm">🔢 Number Duel</h2>
-        <p className="text-sm text-ink-2 mt-1">A head-to-head guessing duel.</p>
-        <ol className="mt-4 space-y-2 text-sm text-ink-2 list-decimal pl-5">
-          <li>You each secretly pick a number from <b>0 to 100</b> (e.g. 17, 42, 90).</li>
-          <li>Race to guess your opponent's number on the keypad.</li>
-          <li>After each guess an arrow says <b>↑ higher</b> or <b>↓ lower</b>.</li>
-          <li>First to guess the <b>exact</b> number takes the round.</li>
-          <li>Difficulty ramps up: <b>6 Easy</b> rounds (whole numbers), <b>4 Medium</b> (1 decimal), <b>2 Hard</b> (2 decimals).</li>
-          <li>Best of 12 takes the trophy. 🏆 Viewers watch both numbers live.</li>
-        </ol>
+        {!skipIntro && (
+          <>
+            <p className="text-sm text-ink-2 mt-1">A head-to-head guessing duel.</p>
+            <ol className="mt-4 space-y-2 text-sm text-ink-2 list-decimal pl-5">
+              <li>You each secretly pick a number from <b>0 to 100</b> (e.g. 17, 42, 90).</li>
+              <li>Race to guess your opponent's number on the keypad.</li>
+              <li>After each guess an arrow says <b>↑ higher</b> or <b>↓ lower</b>.</li>
+              <li>First to guess the <b>exact</b> number takes the round.</li>
+              <li>Difficulty ramps up: <b>6 Easy</b> rounds (whole numbers), <b>4 Medium</b> (1 decimal), <b>2 Hard</b> (2 decimals).</li>
+              <li>Best of 12 takes the trophy. 🏆 Viewers watch both numbers live.</li>
+            </ol>
+          </>
+        )}
         <button onClick={host} disabled={createGame.isPending}
           className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
           {createGame.isPending ? 'Creating…' : 'Create 1 v 1 match'}

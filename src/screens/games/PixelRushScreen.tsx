@@ -31,7 +31,15 @@ export default function PixelRushScreen() {
   }
 
   // ----- gameplay state -----
-  const [phase, setPhase] = useState<Phase>('guide')
+  // If the user reached this screen via the Games-list modal (which already
+  // showed the rules), skip the in-screen guide and start at mode-select.
+  const [phase, setPhase] = useState<Phase>(() => {
+    if (typeof window !== 'undefined'
+        && new URLSearchParams(window.location.search).get('skip-intro') === '1') {
+      return 'mode'
+    }
+    return 'guide'
+  })
   const [image, setImage] = useState<string>(DEFAULT_IMAGE)
   const [order, setOrder] = useState<number[]>(() => identity())
   const [selected, setSelected] = useState<number | null>(null)

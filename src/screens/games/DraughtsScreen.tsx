@@ -12,6 +12,10 @@ export default function DraughtsScreen() {
   const isSubscriber = !!useMySubscription().data
   const createGame = useCreateGame()
   const [err, setErr] = useState<string | null>(null)
+  // If reached via the Games-list modal (which already showed the rules),
+  // hide the rules block here so the user lands on a focused Host card.
+  const skipIntro = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('skip-intro') === '1'
 
   async function host() {
     setErr(null)
@@ -29,15 +33,19 @@ export default function DraughtsScreen() {
     <Shell onBack={() => navigate(-1)}>
       <Step>
         <h2 className="text-xl font-extrabold text-gradient-warm">♟ Draughts</h2>
-        <p className="text-sm text-ink-2 mt-1">Classic English Checkers, head-to-head.</p>
-        <ol className="mt-4 space-y-2 text-sm text-ink-2 list-decimal pl-5">
-          <li>You and your opponent get <b>12 pieces each</b> on an 8×8 board.</li>
-          <li>Pieces move <b>diagonally forward</b> one square at a time.</li>
-          <li><b>Jump</b> an opponent's piece to capture it. Multiple jumps in a row are allowed and <b>captures are forced</b>.</li>
-          <li>Reach the far row to become a <b>👑 King</b> — moves diagonally in any direction.</li>
-          <li>Win the board when the other side has <b>no pieces left or no legal move</b>.</li>
-          <li><b>Best of 3</b> boards takes the trophy. 🏆</li>
-        </ol>
+        {!skipIntro && (
+          <>
+            <p className="text-sm text-ink-2 mt-1">Classic English Checkers, head-to-head.</p>
+            <ol className="mt-4 space-y-2 text-sm text-ink-2 list-decimal pl-5">
+              <li>You and your opponent get <b>12 pieces each</b> on an 8×8 board.</li>
+              <li>Pieces move <b>diagonally forward</b> one square at a time.</li>
+              <li><b>Jump</b> an opponent's piece to capture it. Multiple jumps in a row are allowed and <b>captures are forced</b>.</li>
+              <li>Reach the far row to become a <b>👑 King</b> — moves diagonally in any direction.</li>
+              <li>Win the board when the other side has <b>no pieces left or no legal move</b>.</li>
+              <li><b>Best of 3</b> boards takes the trophy. 🏆</li>
+            </ol>
+          </>
+        )}
         <button onClick={host} disabled={createGame.isPending}
           className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
           {createGame.isPending ? 'Creating…' : 'Create 1 v 1 match'}
