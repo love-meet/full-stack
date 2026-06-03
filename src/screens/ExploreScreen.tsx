@@ -72,12 +72,7 @@ export default function ExploreScreen() {
 
   return (
     <div className="min-h-full relative">
-      <ScreenHeader
-        title="Explore"
-        subtitle="Public rooms. Pick a topic, jump in."
-        tone="brand"
-        right={<TopIcons />}
-      />
+      <ScreenHeader title="Explore" right={<TopIcons />} />
 
       {/* Search + category filters */}
       <div className="px-5 sm:px-8 space-y-3">

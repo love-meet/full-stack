@@ -25,12 +25,7 @@ export default function GamesScreen() {
   return (
     <div className="min-h-full relative">
       <PopunderAd />
-      <ScreenHeader
-        title="Games"
-        subtitle="Play, flirt and bond — with your match or the whole room."
-        tone="brand"
-        right={<TopIcons />}
-      />
+      <ScreenHeader title="Games" right={<TopIcons />} />
 
       <div className="px-5 sm:px-8 pb-28">
         <div className="glass rounded-2xl px-4 py-3 mb-5 text-sm text-ink-2 flex items-center gap-2">
