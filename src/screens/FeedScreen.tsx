@@ -97,7 +97,7 @@ export default function FeedScreen() {
       <div
         ref={scrollerRef}
         onScroll={onScroll}
-        className="fixed top-0 left-0 right-0 bottom-[calc(4rem_+_env(safe-area-inset-bottom))] lg:left-64 lg:bottom-0 xl:right-[22rem] bg-black overflow-y-scroll snap-y snap-mandatory overscroll-contain no-scrollbar"
+        className="fixed top-0 left-0 right-0 bottom-[calc(4rem_+_var(--lm-bottom-inset))] lg:left-64 lg:bottom-0 xl:right-[22rem] bg-black overflow-y-scroll snap-y snap-mandatory overscroll-contain no-scrollbar"
       >
         {feed.status === 'pending' && (
           <div className="h-full grid place-items-center">

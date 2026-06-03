@@ -47,6 +47,14 @@
    controls in fullscreen. Headers pad with var(--lm-top-inset). */
 :root {
   --lm-top-inset: env(safe-area-inset-top);
+  /* Bottom safe-area inset. Defaults to the OS-reported value or a 14px
+     floor — Telegram's Android WebView often reports env() as 0 even when
+     the system gesture / 3-button nav is present, so the floor guarantees
+     the bottom nav never sits flush with Android's system controls.
+     applyInsets() in lib/telegram.ts overrides with Telegram's actual
+     safeAreaInset.bottom when in the Mini App. The BottomNav, the Shell's
+     content padding, and the Feed scroller all consume this. */
+  --lm-bottom-inset: max(env(safe-area-inset-bottom), 14px);
 }
 
 /* ---- Custom utilities ---- */
