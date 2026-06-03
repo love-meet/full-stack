@@ -172,6 +172,42 @@ export default function PlayGameScreen() {
 
   // ----- not yet joined → join card -----
   if (!inGame && g.status === 'lobby') {
+    // Pixel Rush: render the same themed canvas lobby as the host sees, but
+    // in `joiner` mode — the inviter is in the left avatar slot, the right
+    // slot stays as the "?" placeholder until the local user taps JOIN. The
+    // primary button reads JOIN GAME and the close button reads DECLINE.
+    if (g.game_type === 'pixel_rush') {
+      const hostPlayer = list.find((p) => p.is_host) ?? list[0]
+      const primaryDisabled = join.isPending || (isAnon && name.trim().length < 2)
+      return (
+        <PixelRushLobby
+          inviteCode={g.invite_code}
+          inviteUrl={inviteUrl}
+          host={{
+            name: hostPlayer ? playerLabel(hostPlayer) : 'Host',
+            avatarUrl: avatarUrlOr(hostPlayer?.profile?.avatar_url),
+          }}
+          joiner={null}
+          isHost={false}
+          mode="joiner"
+          primaryDisabled={primaryDisabled}
+          onPrimaryClick={doJoin}
+          onShareClick={() => { /* joiners don't share */ }}
+          onCloseClick={() => navigate('/games')}
+          nameInput={
+            isAnon
+              ? {
+                  value: name,
+                  onChange: setName,
+                  placeholder: 'Your name',
+                  error: joinError ?? undefined,
+                }
+              : undefined
+          }
+        />
+      )
+    }
+
     return (
       <Frame>
         <Card>
@@ -579,14 +615,47 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
     }
   }
 
+  // Pixel Rush uses the cyan/teal lobby palette throughout the match so the
+  // surface stays uniform from invite → countdown → gameplay. Other games
+  // keep the default warm/rose palette until they're themed too.
+  const isPixelRush = g.game_type === 'pixel_rush'
+  const cyan = '#35CDE8'
+  const cyan2 = '#6CE8FA'
+  const pixelRushBg = isPixelRush
+    ? {
+        backgroundColor: '#050B14',
+        backgroundImage:
+          `radial-gradient(900px 600px at 12% 10%, rgba(53,205,232,0.11), transparent 60%),
+           radial-gradient(900px 600px at 92% 92%, rgba(108,232,250,0.08), transparent 60%)`,
+      }
+    : undefined
+
   return (
-    <div className="min-h-screen bg-surface text-ink">
+    <div
+      className={`min-h-screen text-ink ${isPixelRush ? '' : 'bg-surface'}`}
+      style={pixelRushBg}
+    >
       <PopunderAd />
       {/* Fixed VS header — opponents + scores + close/leave. */}
-      <div className="fixed top-0 left-0 right-0 z-20 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
+      <div
+        className={`fixed top-0 left-0 right-0 z-20 glass ${
+          isPixelRush ? 'border-b' : 'border-b border-white/5'
+        }`}
+        style={{
+          paddingTop: 'var(--lm-top-inset)',
+          ...(isPixelRush
+            ? { borderBottomColor: `${cyan}33`, backgroundColor: 'rgba(10,26,44,0.55)' }
+            : {}),
+        }}
+      >
         <div className="max-w-md mx-auto px-3 py-2">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-bold text-ink-2">Round {g.current_round}/{g.rounds_total}</span>
+            <span
+              className="text-[11px] font-bold tabular-nums"
+              style={isPixelRush ? { color: cyan2, letterSpacing: '0.1em' } : { color: 'var(--color-ink-2)' }}
+            >
+              ROUND {g.current_round}/{g.rounds_total}
+            </span>
             <div className="flex items-center gap-3">
               {viewers > 0 && <span className="text-[11px] text-ink-muted">👁 {viewers}</span>}
               <MessagesPill />
@@ -608,7 +677,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
               )}
             </div>
           </div>
-          <VSHeader players={players} kind={g.kind} online={online} pctById={pctById} myId={myId} />
+          <VSHeader players={players} kind={g.kind} online={online} pctById={pctById} myId={myId} accent={isPixelRush ? cyan : undefined} />
         </div>
       </div>
 
@@ -725,10 +794,15 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
 /** The opponents bar: A — VS — B with avatars + scores (or team totals).
  *  `pctById` carries each player's live solved % during a race (empty otherwise);
  *  it's shown by their name so you can see who's closest to finishing. */
-function VSHeader({ players, kind, online, pctById, myId }: {
+function VSHeader({ players, kind, online, pctById, myId, accent }: {
   players: GamePlayer[]; kind: string; online: Set<string>
   pctById: Map<string, number>; myId: string | null
+  /** Optional accent colour — overrides the default warm gradient. Pixel Rush
+   *  passes "#35CDE8" so the VS text + scores match the cyan lobby theme. */
+  accent?: string
 }) {
+  const titleStyle = accent ? { color: accent } : undefined
+  const teamLabelStyle = accent ? { color: accent } : undefined
   if (kind === 'group') {
     const teamA = players.filter((p) => p.team === 'A')
     const teamB = players.filter((p) => p.team === 'B')
@@ -742,12 +816,20 @@ function VSHeader({ players, kind, online, pctById, myId }: {
     const tb = teamB.reduce((m, p) => Math.max(m, p.trophies), 0)
     return (
       <div className="flex items-center justify-between">
-        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team A</div><div className="text-2xl font-extrabold text-ink">{a}</div>{pa != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pa}%</div>}</div>
+        <div className="flex-1 text-center">
+          <div className={`text-[11px] font-bold ${accent ? '' : 'text-rose'}`} style={teamLabelStyle}>Team A</div>
+          <div className="text-2xl font-extrabold text-ink">{a}</div>
+          {pa != null && <div className={`text-[11px] font-bold tabular-nums ${accent ? '' : 'text-gradient-warm'}`} style={titleStyle}>{pa}%</div>}
+        </div>
         <div className="flex flex-col items-center px-2">
           {ta + tb > 0 && <span className="text-sm font-extrabold text-gold tabular-nums leading-none">🏆 {ta} : {tb}</span>}
-          <span className="text-sm font-extrabold text-gradient-warm">VS</span>
+          <span className={`text-sm font-extrabold ${accent ? '' : 'text-gradient-warm'}`} style={titleStyle}>VS</span>
         </div>
-        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team B</div><div className="text-2xl font-extrabold text-ink">{b}</div>{pb != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pb}%</div>}</div>
+        <div className="flex-1 text-center">
+          <div className={`text-[11px] font-bold ${accent ? '' : 'text-rose'}`} style={teamLabelStyle}>Team B</div>
+          <div className="text-2xl font-extrabold text-ink">{b}</div>
+          {pb != null && <div className={`text-[11px] font-bold tabular-nums ${accent ? '' : 'text-gradient-warm'}`} style={titleStyle}>{pb}%</div>}
+        </div>
       </div>
     )
   }
@@ -759,20 +841,21 @@ function VSHeader({ players, kind, online, pctById, myId }: {
   const trophyTally = (a?.trophies ?? 0) + (b?.trophies ?? 0)
   return (
     <div className="flex items-center justify-between gap-2">
-      <PlayerChip p={a} online={!!a && online.has(a.user_id)} align="left" pct={a ? pctById.get(a.user_id) : undefined} isMe={!!a && a.user_id === myId} />
+      <PlayerChip p={a} online={!!a && online.has(a.user_id)} align="left" pct={a ? pctById.get(a.user_id) : undefined} isMe={!!a && a.user_id === myId} accent={accent} />
       <div className="flex flex-col items-center shrink-0">
         {trophyTally > 0 && <span className="text-sm font-extrabold text-gold tabular-nums leading-none">🏆 {a?.trophies ?? 0} : {b?.trophies ?? 0}</span>}
-        <span className="text-sm font-extrabold text-gradient-warm">VS</span>
+        <span className={`text-sm font-extrabold ${accent ? '' : 'text-gradient-warm'}`} style={titleStyle}>VS</span>
       </div>
-      <PlayerChip p={b} online={!!b && online.has(b.user_id)} align="right" pct={b ? pctById.get(b.user_id) : undefined} isMe={!!b && b.user_id === myId} />
+      <PlayerChip p={b} online={!!b && online.has(b.user_id)} align="right" pct={b ? pctById.get(b.user_id) : undefined} isMe={!!b && b.user_id === myId} accent={accent} />
     </div>
   )
 }
 
-function PlayerChip({ p, online, align, pct, isMe }: {
-  p?: GamePlayer; online: boolean; align: 'left' | 'right'; pct?: number; isMe?: boolean
+function PlayerChip({ p, online, align, pct, isMe, accent }: {
+  p?: GamePlayer; online: boolean; align: 'left' | 'right'; pct?: number; isMe?: boolean; accent?: string
 }) {
   if (!p) return <div className="flex-1 text-center text-[11px] text-ink-muted">waiting…</div>
+  const accentStyle = accent ? { color: accent } : undefined
   return (
     <div className={`flex-1 flex items-center gap-2 min-w-0 ${align === 'right' ? 'flex-row-reverse text-right' : ''}`}>
       <span className="relative shrink-0">
@@ -782,9 +865,9 @@ function PlayerChip({ p, online, align, pct, isMe }: {
       <div className="min-w-0">
         <div className={`flex items-center gap-1.5 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
           <span className="text-xs font-bold text-ink truncate">{isMe ? 'You' : playerLabel(p)}</span>
-          {pct != null && <span className="text-[11px] font-bold text-gradient-warm tabular-nums shrink-0">{pct}%</span>}
+          {pct != null && <span className={`text-[11px] font-bold tabular-nums shrink-0 ${accent ? '' : 'text-gradient-warm'}`} style={accentStyle}>{pct}%</span>}
         </div>
-        <div className="text-lg font-extrabold text-gradient-warm leading-none">{p.score}</div>
+        <div className={`text-lg font-extrabold leading-none ${accent ? '' : 'text-gradient-warm'}`} style={accentStyle}>{p.score}</div>
       </div>
     </div>
   )

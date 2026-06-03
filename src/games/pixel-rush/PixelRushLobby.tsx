@@ -55,6 +55,32 @@ type Props = {
   onAutoStart?: () => void
   /** Optional banner: opponent walked away mid-game and we're back to lobby. */
   revertedFromMatch?: boolean
+  /**
+   * 'host'   — default. Big cyan button reads "INVITE A FRIEND".
+   * 'joiner' — invitee view. Button reads "JOIN GAME" and calls
+   *            `onPrimaryClick`. Host slot stays filled (the inviter),
+   *            opponent slot stays as the placeholder until the joiner
+   *            actually taps JOIN — same visual rhythm so the surface
+   *            feels uniform end-to-end.
+   */
+  mode?: 'host' | 'joiner'
+  /** Overrides the primary canvas button label. Defaults per `mode`. */
+  primaryLabel?: string
+  /** Disables the primary canvas button (e.g. anon needs to type a name first). */
+  primaryDisabled?: boolean
+  /** Overrides the primary button action. Defaults to `onShareClick`. */
+  onPrimaryClick?: () => void
+  /** Overrides the subtitle text under the wordmark. */
+  subtitleText?: string
+  /** Overrides the close-button text. */
+  closeLabel?: string
+  /** Optional DOM name input rendered over the canvas (anon joiner flow). */
+  nameInput?: {
+    value: string
+    onChange: (v: string) => void
+    placeholder?: string
+    error?: string
+  }
 }
 
 export default function PixelRushLobby({
@@ -67,12 +93,37 @@ export default function PixelRushLobby({
   onCloseClick,
   onAutoStart,
   revertedFromMatch,
+  mode = 'host',
+  primaryLabel,
+  primaryDisabled = false,
+  onPrimaryClick,
+  subtitleText,
+  closeLabel,
+  nameInput,
 }: Props) {
+  const resolvedPrimaryLabel =
+    primaryLabel ?? (mode === 'joiner' ? '►  JOIN GAME  ►' : '✦  INVITE A FRIEND  ✦')
+  const resolvedSubtitle =
+    subtitleText ?? (mode === 'joiner' ? 'INVITED · 1 v 1 MATCH' : 'LOBBY · 1 v 1 MATCH')
+  const resolvedCloseLabel = closeLabel ?? (mode === 'joiner' ? 'DECLINE' : 'CLOSE LOBBY')
   const wrapRef = useRef<HTMLDivElement>(null)
   // Keep the latest callbacks in a ref so we don't have to rebuild the scene
-  // when the parent re-renders.
-  const callbacksRef = useRef({ onShareClick, onCloseClick, onAutoStart })
-  callbacksRef.current = { onShareClick, onCloseClick, onAutoStart }
+  // when the parent re-renders. primaryDisabled toggles in real time as the
+  // anon name input validates; the ticker reads it to dim the button.
+  const callbacksRef = useRef({
+    onShareClick,
+    onCloseClick,
+    onAutoStart,
+    onPrimaryClick,
+    primaryDisabled,
+  })
+  callbacksRef.current = {
+    onShareClick,
+    onCloseClick,
+    onAutoStart,
+    onPrimaryClick,
+    primaryDisabled,
+  }
 
   // The scene cares about three pieces of dynamic state:
   //  - whether the joiner has arrived
@@ -266,10 +317,10 @@ export default function PixelRushLobby({
       titleText.anchor.set(0.5, 1)
       centerStack.addChild(titleText)
 
-      const subtitleText = makeText('LOBBY · 1 v 1 MATCH', { size: 11, letterSpacing: 3.2 })
-      subtitleText.alpha = 0.65
-      subtitleText.anchor.set(0.5, 0)
-      centerStack.addChild(subtitleText)
+      const subtitleNode = makeText(resolvedSubtitle, { size: 11, letterSpacing: 3.2 })
+      subtitleNode.alpha = 0.65
+      subtitleNode.anchor.set(0.5, 0)
+      centerStack.addChild(subtitleNode)
 
       // Waiting text (shown when joiner is null)
       const waitingText = makeText('WAITING FOR OPPONENT', { size: 13, letterSpacing: 3.2 })
@@ -281,13 +332,15 @@ export default function PixelRushLobby({
       waitingDots.anchor.set(0.5)
       hudLayer.addChild(waitingDots)
 
-      // Invite button (host only)
+      // Primary canvas button — INVITE A FRIEND for host, JOIN GAME for
+      // joiner. Disabled visual when primaryDisabled (e.g. anon name not
+      // typed yet on the join screen).
       const inviteBtn = new Container()
       inviteBtn.eventMode = 'static'
       inviteBtn.cursor = 'pointer'
       const inviteBg = new Graphics()
       inviteBtn.addChild(inviteBg)
-      const inviteText = makeText('✦  INVITE A FRIEND  ✦', {
+      const inviteText = makeText(resolvedPrimaryLabel, {
         size: 15,
         letterSpacing: 2.6,
         fill: WHITE,
@@ -297,15 +350,19 @@ export default function PixelRushLobby({
       hudLayer.addChild(inviteBtn)
 
       inviteBtn.on('pointerdown', () => {
+        if (callbacksRef.current.primaryDisabled) return
         inviteBtn.scale.set(0.97)
       })
       inviteBtn.on('pointerup', () => {
         inviteBtn.scale.set(1)
-        callbacksRef.current.onShareClick()
+        if (callbacksRef.current.primaryDisabled) return
+        const handler = callbacksRef.current.onPrimaryClick ?? callbacksRef.current.onShareClick
+        handler()
       })
       inviteBtn.on('pointerupoutside', () => { inviteBtn.scale.set(1) })
 
-      // Invite code (small, below the button)
+      // Invite code (small, below the button) — host only. Joiners don't
+      // need to see the code; they came in via the link itself.
       const codeText = makeText(`CODE: ${inviteCode.toUpperCase()}`, {
         size: 11,
         letterSpacing: 4,
@@ -313,6 +370,7 @@ export default function PixelRushLobby({
       })
       codeText.alpha = 0.85
       codeText.anchor.set(0.5)
+      codeText.visible = mode !== 'joiner'
       hudLayer.addChild(codeText)
 
       // Close button (bottom)
@@ -321,7 +379,7 @@ export default function PixelRushLobby({
       closeBtn.cursor = 'pointer'
       const closeBg = new Graphics()
       closeBtn.addChild(closeBg)
-      const closeText = makeText('CLOSE LOBBY', { size: 11, letterSpacing: 2.4 })
+      const closeText = makeText(resolvedCloseLabel, { size: 11, letterSpacing: 2.4 })
       closeText.alpha = 0.7
       closeText.anchor.set(0.5)
       closeBtn.addChild(closeText)
@@ -385,7 +443,7 @@ export default function PixelRushLobby({
         centerStack.x = w / 2
         centerStack.y = h * 0.42
         titleText.y = -8
-        subtitleText.y = 8
+        subtitleNode.y = 8
 
         // Waiting text + dots, just below the title
         waitingText.x = w / 2
@@ -538,9 +596,11 @@ export default function PixelRushLobby({
           // Animated dots — cycle which dot is bright
           const tick = Math.floor(now / 280) % 3
           waitingDots.text = ['•··', '·•·', '··•'][tick]
-          // Gentle scale pulse on the invite button
+          // Gentle scale pulse on the invite button, dimmed when disabled
           const pulse = 1 + 0.012 * Math.sin(now / 360)
           inviteBtn.scale.set(pulse)
+          inviteBtn.alpha = callbacksRef.current.primaryDisabled ? 0.45 : 1
+          inviteBtn.cursor = callbacksRef.current.primaryDisabled ? 'not-allowed' : 'pointer'
         }
 
         if (phase === 'ready') {
@@ -596,19 +656,72 @@ export default function PixelRushLobby({
         try { app.destroy(true, { children: true, texture: false }) } catch { /* ignore */ }
       }
     }
-    // Rebuild only on identity-level prop changes; everything else flows
-    // through refs so the ticker can react without tearing the scene down.
+    // Rebuild only on identity-level prop changes; primaryDisabled,
+    // primaryClick and the avatar URLs flow through refs so the ticker can
+    // react without tearing the scene down. mode/labels are baked in at
+    // setup, so changes there do trigger a clean rebuild.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [host.avatarUrl, inviteCode, isHost])
+  }, [
+    host.avatarUrl,
+    inviteCode,
+    isHost,
+    mode,
+    resolvedPrimaryLabel,
+    resolvedSubtitle,
+    resolvedCloseLabel,
+  ])
 
   return (
     <div
       ref={wrapRef}
       className="fixed inset-0 w-full h-full"
       style={{ background: '#050B14' }}
-    />
+    >
+      {/* DOM name input — anon joiner needs a typed name before tapping JOIN.
+          Sits over the canvas, positioned so it lands above the primary
+          button. Pointer-events isolated to its own block so the canvas's
+          background touch handlers still work. */}
+      {nameInput && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 w-[min(360px,calc(100%-40px))]"
+          style={{ top: 'calc(50vh + 16px)' }}
+        >
+          <label className="block">
+            <div
+              className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2 text-center"
+              style={{ color: ACCENT_2_CSS, opacity: 0.85 }}
+            >
+              Pick a name to join
+            </div>
+            <input
+              type="text"
+              value={nameInput.value}
+              onChange={(e) => nameInput.onChange(e.target.value)}
+              placeholder={nameInput.placeholder ?? 'Your name'}
+              maxLength={24}
+              autoFocus
+              className="w-full bg-transparent text-center text-white text-base font-bold tracking-wide outline-none placeholder:text-white/30"
+              style={{
+                border: `1px solid ${ACCENT_2_CSS}55`,
+                borderRadius: 999,
+                padding: '12px 18px',
+                background: 'rgba(0,0,0,0.35)',
+                boxShadow: `inset 0 0 0 1px rgba(255,255,255,0.04)`,
+              }}
+            />
+            {nameInput.error && (
+              <div className="mt-2 text-center text-[11px] text-rose font-semibold">
+                {nameInput.error}
+              </div>
+            )}
+          </label>
+        </div>
+      )}
+    </div>
   )
 }
+
+const ACCENT_2_CSS = '#6CE8FA'
 
 // Bind to silence unused warnings for Texture (kept available for callers).
 export type { Texture as _TextureBinding }
