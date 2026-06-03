@@ -33,8 +33,12 @@ export default function Shell() {
           // the settings/secondary screens. clip prevents sideways scroll
           // without hijacking the vertical axis, so those headers pin to top.
           'flex-1 overflow-x-clip',
-          immersive ? 'pb-0' : 'pb-16 lg:pb-0',
+          immersive ? 'pb-0' : 'lg:pb-0',
         ].join(' ')}
+        // Bottom padding covers the 4rem nav row PLUS the system safe-area
+        // inset (Android gesture nav, iPhone home indicator) so content never
+        // scrolls behind the system controls.
+        style={!immersive ? { paddingBottom: 'calc(4rem + var(--lm-bottom-inset))' } : undefined}
       >
         <NotifPermissionBanner />
         <AnimatePresence mode="wait" initial={false}>

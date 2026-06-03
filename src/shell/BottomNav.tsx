@@ -16,7 +16,7 @@ export default function BottomNav() {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-20 lg:hidden glass"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ paddingBottom: 'var(--lm-bottom-inset)' }}
       aria-label="Primary"
     >
       <ul className="flex items-stretch h-16 px-2 gap-1">

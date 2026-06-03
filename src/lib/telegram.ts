@@ -4,18 +4,26 @@
 import { getSurface } from './surface'
 
 /**
- * Push the app's top bars below Telegram's overlay controls (Close/⋯) and the
- * device status bar. In fullscreen, Telegram exposes safeAreaInset (device
- * notch) + contentSafeAreaInset (its own controls); we expose their sum as the
- * CSS var --lm-top-inset, never less than the browser's env() notch.
+ * Push the app's top + bottom bars clear of Telegram's overlay controls
+ * (Close/⋯ at the top, swipe handle at the bottom) and the device notch /
+ * gesture area. In fullscreen, Telegram exposes safeAreaInset (device notch)
+ * + contentSafeAreaInset (its own controls); we expose their sums as the CSS
+ * vars --lm-top-inset and --lm-bottom-inset, never less than the browser's
+ * env() values, and never less than a 14px floor on the bottom so Android's
+ * system gesture nav doesn't sit flush against our tab bar.
  */
 function applyInsets(): void {
   const wa = window.Telegram?.WebApp
   if (!wa) return
   const top = (wa.safeAreaInset?.top ?? 0) + (wa.contentSafeAreaInset?.top ?? 0)
+  const bottom = (wa.safeAreaInset?.bottom ?? 0) + (wa.contentSafeAreaInset?.bottom ?? 0)
   document.documentElement.style.setProperty(
     '--lm-top-inset',
     `max(env(safe-area-inset-top), ${top}px)`,
+  )
+  document.documentElement.style.setProperty(
+    '--lm-bottom-inset',
+    `max(env(safe-area-inset-bottom), ${bottom}px, 14px)`,
   )
 }
 
