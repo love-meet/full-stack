@@ -101,9 +101,34 @@ serve(async (req: Request) => {
     }
 
     const appUrl = (Deno.env.get('APP_URL') ?? '').replace(/\/$/, '')
+
+    // Game notifications need extra context: which game (label + emoji +
+    // graphic URL) and the deep-link path back into the game lobby. The body
+    // field holds the invite_code; we look up the game_type so we can show
+    // "Vee invited you to play Pixel Rush" instead of the generic "New
+    // activity", route the CTA to /play/<code>, and send the per-game
+    // graphic as the Telegram preview photo instead of the inviter's selfie.
+    let gameMeta: { label: string; emoji: string; image: string | null } | null = null
+    if ((n.type === 'game_invite' || n.type === 'game_join' || n.type === 'game_waiting') && n.body) {
+      const { data: g } = await admin
+        .from('games')
+        .select('game_type')
+        .eq('invite_code', n.body)
+        .maybeSingle()
+      const META: Record<string, { label: string; emoji: string; image: string }> = {
+        pixel_rush:  { label: 'Pixel Rush',  emoji: '🧩', image: '/img/games/pixel-rush.png' },
+        number_duel: { label: 'Number Duel', emoji: '🔢', image: '/img/games/number-duel.png' },
+        draughts:    { label: 'Draughts',    emoji: '♟',  image: '/img/games/draughts.png' },
+      }
+      const m = g?.game_type ? META[g.game_type as keyof typeof META] : null
+      gameMeta = m
+        ? { label: m.label, emoji: m.emoji, image: appUrl ? `${appUrl}${m.image}` : null }
+        : { label: 'a game', emoji: '🎮', image: null }
+    }
+
     const link = linkFor(n, appUrl)
     const firstName = profile?.first_name ?? profile?.display_name ?? 'there'
-    const c = content(n, actor)
+    const c = content(n, actor, gameMeta)
 
     const result: Record<string, unknown> = { ok: true }
     const errors: string[] = []
@@ -150,15 +175,21 @@ serve(async (req: Request) => {
           ? { inline_keyboard: [[{ text: c.cta, web_app: { url: httpLink } }]] }
           : undefined
 
-        // If the actor has an avatar, send the notification as a PHOTO so the
-        // recipient sees the sender's face in the notification preview.
-        // Otherwise fall back to plain sendMessage.
-        const tgRes = actorAvatarUrl
+        // Pick the right photo for the notification preview:
+        //   • Game invites/joins/waiting → the game's graphic (so the user
+        //     sees "Pixel Rush" art, not the inviter's selfie).
+        //   • Everything else            → the actor's avatar (face of the
+        //     person who liked/commented/messaged).
+        const photoUrl = gameMeta?.image ?? actorAvatarUrl
+
+        // If we have a photo, send as PHOTO so it appears in the preview.
+        // Otherwise (no avatar, no game graphic) fall back to plain text.
+        const tgRes = photoUrl
           ? await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 chat_id: tgChatId,
-                photo: actorAvatarUrl,
+                photo: photoUrl,
                 caption: text,
                 parse_mode: 'HTML',
                 reply_markup,
@@ -169,9 +200,10 @@ serve(async (req: Request) => {
               body: JSON.stringify({ chat_id: tgChatId, text, parse_mode: 'HTML', reply_markup }),
             })
 
-        // If sendPhoto failed (e.g. Telegram couldn't fetch the avatar URL),
-        // fall back to sendMessage so the user still gets the notification.
-        if (!tgRes.ok && actorAvatarUrl) {
+        // If sendPhoto failed (Telegram couldn't fetch the image URL — common
+        // for game graphics if the image file isn't on the server yet), fall
+        // back to sendMessage so the user still gets the notification.
+        if (!tgRes.ok && photoUrl) {
           const fallback = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: tgChatId, text, parse_mode: 'HTML', reply_markup }),
@@ -213,6 +245,11 @@ function linkFor(n: Notification, appUrl: string): string {
   if (n.type === 'referral_joined') return `${appUrl}/affiliate`
   if (n.type === 'follow' && n.actor_id) return `${appUrl}/profile/${n.actor_id}`
   if (n.type.startsWith('withdrawal')) return `${appUrl}/earnings`
+  // Game invites/joins/waiting: body is the invite_code. Deep-link straight
+  // to the lobby so the user lands in the game, not in a notification list.
+  if ((n.type === 'game_invite' || n.type === 'game_join' || n.type === 'game_waiting') && n.body) {
+    return `${appUrl}/play/${n.body}`
+  }
   return `${appUrl}/notifications`
 }
 
@@ -223,7 +260,11 @@ const GOLD = '#35CDE8'
 const GREEN = '#3ED598'
 const RED = '#FF5C7A'
 
-function content(n: Notification, actor: string): EmailContent {
+function content(
+  n: Notification,
+  actor: string,
+  gameMeta: { label: string; emoji: string; image: string | null } | null,
+): EmailContent {
   const q = (s: string | null) => (s ? `“${s}”` : '')
   switch (n.type) {
     case 'like':
@@ -298,6 +339,46 @@ function content(n: Notification, actor: string): EmailContent {
     case 'follow':
       return { subject: `${actor} started following you`, title: 'New follower 👤', icon: '👤', accent: ROSE, cta: 'View profile',
         message: `${actor} started following you on Love meet.` }
+
+    // ── Game notifications ─────────────────────────────────────────────
+    // body holds the invite code; gameMeta is looked up from games.game_type.
+    case 'game_invite': {
+      const label = gameMeta?.label ?? 'a game'
+      const emoji = gameMeta?.emoji ?? '🎮'
+      return {
+        subject: `${actor} invited you to play ${label}`,
+        title: `${label} invite ${emoji}`,
+        icon: emoji,
+        accent: ROSE,
+        cta: 'Join game',
+        message: `${actor} invited you to play ${label}. Tap below to jump straight into the lobby.`,
+      }
+    }
+    case 'game_join': {
+      const label = gameMeta?.label ?? 'your game'
+      const emoji = gameMeta?.emoji ?? '🎮'
+      return {
+        subject: `${actor} joined your ${label} game`,
+        title: `${label} — someone joined ${emoji}`,
+        icon: emoji,
+        accent: GREEN,
+        cta: 'Go to game',
+        message: `${actor} joined your ${label} game. Tap below to start the match.`,
+      }
+    }
+    case 'game_waiting': {
+      const label = gameMeta?.label ?? 'your game'
+      const emoji = gameMeta?.emoji ?? '🎮'
+      return {
+        subject: `${label} is waiting on you`,
+        title: `${label} — your turn ${emoji}`,
+        icon: emoji,
+        accent: GOLD,
+        cta: 'Continue',
+        message: `${label} is waiting on you. Tap below to take your turn before the match auto-forfeits.`,
+      }
+    }
+
     default:
       return { subject: 'New activity on Love meet', title: 'New activity', icon: '🔔', accent: ROSE, cta: 'Open Love meet',
         message: n.body ?? 'You have new activity on Love meet.' }
