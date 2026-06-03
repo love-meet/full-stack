@@ -35,7 +35,8 @@ import { InlineAd, PopunderAd } from '../../components/FeedAd'
 import DuelArena from '../../components/games/NumberDuelMatch'
 import DraughtsBoard from '../../components/games/DraughtsBoard'
 import { useDraughtsRound, useAdvanceDraughts } from '../../hooks/useDraughts'
-import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
+import { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
+import PixelRushCanvas from '../../games/pixel-rush/PixelRushCanvas'
 import { avatarUrlOr } from '../../lib/avatar'
 import ShareSheet from '../../components/ShareSheet'
 
@@ -612,7 +613,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
               {/* Drag a tile onto another to swap them. */}
               <div>
                 <div className="text-center text-[10px] text-ink-muted mb-1">✥ drag a tile onto another, or tap two tiles, to swap</div>
-                <PixelBoard
+                <PixelRushCanvas
                   image={r.image_url!}
                   seed={seedFor(g.id, r.round_no)}
                   grid={gridForRound(r.round_no)}
