@@ -75,22 +75,36 @@ function canAttemptSilentRedirect(): boolean {
 }
 
 function buildDeepLinks(path: string): { scheme: string; universal: string } {
-  // start_param max is 64 chars and only alphanumeric/_/-. Encode the path
-  // (so `/feed?ref=LM-X` survives) then trim to fit.
-  const start = encodeURIComponent(path.replace(/^\//, '')).slice(0, 60)
+  // start_param spec (Bot API): 1–64 chars, ONLY [A-Z a-z 0-9 _ -]. Anything
+  // else (a `%`-escaped path, a `/`, a `?`, an `&`) makes Telegram reject the
+  // deep link with a vague "Something went wrong" inside the client. The only
+  // payload we actually need to carry across the handoff is the affiliate
+  // referral code (`?ref=LM-XXXX`) — any other in-app routing happens after
+  // launch via the SPA router, so it's safer to omit `startapp` entirely when
+  // there's nothing valid to pass.
+  let validRef: string | null = null
+  try {
+    const qs = path.split('?')[1] ?? ''
+    const ref = new URLSearchParams(qs).get('ref')
+    if (ref && /^LM-[A-Za-z0-9_-]{2,60}$/i.test(ref)) validRef = ref
+  } catch { /* malformed URL — skip ref */ }
+
+  const startQS = validRef ? `&startapp=${validRef}` : ''
+  const startQSUni = validRef ? `?startapp=${validRef}` : ''
+
   if (MINI_APP_NAME) {
     // Named Mini App (created with `/newapp` in BotFather, has a short name).
     return {
-      scheme: `tg://resolve?domain=${BOT_USERNAME}&appname=${MINI_APP_NAME}&startapp=${start}`,
-      universal: `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}?startapp=${start}`,
+      scheme: `tg://resolve?domain=${BOT_USERNAME}&appname=${MINI_APP_NAME}${startQS}`,
+      universal: `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}${startQSUni}`,
     }
   }
   // Main Mini App (Bot Settings → Configure Mini App, no short name).
   // `startapp` (not `start`) is the parameter that opens the Mini App
   // directly; `start` would just send /start to the bot's chat.
   return {
-    scheme: `tg://resolve?domain=${BOT_USERNAME}&startapp=${start}`,
-    universal: `https://t.me/${BOT_USERNAME}?startapp=${start}`,
+    scheme: `tg://resolve?domain=${BOT_USERNAME}${startQS}`,
+    universal: `https://t.me/${BOT_USERNAME}${startQSUni}`,
   }
 }
 
