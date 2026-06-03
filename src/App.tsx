@@ -3,10 +3,12 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { RouterProvider } from 'react-router-dom'
 import { queryClient } from './lib/queryClient'
 import { router } from './routes'
+import TelegramSuggestionBanner from './shell/TelegramSuggestionBanner'
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <TelegramSuggestionBanner />
       <RouterProvider router={router} />
       <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
     </QueryClientProvider>

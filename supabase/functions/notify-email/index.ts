@@ -79,15 +79,25 @@ serve(async (req: Request) => {
     const rawEmail = userRes?.user?.email ?? null
     const email = rawEmail && !/\.invalid$/i.test(rawEmail) ? rawEmail : null
 
-    // Actor name for the message.
+    // Actor name + avatar for the message. Prefer display_name; fall back to
+    // the handle WITHOUT a leading '@' (the prefix made notifications read as
+    // "@vee liked your post" — we want "vee liked your post").
     let actor = 'Someone'
+    let actorAvatarUrl: string | null = null
     if (n.actor_id) {
       const { data: a } = await admin
         .from('profiles')
-        .select('handle, display_name')
+        .select('handle, display_name, first_name, avatar_url')
         .eq('id', n.actor_id)
         .maybeSingle()
-      if (a) actor = a.handle ? `@${a.handle}` : (a.display_name ?? 'Someone')
+      if (a) {
+        const stripAt = (s: string | null) => (s ? s.replace(/^@+/, '') : null)
+        actor = a.display_name?.trim()
+          || a.first_name?.trim()
+          || stripAt(a.handle)
+          || 'Someone'
+        actorAvatarUrl = a.avatar_url ?? null
+      }
     }
 
     const appUrl = (Deno.env.get('APP_URL') ?? '').replace(/\/$/, '')
@@ -129,12 +139,49 @@ serve(async (req: Request) => {
         const token = Deno.env.get('TELEGRAM_BOT_TOKEN')
         if (!token) throw new Error('TELEGRAM_BOT_TOKEN not set')
         const text = `<b>${escapeHtml(c.title)}</b>\n\n${escapeHtml(c.message)}`
-        const reply_markup = /^https?:\/\//.test(link) ? { inline_keyboard: [[{ text: c.cta, url: link }]] } : undefined
-        const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: tgChatId, text, parse_mode: 'HTML', reply_markup }),
-        })
-        if (!res.ok) throw new Error(`telegram ${res.status}: ${(await res.text()).slice(0, 160)}`)
+
+        // Build the inline keyboard. Telegram recipients are already inside
+        // Telegram — open the Mini App via `web_app`, never the browser. This
+        // keeps them on the surface they're signed into (no identity split,
+        // no re-auth, no duplicate account). Works for any URL on the same
+        // domain as the bot's configured Mini App.
+        const httpLink = /^https?:\/\//.test(link) ? link : null
+        const reply_markup = httpLink
+          ? { inline_keyboard: [[{ text: c.cta, web_app: { url: httpLink } }]] }
+          : undefined
+
+        // If the actor has an avatar, send the notification as a PHOTO so the
+        // recipient sees the sender's face in the notification preview.
+        // Otherwise fall back to plain sendMessage.
+        const tgRes = actorAvatarUrl
+          ? await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: tgChatId,
+                photo: actorAvatarUrl,
+                caption: text,
+                parse_mode: 'HTML',
+                reply_markup,
+              }),
+            })
+          : await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: tgChatId, text, parse_mode: 'HTML', reply_markup }),
+            })
+
+        // If sendPhoto failed (e.g. Telegram couldn't fetch the avatar URL),
+        // fall back to sendMessage so the user still gets the notification.
+        if (!tgRes.ok && actorAvatarUrl) {
+          const fallback = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: tgChatId, text, parse_mode: 'HTML', reply_markup }),
+          })
+          if (!fallback.ok) {
+            throw new Error(`telegram ${fallback.status}: ${(await fallback.text()).slice(0, 160)}`)
+          }
+        } else if (!tgRes.ok) {
+          throw new Error(`telegram ${tgRes.status}: ${(await tgRes.text()).slice(0, 160)}`)
+        }
         result.telegram = tgChatId
       } catch (e) { errors.push(`telegram: ${(e as Error).message}`) }
     }
