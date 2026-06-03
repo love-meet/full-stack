@@ -48,13 +48,22 @@ export function useEnsureBrowserNotifications() {
   }, [setPermission])
 }
 
-/** Show an OS/browser notification if we're allowed to. No-ops otherwise. */
-export function showBrowserNotification(title: string, body: string, onClick?: () => void) {
+/**
+ * Show an OS/browser notification if we're allowed to. No-ops otherwise.
+ * `iconUrl` (optional) — when set, used as the notification icon so users
+ * see the actor's avatar instead of the generic Love-meet favicon.
+ */
+export function showBrowserNotification(
+  title: string,
+  body: string,
+  onClick?: () => void,
+  iconUrl?: string | null,
+) {
   if (!supported || Notification.permission !== 'granted') return
   try {
     const n = new Notification(title, {
       body,
-      icon: '/favicon-32x32.png',
+      icon: iconUrl || '/favicon-32x32.png',
       badge: '/favicon-32x32.png',
       tag: 'love-meet-message', // collapse rapid pings into one
     })

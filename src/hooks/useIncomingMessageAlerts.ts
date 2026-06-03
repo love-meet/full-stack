@@ -10,7 +10,10 @@ type NotifRow = {
   type: string
   body: string | null
   conversation_id: string | null
+  actor_id: string | null
 }
+
+const stripAt = (s: string | null) => (s ? s.replace(/^@+/, '') : null)
 
 /**
  * Mount once at the app root. Listens for the signed-in user's incoming
@@ -43,11 +46,36 @@ export function useIncomingMessageAlerts() {
 
           playPing()
           if (document.visibilityState !== 'visible') {
-            showBrowserNotification(
-              'New message 💬',
-              n.body ?? 'You have a new message on Love meet.',
-              () => { if (n.conversation_id) navigate(`/chat/${n.conversation_id}`) },
-            )
+            // Fetch actor avatar + name so the notification carries the
+            // sender's face and is titled "<name> sent you a message" rather
+            // than the generic "New message". One quick query per ping.
+            void (async () => {
+              let actorAvatar: string | null = null
+              let actorName: string | null = null
+              if (n.actor_id) {
+                const { data: a } = await supabase
+                  .from('profiles')
+                  .select('display_name, first_name, handle, avatar_url')
+                  .eq('id', n.actor_id)
+                  .maybeSingle()
+                if (a) {
+                  actorName = a.display_name?.trim()
+                    || a.first_name?.trim()
+                    || stripAt(a.handle)
+                    || null
+                  actorAvatar = a.avatar_url ?? null
+                }
+              }
+              const title = actorName
+                ? `${actorName} sent you a message 💬`
+                : 'New message 💬'
+              showBrowserNotification(
+                title,
+                n.body ?? 'You have a new message on Love meet.',
+                () => { if (n.conversation_id) navigate(`/chat/${n.conversation_id}`) },
+                actorAvatar,
+              )
+            })()
           }
         },
       )

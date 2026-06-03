@@ -21,6 +21,11 @@ declare global {
         requestFullscreen?: () => void
         exitFullscreen?: () => void
         isFullscreen?: boolean
+        // Bot API 7.7+ — swipe-down-to-minimize gesture controls. Disabling
+        // prevents accidental closure when scrolling feeds / chats.
+        disableVerticalSwipes?: () => void
+        enableVerticalSwipes?: () => void
+        isVerticalSwipesEnabled?: boolean
       }
     }
   }

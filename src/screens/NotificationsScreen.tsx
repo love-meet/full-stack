@@ -120,7 +120,12 @@ export default function NotificationsScreen() {
 }
 
 function actorName(n: AppNotification): string {
-  return n.actor_handle ? `@${n.actor_handle}` : n.actor_display_name ?? 'Someone'
+  const stripAt = (s: string | null) => (s ? s.replace(/^@+/, '') : null)
+  return (
+    n.actor_display_name?.trim()
+    || stripAt(n.actor_handle)
+    || 'Someone'
+  )
 }
 
 function message(n: AppNotification): React.ReactNode {
