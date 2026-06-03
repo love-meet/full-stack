@@ -116,9 +116,9 @@ serve(async (req: Request) => {
         .eq('invite_code', n.body)
         .maybeSingle()
       const META: Record<string, { label: string; emoji: string; image: string }> = {
-        pixel_rush:  { label: 'Pixel Rush',  emoji: '🧩', image: '/img/games/pixel-rush.png' },
-        number_duel: { label: 'Number Duel', emoji: '🔢', image: '/img/games/number-duel.png' },
-        draughts:    { label: 'Draughts',    emoji: '♟',  image: '/img/games/draughts.png' },
+        pixel_rush:  { label: 'Pixel Rush',  emoji: '🧩', image: '/pixel-rush.png' },
+        number_duel: { label: 'Number Duel', emoji: '🔢', image: '/number-duel.png' },
+        draughts:    { label: 'Draughts',    emoji: '♟',  image: '/draughts.png' },
       }
       const m = g?.game_type ? META[g.game_type as keyof typeof META] : null
       gameMeta = m
