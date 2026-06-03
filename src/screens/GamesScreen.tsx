@@ -17,6 +17,8 @@ type Game = {
   players: 'Couples' | 'Group' | '1v1' | '1v1 / Group'
   accent: string
   to?: string // present = playable (no padlock)
+  /** create_game enum value — drives which gameplay loads on /play/<code>. */
+  gameType?: 'pixel_rush' | 'number_duel' | 'draughts'
   /** Rules shown in the GameIntroModal (numbered list). */
   rules?: ReactNode[]
 }
@@ -27,9 +29,10 @@ const GAMES: Game[] = [
     blurb: 'Race to rebuild a scrambled photo. Fastest to fix it wins.',
     image: '/pixel-rush.png',
     emoji: '🧩',
-    players: '1v1 / Group',
+    players: '1v1',
     accent: 'var(--color-gold)',
     to: '/games/pixel-rush',
+    gameType: 'pixel_rush',
     rules: [
       <>A photo is shown for <b>5 seconds</b> — study it.</>,
       <>It scatters into a grid — easy <b>3×3</b> early rounds, building up to a hard <b>5×5</b>.</>,
@@ -46,6 +49,7 @@ const GAMES: Game[] = [
     players: '1v1',
     accent: 'var(--color-magenta)',
     to: '/games/number-duel',
+    gameType: 'number_duel',
     rules: [
       <>You each secretly pick a number from <b>0 to 100</b> (e.g. 17, 42, 90).</>,
       <>Race to guess your opponent's number on the keypad.</>,
@@ -63,6 +67,7 @@ const GAMES: Game[] = [
     players: '1v1',
     accent: 'var(--color-gold)',
     to: '/games/draughts',
+    gameType: 'draughts',
     rules: [
       <>You and your opponent get <b>12 pieces each</b> on an 8×8 board.</>,
       <>Pieces move <b>diagonally forward</b> one square at a time.</>,
@@ -117,7 +122,9 @@ export default function GamesScreen() {
               emoji: openGame.emoji,
               blurb: openGame.blurb,
               players: openGame.players,
-              to: openGame.to,
+              image: openGame.image,
+              accent: openGame.accent,
+              gameType: openGame.gameType,
               rules: openGame.rules,
             }}
             onClose={() => setOpenGame(null)}
@@ -149,7 +156,7 @@ function GameCard({
       whileHover={locked ? undefined : { y: -4, scale: 1.012 }}
       whileTap={locked ? undefined : { scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 380, damping: 26 }}
-      className="relative w-full aspect-[3/1] rounded-[22px] overflow-hidden"
+      className="relative w-full aspect-[4/1] rounded-[20px] overflow-hidden"
       style={{
         boxShadow:
           '0 16px 36px -16px rgba(0,0,0,0.65), 0 4px 10px -4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.16)',
