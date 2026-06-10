@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import StepShell from './StepShell'
 import { STEPS, initialFormData, type FormData } from './types'
-import { useUpdateProfile, type ProfileUpdate } from '../../hooks/useProfile'
+import { useUpdateProfile, useProfile, type ProfileUpdate } from '../../hooks/useProfile'
 import { useAuth } from '../../stores/auth'
 import { supabase } from '../../lib/supabase'
+import LoadingShell from '../../shell/LoadingShell'
 
 import NameStep from './steps/NameStep'
 import DetailsStep from './steps/DetailsStep'
@@ -18,6 +19,7 @@ export default function OnboardingScreen() {
   const navigate = useNavigate()
   const update = useUpdateProfile()
   const session = useAuth((s) => s.session)
+  const profileQuery = useProfile()
   const [step, setStep] = useState(0)
   // Pre-fill the avatar from the OAuth provider's picture if available.
   // Google populates `picture` in user_metadata; our Telegram Edge Function
@@ -29,6 +31,45 @@ export default function OnboardingScreen() {
       | undefined
     return { ...initialFormData, avatar: meta?.avatar_url ?? meta?.picture ?? '' }
   })
+
+  // ── Defensive onboarding bypass ─────────────────────────────────────────
+  // If we somehow land here but the user has already completed onboarding,
+  // skip straight to the feed. Two cases:
+  //   1. `onboarded_at` is set — RequireProfile *should* have caught this
+  //      already but if there's any stale-cache window we don't want them
+  //      to see the wizard again. Cheap sanity guard.
+  //   2. `onboarded_at` is null BUT the profile has the load-bearing
+  //      onboarding fields filled (display_name + dob + gender). This
+  //      backfills returning users whose timestamp didn't persist for
+  //      whatever reason — they did the work, they shouldn't have to do
+  //      it twice. We set onboarded_at = now() in the background and
+  //      navigate them through.
+  const backfillRef = useRef(false)
+  useEffect(() => {
+    const p = profileQuery.data
+    if (!p) return
+    if (p.onboarded_at) {
+      // Sanity guard: RequireProfile would normally route them away, but if
+      // we're somehow on /onboarding with a completed profile, leave.
+      navigate('/feed', { replace: true })
+      return
+    }
+    const looksOnboarded =
+      !!(p.display_name || p.first_name) && !!p.dob && !!p.gender
+    if (looksOnboarded && !backfillRef.current && !update.isPending) {
+      backfillRef.current = true
+      void update.mutateAsync({ onboarded_at: new Date().toISOString() })
+        .then(() => { navigate('/feed', { replace: true }) })
+        .catch(() => { /* fall through to wizard */ backfillRef.current = false })
+    }
+  }, [profileQuery.data, navigate, update])
+
+  // Block the wizard from painting while we still have any of the above to
+  // resolve: profile is loading, profile is already onboarded, or we're
+  // backfilling.
+  if (profileQuery.isLoading) return <LoadingShell />
+  if (profileQuery.data?.onboarded_at) return <Navigate to="/feed" replace />
+  if (backfillRef.current) return <LoadingShell />
 
   const set = useCallback(
     (patch: Partial<FormData>) => setData((d) => ({ ...d, ...patch })),
