@@ -1,9 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../stores/auth'
 import { useProfile } from '../hooks/useProfile'
-import { useHasPosted, useMatchPreferences } from '../hooks/useMatchPreferences'
+import {
+  useBackfillMatchPreferencesComplete,
+  useHasPosted,
+  useMatchPreferences,
+} from '../hooks/useMatchPreferences'
 
 /** Set by PlanCheckoutScreen when the user backs out of checkout without
  *  paying. Read here so we can nudge them with a "you're on Free" notice. */
@@ -25,9 +29,31 @@ export default function OnboardingPrompts() {
   const onboarded = !!profile.data?.onboarded_at
   const hasPosted = useHasPosted(onboarded ? myId : null)
   const prefs = useMatchPreferences()
+  const backfill = useBackfillMatchPreferencesComplete()
 
   const [cancelled, setCancelled] = useState(() =>
     typeof window !== 'undefined' && sessionStorage.getItem(CHECKOUT_CANCELLED) === '1')
+
+  // Defensive backfill — if the user has clearly already done the interview
+  // (answers exist in both partner and self maps) but completed_at didn't
+  // persist for whatever reason, stamp it now in the background so they're
+  // never re-prompted. Fires once per mount; the success invalidates the
+  // prefs query and flips wantInterview to false on the next render.
+  const backfillRef = useRef(false)
+  useEffect(() => {
+    if (backfillRef.current || backfill.isPending) return
+    const p = prefs.data
+    if (!p) return
+    if (p.completed_at) return
+    const partnerAnswered = p.partner && Object.keys(p.partner).length > 0
+    const selfAnswered = p.self && Object.keys(p.self).length > 0
+    if (partnerAnswered && selfAnswered) {
+      backfillRef.current = true
+      backfill.mutate(undefined, {
+        onError: () => { backfillRef.current = false },
+      })
+    }
+  }, [prefs.data, backfill])
 
   if (!ready || !session || !onboarded) return null
 
@@ -36,12 +62,23 @@ export default function OnboardingPrompts() {
   const postLoaded = hasPosted.status === 'success'
   const prefsLoaded = prefs.status === 'success'
 
+  // Treat the interview as completed if the timestamp is set OR if the
+  // answers are clearly already filled (the backfill above will stamp the
+  // timestamp shortly). This collapses the window where a returning user
+  // would otherwise see the modal flash before the backfill resolves.
+  const interviewDone = (() => {
+    const p = prefs.data
+    if (!p) return false
+    if (p.completed_at) return true
+    const partnerAnswered = p.partner && Object.keys(p.partner).length > 0
+    const selfAnswered = p.self && Object.keys(p.self).length > 0
+    return !!(partnerAnswered && selfAnswered)
+  })()
+
   const wantPost = postLoaded && hasPosted.data === false
-  // prefs.data is null when the user has no row yet (never opened the
-  // interview) — that still counts as "not completed".
   const wantInterview =
     postLoaded && hasPosted.data === true &&
-    prefsLoaded && prefs.data?.completed_at == null
+    prefsLoaded && !interviewDone
   const wantFreeNotice =
     cancelled && !wantPost && !wantInterview
 
