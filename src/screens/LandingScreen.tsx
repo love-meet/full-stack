@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, type Variants } from 'framer-motion'
-import { useNavigate, Link } from 'react-router-dom'
+import { Navigate, Link } from 'react-router-dom'
 import { useAuth } from '../stores/auth'
 import { getSurface } from '../lib/surface'
 import { signInWithGoogle, signInWithTelegram } from '../lib/signIn'
+import LoadingShell from '../shell/LoadingShell'
 
 // Deterministic heart positions so re-renders don't reshuffle them. Kept
 // light (10 total) so the landing paints fast.
@@ -34,7 +35,6 @@ const rise: Variants = {
 }
 
 export default function LandingScreen() {
-  const navigate = useNavigate()
   const session = useAuth((s) => s.session)
   const ready = useAuth((s) => s.ready)
   const [surface] = useState(getSurface())
@@ -58,9 +58,12 @@ export default function LandingScreen() {
     }
   }, [])
 
-  useEffect(() => {
-    if (ready && session) navigate('/feed', { replace: true })
-  }, [ready, session, navigate])
+  // Hide the landing UI while auth is still resolving — otherwise a returning
+  // signed-in user briefly sees the marketing page before the redirect kicks
+  // in. Once we know there's a session, redirect synchronously so the user
+  // goes straight to /feed without a paint of the landing.
+  if (!ready) return <LoadingShell />
+  if (session) return <Navigate to="/feed" replace />
 
   // Telegram sign-in is triggered ONLY by the button (onTelegramClick) —
   // never automatically — so users tap to connect.
