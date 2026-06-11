@@ -37,10 +37,7 @@ import { InlineAd, PopunderAd } from '../../components/FeedAd'
 import DuelArena from '../../components/games/NumberDuelMatch'
 import DraughtsBoard from '../../components/games/DraughtsBoard'
 import { useDraughtsRound, useAdvanceDraughts } from '../../hooks/useDraughts'
-import { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
-import PixelRushCanvas from '../../games/pixel-rush/PixelRushCanvas'
-import PixelRushLobby from '../../games/pixel-rush/PixelRushLobby'
-import PixelRushHUDCanvas from '../../games/pixel-rush/PixelRushHUDCanvas'
+import PixelBoard, { MiniBoard, seedFor, scrambleFor, solvedCount, gridForRound, difficultyLabel } from '../../components/games/PixelBoard'
 import { avatarUrlOr } from '../../lib/avatar'
 import ShareSheet from '../../components/ShareSheet'
 
@@ -201,42 +198,6 @@ export default function PlayGameScreen() {
 
   // ----- not yet joined → join card -----
   if (!inGame && g.status === 'lobby') {
-    // Pixel Rush: render the same themed canvas lobby as the host sees, but
-    // in `joiner` mode — the inviter is in the left avatar slot, the right
-    // slot stays as the "?" placeholder until the local user taps JOIN. The
-    // primary button reads JOIN GAME and the close button reads DECLINE.
-    if (g.game_type === 'pixel_rush') {
-      const hostPlayer = list.find((p) => p.is_host) ?? list[0]
-      const primaryDisabled = join.isPending || (isAnon && name.trim().length < 2)
-      return (
-        <PixelRushLobby
-          inviteCode={g.invite_code}
-          inviteUrl={inviteUrl}
-          host={{
-            name: hostPlayer ? playerLabel(hostPlayer) : 'Host',
-            avatarUrl: avatarUrlOr(hostPlayer?.profile?.avatar_url),
-          }}
-          joiner={null}
-          isHost={false}
-          mode="joiner"
-          primaryDisabled={primaryDisabled}
-          onPrimaryClick={doJoin}
-          onShareClick={() => { /* joiners don't share */ }}
-          onCloseClick={() => navigate('/games')}
-          nameInput={
-            isAnon
-              ? {
-                  value: name,
-                  onChange: setName,
-                  placeholder: 'Your name',
-                  error: joinError ?? undefined,
-                }
-              : undefined
-          }
-        />
-      )
-    }
-
     return (
       <Frame>
         <Card>
@@ -292,51 +253,6 @@ export default function PlayGameScreen() {
   // we can detect "your previous opponent left" and tell the host.
   const wasReverted =
     new Date(g.lobby_since ?? g.created_at).getTime() > new Date(g.created_at).getTime() + 5000
-
-  // Pixel Rush gets a fully canvas-based lobby — themed Pixel Rush
-  // background, avatar slots in the top corners, INVITE A FRIEND canvas
-  // button, 3-2-1 countdown when the opponent joins. The DOM lobby below
-  // is kept for the other game types until they're migrated to canvas too.
-  if (g.game_type === 'pixel_rush') {
-    const hostPlayer = list.find((p) => p.is_host) ?? list[0]
-    const joinerPlayer = list.find(
-      (p) => !p.is_host && p.user_id !== hostPlayer?.user_id,
-    )
-    return (
-      <>
-        <PixelRushLobby
-          inviteCode={g.invite_code}
-          inviteUrl={inviteUrl}
-          host={{
-            name: hostPlayer ? playerLabel(hostPlayer) : 'Host',
-            avatarUrl: avatarUrlOr(hostPlayer?.profile?.avatar_url),
-          }}
-          joiner={
-            joinerPlayer
-              ? {
-                  name: playerLabel(joinerPlayer),
-                  avatarUrl: avatarUrlOr(joinerPlayer?.profile?.avatar_url),
-                }
-              : null
-          }
-          isHost={isHost}
-          onShareClick={() => setShareOpen(true)}
-          onCloseClick={doClose}
-          onAutoStart={isHost ? () => g && start.mutate(g.id) : undefined}
-          revertedFromMatch={wasReverted}
-        />
-        {shareOpen && (
-          <ShareSheet
-            url={inviteUrl}
-            text={shareText}
-            title="Invite to Pixel Rush"
-            onClose={() => setShareOpen(false)}
-          />
-        )}
-      </>
-    )
-  }
-
   return (
     <Frame>
       <Card>
@@ -644,108 +560,14 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
     }
   }
 
-  // Pixel Rush uses the cyan/teal lobby palette throughout the match so the
-  // surface stays uniform from invite → countdown → gameplay. Other games
-  // keep the default warm/rose palette until they're themed too.
-  const isPixelRush = g.game_type === 'pixel_rush'
-  const cyan = '#35CDE8'
-  const cyan2 = '#6CE8FA'
-  const pixelRushBg = isPixelRush
-    ? {
-        backgroundColor: '#050B14',
-        backgroundImage:
-          `radial-gradient(900px 600px at 12% 10%, rgba(53,205,232,0.11), transparent 60%),
-           radial-gradient(900px 600px at 92% 92%, rgba(108,232,250,0.08), transparent 60%)`,
-      }
-    : undefined
-
-  // ── Pixel Rush — fully canvas-based racing surface ─────────────────────
-  // When pixel_rush is in active racing AND the viewer is a player, render
-  // the canvas HUD + PixelRushCanvas with no surrounding DOM (no fixed-top
-  // DOM header, no DOM "rebuild this picture" preview, no DOM instructions).
-  // Other states (awaiting_image / done / finished) keep their DOM
-  // implementations until subsequent sessions migrate them.
-  if (isPixelRush && g.status === 'active' && amPlayer && r?.status === 'racing') {
-    const meIdx = players.findIndex((p) => p.user_id === myId)
-    const opponent = meIdx >= 0 ? players[1 - meIdx] : players[0]
-    const myP = meIdx >= 0 ? players[meIdx] : players[1]
-    const toChip = (p: GamePlayer | undefined, isMe: boolean) => {
-      if (!p) return null
-      return {
-        userId: p.user_id,
-        name: playerLabel(p),
-        avatarUrl: avatarUrlOr(p.profile?.avatar_url),
-        score: p.score,
-        trophies: p.trophies,
-        pct: pctById.get(p.user_id) ?? null,
-        online: online.has(p.user_id),
-        isMe,
-        isHost: !!p.is_host,
-      }
-    }
-    return (
-      <div className="min-h-screen relative" style={pixelRushBg}>
-        <PixelRushHUDCanvas
-          left={toChip(opponent, false)}
-          right={toChip(myP, true)}
-          currentRound={g.current_round}
-          totalRounds={g.rounds_total}
-          trophiesLeft={opponent?.trophies}
-          trophiesRight={myP?.trophies}
-          isHost={isHost}
-          isPlayer={amPlayer}
-          onLeaveClick={onLeave}
-        />
-        {/* Gameplay canvas — padded to clear the fixed HUD (118px) + Telegram inset. */}
-        <div
-          className="flex items-start justify-center"
-          style={{
-            paddingTop: 'calc(var(--lm-top-inset) + 118px + 16px)',
-            paddingBottom: '2rem',
-            paddingLeft: '12px',
-            paddingRight: '12px',
-          }}
-        >
-          <PixelRushCanvas
-            image={r.image_url!}
-            seed={seedFor(g.id, r.round_no)}
-            grid={gridForRound(r.round_no)}
-            startedAt={r.started_at ? Date.parse(r.started_at) : Date.now()}
-            locked={false}
-            onSolve={(timeMs) => submit.mutate({ gameId: g.id, round: r.round_no, timeMs })}
-            onProgress={(order, done) => { setMyOrder(order); if (myId) sendProgress(myId, order, done) }}
-          />
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div
-      className={`min-h-screen text-ink ${isPixelRush ? '' : 'bg-surface'}`}
-      style={pixelRushBg}
-    >
+    <div className="min-h-screen bg-surface text-ink">
       <PopunderAd />
       {/* Fixed VS header — opponents + scores + close/leave. */}
-      <div
-        className={`fixed top-0 left-0 right-0 z-20 glass ${
-          isPixelRush ? 'border-b' : 'border-b border-white/5'
-        }`}
-        style={{
-          paddingTop: 'var(--lm-top-inset)',
-          ...(isPixelRush
-            ? { borderBottomColor: `${cyan}33`, backgroundColor: 'rgba(10,26,44,0.55)' }
-            : {}),
-        }}
-      >
+      <div className="fixed top-0 left-0 right-0 z-20 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
         <div className="max-w-md mx-auto px-3 py-2">
           <div className="flex items-center justify-between mb-1.5">
-            <span
-              className="text-[11px] font-bold tabular-nums"
-              style={isPixelRush ? { color: cyan2, letterSpacing: '0.1em' } : { color: 'var(--color-ink-2)' }}
-            >
-              ROUND {g.current_round}/{g.rounds_total}
-            </span>
+            <span className="text-[11px] font-bold text-ink-2">Round {g.current_round}/{g.rounds_total}</span>
             <div className="flex items-center gap-3">
               {viewers > 0 && <span className="text-[11px] text-ink-muted">👁 {viewers}</span>}
               <MessagesPill />
@@ -767,7 +589,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
               )}
             </div>
           </div>
-          <VSHeader players={players} kind={g.kind} online={online} pctById={pctById} myId={myId} accent={isPixelRush ? cyan : undefined} />
+          <VSHeader players={players} kind={g.kind} online={online} pctById={pctById} myId={myId} />
         </div>
       </div>
 
@@ -818,7 +640,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
               {/* Drag a tile onto another to swap them. */}
               <div>
                 <div className="text-center text-[10px] text-ink-muted mb-1">✥ drag a tile onto another, or tap two tiles, to swap</div>
-                <PixelRushCanvas
+                <PixelBoard
                   image={r.image_url!}
                   seed={seedFor(g.id, r.round_no)}
                   grid={gridForRound(r.round_no)}
@@ -884,15 +706,10 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
 /** The opponents bar: A — VS — B with avatars + scores (or team totals).
  *  `pctById` carries each player's live solved % during a race (empty otherwise);
  *  it's shown by their name so you can see who's closest to finishing. */
-function VSHeader({ players, kind, online, pctById, myId, accent }: {
+function VSHeader({ players, kind, online, pctById, myId }: {
   players: GamePlayer[]; kind: string; online: Set<string>
   pctById: Map<string, number>; myId: string | null
-  /** Optional accent colour — overrides the default warm gradient. Pixel Rush
-   *  passes "#35CDE8" so the VS text + scores match the cyan lobby theme. */
-  accent?: string
 }) {
-  const titleStyle = accent ? { color: accent } : undefined
-  const teamLabelStyle = accent ? { color: accent } : undefined
   if (kind === 'group') {
     const teamA = players.filter((p) => p.team === 'A')
     const teamB = players.filter((p) => p.team === 'B')
@@ -906,20 +723,12 @@ function VSHeader({ players, kind, online, pctById, myId, accent }: {
     const tb = teamB.reduce((m, p) => Math.max(m, p.trophies), 0)
     return (
       <div className="flex items-center justify-between">
-        <div className="flex-1 text-center">
-          <div className={`text-[11px] font-bold ${accent ? '' : 'text-rose'}`} style={teamLabelStyle}>Team A</div>
-          <div className="text-2xl font-extrabold text-ink">{a}</div>
-          {pa != null && <div className={`text-[11px] font-bold tabular-nums ${accent ? '' : 'text-gradient-warm'}`} style={titleStyle}>{pa}%</div>}
-        </div>
+        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team A</div><div className="text-2xl font-extrabold text-ink">{a}</div>{pa != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pa}%</div>}</div>
         <div className="flex flex-col items-center px-2">
           {ta + tb > 0 && <span className="text-sm font-extrabold text-gold tabular-nums leading-none">🏆 {ta} : {tb}</span>}
-          <span className={`text-sm font-extrabold ${accent ? '' : 'text-gradient-warm'}`} style={titleStyle}>VS</span>
+          <span className="text-sm font-extrabold text-gradient-warm">VS</span>
         </div>
-        <div className="flex-1 text-center">
-          <div className={`text-[11px] font-bold ${accent ? '' : 'text-rose'}`} style={teamLabelStyle}>Team B</div>
-          <div className="text-2xl font-extrabold text-ink">{b}</div>
-          {pb != null && <div className={`text-[11px] font-bold tabular-nums ${accent ? '' : 'text-gradient-warm'}`} style={titleStyle}>{pb}%</div>}
-        </div>
+        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team B</div><div className="text-2xl font-extrabold text-ink">{b}</div>{pb != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pb}%</div>}</div>
       </div>
     )
   }
@@ -931,21 +740,20 @@ function VSHeader({ players, kind, online, pctById, myId, accent }: {
   const trophyTally = (a?.trophies ?? 0) + (b?.trophies ?? 0)
   return (
     <div className="flex items-center justify-between gap-2">
-      <PlayerChip p={a} online={!!a && online.has(a.user_id)} align="left" pct={a ? pctById.get(a.user_id) : undefined} isMe={!!a && a.user_id === myId} accent={accent} />
+      <PlayerChip p={a} online={!!a && online.has(a.user_id)} align="left" pct={a ? pctById.get(a.user_id) : undefined} isMe={!!a && a.user_id === myId} />
       <div className="flex flex-col items-center shrink-0">
         {trophyTally > 0 && <span className="text-sm font-extrabold text-gold tabular-nums leading-none">🏆 {a?.trophies ?? 0} : {b?.trophies ?? 0}</span>}
-        <span className={`text-sm font-extrabold ${accent ? '' : 'text-gradient-warm'}`} style={titleStyle}>VS</span>
+        <span className="text-sm font-extrabold text-gradient-warm">VS</span>
       </div>
-      <PlayerChip p={b} online={!!b && online.has(b.user_id)} align="right" pct={b ? pctById.get(b.user_id) : undefined} isMe={!!b && b.user_id === myId} accent={accent} />
+      <PlayerChip p={b} online={!!b && online.has(b.user_id)} align="right" pct={b ? pctById.get(b.user_id) : undefined} isMe={!!b && b.user_id === myId} />
     </div>
   )
 }
 
-function PlayerChip({ p, online, align, pct, isMe, accent }: {
-  p?: GamePlayer; online: boolean; align: 'left' | 'right'; pct?: number; isMe?: boolean; accent?: string
+function PlayerChip({ p, online, align, pct, isMe }: {
+  p?: GamePlayer; online: boolean; align: 'left' | 'right'; pct?: number; isMe?: boolean
 }) {
   if (!p) return <div className="flex-1 text-center text-[11px] text-ink-muted">waiting…</div>
-  const accentStyle = accent ? { color: accent } : undefined
   return (
     <div className={`flex-1 flex items-center gap-2 min-w-0 ${align === 'right' ? 'flex-row-reverse text-right' : ''}`}>
       <span className="relative shrink-0">
@@ -955,9 +763,9 @@ function PlayerChip({ p, online, align, pct, isMe, accent }: {
       <div className="min-w-0">
         <div className={`flex items-center gap-1.5 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
           <span className="text-xs font-bold text-ink truncate">{isMe ? 'You' : playerLabel(p)}</span>
-          {pct != null && <span className={`text-[11px] font-bold tabular-nums shrink-0 ${accent ? '' : 'text-gradient-warm'}`} style={accentStyle}>{pct}%</span>}
+          {pct != null && <span className="text-[11px] font-bold text-gradient-warm tabular-nums shrink-0">{pct}%</span>}
         </div>
-        <div className={`text-lg font-extrabold leading-none ${accent ? '' : 'text-gradient-warm'}`} style={accentStyle}>{p.score}</div>
+        <div className="text-lg font-extrabold text-gradient-warm leading-none">{p.score}</div>
       </div>
     </div>
   )
