@@ -2,16 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useCreateGame } from '../../hooks/usePixelGame'
-import { useMySubscription } from '../../hooks/usePayments'
 import { PopunderAd } from '../../components/FeedAd'
-import MembersOnlyGate from '../../components/games/MembersOnlyGate'
 
 /** Intro + create flow for Number Duel. Reuses the shared game lobby at
  *  /play/:code — only the gameplay differs. 1v1 only. */
 export default function NumberDuelScreen() {
   const navigate = useNavigate()
   const createGame = useCreateGame()
-  const isSubscriber = !!useMySubscription().data
   const [err, setErr] = useState<string | null>(null)
   // If reached via the Games-list modal (which already showed the rules),
   // hide the rules block here so the user lands on a focused Host card.
@@ -26,13 +23,8 @@ export default function NumberDuelScreen() {
     } catch (e) { setErr((e as Error).message) }
   }
 
-  if (!isSubscriber) {
-    return (
-      <Shell onBack={() => navigate(-1)}>
-        <MembersOnlyGate headline="Want to host a Number Duel?" />
-      </Shell>
-    )
-  }
+  // Games gate temporarily open — re-enable subscriber check here when
+  // paid hosting comes back.
 
   return (
     <Shell onBack={() => navigate(-1)}>
