@@ -14,6 +14,7 @@ import BlueTick from '../components/BlueTick'
 import { useFeedPrefs } from '../stores/feedPrefs'
 import { getSurface } from '../lib/surface'
 import { avatarUrlOr } from '../lib/avatar'
+import PresenceDot from '../components/PresenceDot'
 import GiftSheet from '../components/GiftSheet'
 import FeedAd from '../components/FeedAd'
 import PostMoreDropdown from '../components/PostMoreDropdown'
@@ -222,11 +223,14 @@ function PlayerFace({ p }: { p?: LiveGame['players'][number] }) {
   const label = p?.profile?.handle ?? p?.profile?.display_name ?? 'Player'
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <img
-        src={avatarUrlOr(p?.profile?.avatar_url)}
-        alt=""
-        className="w-20 h-20 rounded-full object-cover ring-2 ring-white/30"
-      />
+      <span className="relative">
+        <img
+          src={avatarUrlOr(p?.profile?.avatar_url)}
+          alt=""
+          className="w-20 h-20 rounded-full object-cover ring-2 ring-white/30"
+        />
+        {p?.user_id && <PresenceDot userId={p.user_id} size="md" ringColor="ring-black/60" />}
+      </span>
       <span className="text-xs text-white/90 max-w-20 truncate">@{label}</span>
     </div>
   )
@@ -271,11 +275,14 @@ function FeedSlide({ post, relation }: { post: FeedPost; relation?: Relation }) 
       {/* Caption + author — bottom-left, above the action rail. */}
       <div className="absolute left-0 right-16 bottom-0 p-4 pb-5">
         <Link to={`/profile/${post.author_id}`} className="flex items-center gap-2.5 mb-2 active:opacity-70">
-          <img
-            src={avatarUrlOr(post.author_avatar_url, post.author_gender)}
-            alt=""
-            className="w-10 h-10 rounded-full object-cover ring-2 ring-white/40 shrink-0"
-          />
+          <span className="relative shrink-0">
+            <img
+              src={avatarUrlOr(post.author_avatar_url, post.author_gender)}
+              alt=""
+              className="w-10 h-10 rounded-full object-cover ring-2 ring-white/40"
+            />
+            <PresenceDot userId={post.author_id} size="md" ringColor="ring-black/60" />
+          </span>
           <span className="text-sm font-bold text-white drop-shadow flex items-center gap-1 min-w-0">
             <span className="truncate">@{post.author_handle ?? post.author_display_name ?? 'unknown'}</span>
             {relation?.is_subscriber ? <BlueTick size={15} /> : post.author_is_verified && <VerifiedBadge />}

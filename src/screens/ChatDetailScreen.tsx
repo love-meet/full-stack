@@ -29,7 +29,7 @@ type ComposerMode =
 export default function ChatDetailScreen() {
   const { conversationId } = useParams<{ conversationId: string }>()
   const navigate = useNavigate()
-  return <ChatPane conversationId={conversationId ?? null} onBack={() => navigate(-1)} className="h-[100dvh]" />
+  return <ChatPane conversationId={conversationId ?? null} onBack={() => navigate('/chat')} className="h-[100dvh]" />
 }
 
 /**

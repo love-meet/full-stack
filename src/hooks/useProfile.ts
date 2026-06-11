@@ -31,6 +31,7 @@ export type Profile = {
   lon: number | null
   role: 'user' | 'admin' | 'super_admin'
   onboarded_at: string | null
+  last_seen_at: string | null
   created_at: string
   updated_at: string
 }

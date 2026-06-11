@@ -7,6 +7,7 @@ import { useMySubscription, useSubscriptionPlans } from '../hooks/usePayments'
 import { useStartDM } from '../hooks/useStartDM'
 import { useProfileSocial, useToggleFollow, type ProfileSocial } from '../hooks/useFollow'
 import { avatarFor } from '../lib/avatar'
+import PresenceDot from '../components/PresenceDot'
 import BlueTick from '../components/BlueTick'
 import { IconShare } from '../components/icons'
 import UserDetails from './profile/UserDetails'
@@ -112,11 +113,22 @@ export default function ProfileScreen() {
           )}
         </div>
         <div className="flex flex-col items-center pb-3">
-          <img
-            src={avatar}
-            alt=""
-            className="w-[130px] h-[130px] rounded-full object-cover border-[3px] border-magenta"
-          />
+          <span className="relative">
+            <img
+              src={avatar}
+              alt=""
+              className="w-[130px] h-[130px] rounded-full object-cover border-[3px] border-magenta"
+            />
+            {/* Presence: pass lastSeenAt directly when we already have the
+             *  profile in hand, falls back to userId lookup otherwise. */}
+            {profile && (
+              <PresenceDot
+                lastSeenAt={profile.last_seen_at as string | null | undefined}
+                size="md"
+                ringColor="ring-black/60"
+              />
+            )}
+          </span>
           <div className="mt-2 flex items-center gap-1.5 text-xl font-extrabold text-ink">
             @{username}
             {social?.is_subscriber && <BlueTick size={16} />}

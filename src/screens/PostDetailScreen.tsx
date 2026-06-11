@@ -13,6 +13,7 @@ import {
 } from '../hooks/useCommentMutations'
 import { useProfile } from '../hooks/useProfile'
 import { avatarFor, avatarUrlOr } from '../lib/avatar'
+import PresenceDot from '../components/PresenceDot'
 import { getSurface } from '../lib/surface'
 import GiftSheet from '../components/GiftSheet'
 import PostMoreDropdown from '../components/PostMoreDropdown'
@@ -48,7 +49,7 @@ export default function PostDetailScreen() {
   if (postQ.status === 'error' || !postQ.data) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header onBack={() => navigate(-1)} />
+        <Header onBack={() => navigate('/feed')} />
         <div className="flex-1 grid place-items-center text-center px-6">
           <div>
             <div className="text-4xl mb-2">😶</div>
@@ -83,7 +84,7 @@ export default function PostDetailScreen() {
 
   return (
     <div className="min-h-screen flex flex-col text-ink pb-28">
-      <Header onBack={() => navigate(-1)} />
+      <Header onBack={() => navigate('/feed')} />
 
       <div className="max-w-xl mx-auto w-full px-5 sm:px-8 pt-4">
         {/* Post header — clickable to user profile */}
@@ -92,11 +93,14 @@ export default function PostDetailScreen() {
             to={`/profile/${post.author_id}`}
             className="flex items-center gap-3 min-w-0 active:opacity-70 transition-opacity"
           >
-            <img
-              src={avatarUrlOr(post.author_avatar_url, post.author_gender)}
-              alt=""
-              className="w-12 h-12 rounded-full object-cover shrink-0"
-            />
+            <span className="relative shrink-0">
+              <img
+                src={avatarUrlOr(post.author_avatar_url, post.author_gender)}
+                alt=""
+                className="w-12 h-12 rounded-full object-cover"
+              />
+              <PresenceDot userId={post.author_id} size="md" />
+            </span>
             <div className="flex flex-col leading-tight min-w-0">
               <span className="text-sm font-bold text-ink truncate flex items-center gap-1">
                 @{post.author_handle ?? post.author_display_name ?? 'unknown'}
@@ -391,12 +395,13 @@ function CommentRow({ postId, comment }: { postId: string; comment: PostCommentR
   return (
     <li>
       <div className="flex items-start gap-3 py-3">
-        <Link to={`/profile/${comment.author_id}`} className="shrink-0">
+        <Link to={`/profile/${comment.author_id}`} className="shrink-0 relative">
           <img
             src={avatarUrlOr(comment.author_avatar_url, comment.author_gender)}
             alt=""
             className="w-10 h-10 rounded-full object-cover"
           />
+          <PresenceDot userId={comment.author_id} size="sm" />
         </Link>
         <div className="flex-1 min-w-0">
           <div className="text-sm flex items-center gap-1">

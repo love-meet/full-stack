@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useFeed, type FeedPost } from '../hooks/useFeed'
 import { useSearchProfiles, type SearchableProfile } from '../hooks/useSearchProfiles'
 import { avatarUrlOr } from '../lib/avatar'
+import PresenceDot from '../components/PresenceDot'
 import { IconPlay, IconVideo } from '../components/icons'
 
 /**
@@ -102,11 +103,14 @@ function UserRow({ u }: { u: SearchableProfile }) {
       to={`/profile/${u.id}`}
       className="flex items-center gap-3 px-4 py-3 border-b border-white/5 hover:bg-white/[0.04] transition-colors"
     >
-      <img
-        src={avatarUrlOr(u.avatar_url, u.gender)}
-        alt=""
-        className="w-12 h-12 rounded-full object-cover shrink-0"
-      />
+      <span className="relative shrink-0">
+        <img
+          src={avatarUrlOr(u.avatar_url, u.gender)}
+          alt=""
+          className="w-12 h-12 rounded-full object-cover"
+        />
+        <PresenceDot userId={u.id} size="md" />
+      </span>
       <div className="min-w-0">
         <div className="flex items-center gap-1">
           <span className="text-sm font-bold text-ink truncate">
