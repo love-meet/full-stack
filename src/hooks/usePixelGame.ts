@@ -365,6 +365,18 @@ export function useLeaveGame() {
   })
 }
 
+/** Forfeit-by-disconnect: claim the match when the opponent's presence
+ *  heartbeat has been stale for >3 minutes. The server double-checks
+ *  last_seen_at so this can't be spoofed against an online opponent. */
+export function useClaimGameByForfeit() {
+  return useMutation({
+    mutationFn: async (gameId: string) => {
+      const { error } = await supabase.rpc('claim_game_by_forfeit', { p_game_id: gameId })
+      if (error) throw error
+    },
+  })
+}
+
 export function useReassignTurn() {
   const qc = useQueryClient()
   return useMutation({

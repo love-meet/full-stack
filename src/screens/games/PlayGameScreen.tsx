@@ -31,6 +31,7 @@ import { useConversations } from '../../hooks/useConversations'
 import { useLiveReactions } from '../../hooks/useLiveReactions'
 import { useProfile } from '../../hooks/useProfile'
 import LiveOverlay from '../../components/games/LiveOverlay'
+import OpponentDisconnectBanner from '../../components/games/OpponentDisconnectBanner'
 import { IconMail } from '../../components/icons'
 import TopIcons from '../../shell/TopIcons'
 import { InlineAd, PopunderAd } from '../../components/FeedAd'
@@ -560,9 +561,29 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
     }
   }
 
+  // 1v1: who is the opponent? Used by the disconnect banner so the
+  // waiting player gets a 3-minute reconnect window before forfeiting
+  // the match in their favour.
+  const opponent = g.kind === '1v1' ? players.find((p) => p.user_id !== myId) : undefined
+  const opponentOnline = opponent ? online.has(opponent.user_id) : true
+
   return (
     <div className="min-h-screen bg-surface text-ink">
       <PopunderAd />
+      {/* Reconnecting banner — shows when the 1v1 opponent drops out of
+       *  realtime presence during an active match. Counts down 3 minutes
+       *  before claim_game_by_forfeit awards the match to the local
+       *  player. Reset (banner hides) the moment the opponent reappears. */}
+      {g.kind === '1v1' && opponent && (
+        <OpponentDisconnectBanner
+          gameId={g.id}
+          amPlayer={amPlayer}
+          opponentId={opponent.user_id}
+          opponentName={playerLabel(opponent)}
+          opponentOnline={opponentOnline}
+          gameStatus={g.status}
+        />
+      )}
       {/* Fixed VS header — opponents + scores + close/leave. */}
       <div className="fixed top-0 left-0 right-0 z-20 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
         <div className="max-w-md mx-auto px-3 py-2">
