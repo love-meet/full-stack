@@ -25,7 +25,7 @@ const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] 
       },
       {
         heading: 'Your rights',
-        body: `You can edit any profile field from Settings → Edit profile. You can delete your own posts and messages at any time. Account deletion is being wired up in the next release; until then, message support@lovemeet.app if you want your account closed immediately.`,
+        body: `You can edit any profile field from Settings → Edit profile. You can delete your own posts and messages at any time. Account deletion is being wired up in the next release; until then, message lovemeet@highzcore.tech if you want your account closed immediately.`,
       },
       {
         heading: 'Cookies',
@@ -33,7 +33,7 @@ const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] 
       },
       {
         heading: 'Contact',
-        body: `Questions or requests: support@lovemeet.app.`,
+        body: `Questions or requests: lovemeet@highzcore.tech.`,
       },
     ],
   },
@@ -97,7 +97,7 @@ const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] 
       },
       {
         heading: 'Credits',
-        body: `Designed and built by the Love meet team. Bug reports + feature requests: support@lovemeet.app.`,
+        body: `Designed and built by the Love meet team. Love meet is powered by Highscore Tech (highzcore.tech). Bug reports + feature requests: lovemeet@highzcore.tech.`,
       },
     ],
   },
@@ -107,7 +107,7 @@ const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] 
     sections: [
       {
         heading: 'Contact us',
-        body: `The fastest way to reach a human is email: support@lovemeet.app. Include your handle and, if it's about a payment, the LM- reference shown on the deposit or withdrawal. We usually reply within 24 hours.`,
+        body: `The fastest way to reach a human is email: lovemeet@highzcore.tech. Include your handle and, if it's about a payment, the LM- reference shown on the deposit or withdrawal. We usually reply within 24 hours.`,
       },
       {
         heading: 'Deposits not showing up',
@@ -123,7 +123,7 @@ const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] 
       },
       {
         heading: 'Lost access to your account',
-        body: `If you signed in with Google or Telegram, just sign in again with the same provider. If you set a password and forgot it, email support@lovemeet.app from the address on your account.`,
+        body: `If you signed in with Google or Telegram, just sign in again with the same provider. If you set a password and forgot it, email lovemeet@highzcore.tech from the address on your account.`,
       },
     ],
   },
