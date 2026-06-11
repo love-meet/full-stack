@@ -68,6 +68,7 @@ export default function ProfileScreen() {
   const heroTop     = useTransform(scrollY, [0, ANIM_END], [0,           24])
   const overlayOpacity = useTransform(scrollY, [0, ANIM_END / 2], [1, 0])
   const compactOpacity = useTransform(scrollY, [50, 100], [0, 1])
+  const compactPointerEvents = useTransform(compactOpacity, (value) => (value > 0.1 ? 'auto' : 'none'))
 
   if (profileQ.isLoading || !profileQ.data) {
     return (
@@ -86,7 +87,7 @@ export default function ProfileScreen() {
     <div className="relative">
       {/* === Compact header (fades in once you scroll past the hero) === */}
       <motion.div
-        style={{ opacity: compactOpacity }}
+        style={{ opacity: compactOpacity, pointerEvents: compactPointerEvents }}
         className="fixed top-0 left-0 right-0 lg:left-64 z-20 glass border-b border-white/5"
       >
         <div
@@ -103,7 +104,7 @@ export default function ProfileScreen() {
           {isMe && (
             <button
               onClick={() => navigate('/profile-menu')}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-white/10 hover:bg-white/20 ring-1 ring-white/10 text-ink text-sm font-bold"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-white/10 hover:bg-white/20 ring-1 ring-white/10 text-ink text-sm font-bold pointer-events-auto"
               aria-label="Open menu"
             >
               <span aria-hidden className="text-base leading-none">☰</span>
@@ -174,7 +175,7 @@ export default function ProfileScreen() {
             {isMe && (
               <button
                 onClick={() => navigate('/profile-menu')}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-black/45 backdrop-blur-sm ring-1 ring-white/25 text-white text-sm font-bold shadow"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-black/45 backdrop-blur-sm ring-1 ring-white/25 text-white text-sm font-bold shadow pointer-events-auto"
                 aria-label="Open menu"
               >
                 <span aria-hidden className="text-base leading-none">☰</span>

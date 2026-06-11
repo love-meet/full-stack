@@ -64,13 +64,9 @@ export default function OnboardingScreen() {
     }
   }, [profileQuery.data, navigate, update])
 
-  // Block the wizard from painting while we still have any of the above to
-  // resolve: profile is loading, profile is already onboarded, or we're
-  // backfilling.
-  if (profileQuery.isLoading) return <LoadingShell />
-  if (profileQuery.data?.onboarded_at) return <Navigate to="/feed" replace />
-  if (backfillRef.current) return <LoadingShell />
-
+  // All hooks must be called unconditionally, before any early returns.
+  // Compute values and set up callbacks here so React sees consistent
+  // hook counts on every render.
   const set = useCallback(
     (patch: Partial<FormData>) => setData((d) => ({ ...d, ...patch })),
     [],
@@ -101,10 +97,6 @@ export default function OnboardingScreen() {
     }
   }, [canNext, update, isLast, data, navigate])
 
-  function back() {
-    if (step > 0) setStep(step - 1)
-  }
-
   // Enter advances the wizard (except while typing in a textarea/select,
   // where Enter has its own meaning). Mirrors a polished web form.
   const nextRef = useRef(next)
@@ -121,6 +113,17 @@ export default function OnboardingScreen() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // Block the wizard from painting while we still have any of the above to
+  // resolve: profile is loading, profile is already onboarded, or we're
+  // backfilling.
+  if (profileQuery.isLoading) return <LoadingShell />
+  if (profileQuery.data?.onboarded_at) return <Navigate to="/feed" replace />
+  if (backfillRef.current) return <LoadingShell />
+
+  function back() {
+    if (step > 0) setStep(step - 1)
+  }
 
   const StepBody = STEP_COMPONENTS[step]
   const meta = STEPS[step]
@@ -187,8 +190,9 @@ function stepStatus(step: number, d: FormData): StepStatus {
       return { valid: true, hint: null }
     }
     case 4: {
-      // Require a successful detection: coords present + a country resolved.
-      if (d.lat === null || d.lon === null || d.countryName.trim().length === 0) {
+      // Either GPS detection or manual entry is fine. Manual entry leaves
+      // lat/lon null, so only require a selected country.
+      if (d.countryName.trim().length === 0) {
         return { valid: false, hint: 'Tap "Add location" to set your location.' }
       }
       return { valid: true, hint: null }
