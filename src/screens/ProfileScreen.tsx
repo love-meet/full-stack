@@ -104,7 +104,7 @@ export default function ProfileScreen() {
           {isMe && (
             <button
               onClick={() => navigate('/profile-menu')}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-white/10 hover:bg-white/20 ring-1 ring-white/10 text-ink text-sm font-bold pointer-events-auto"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-white/10 hover:bg-white/20 ring-1 ring-white/10 text-ink text-sm font-bold pointer-events-auto cursor-pointer"
               aria-label="Open menu"
             >
               <span aria-hidden className="text-base leading-none">☰</span>
@@ -175,7 +175,7 @@ export default function ProfileScreen() {
             {isMe && (
               <button
                 onClick={() => navigate('/profile-menu')}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-black/45 backdrop-blur-sm ring-1 ring-white/25 text-white text-sm font-bold shadow pointer-events-auto"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-black/45 backdrop-blur-sm ring-1 ring-white/25 text-white text-sm font-bold shadow pointer-events-auto cursor-pointer"
                 aria-label="Open menu"
               >
                 <span aria-hidden className="text-base leading-none">☰</span>
