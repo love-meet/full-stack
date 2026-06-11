@@ -11,8 +11,9 @@
 // Deploy:  npx supabase functions deploy notify-email --no-verify-jwt --project-ref <ref>
 // Secrets (npx supabase secrets set ...):
 //   SMTP_HOST=smtp.gmail.com   SMTP_PORT=465
-//   SMTP_USER=you@gmail.com    SMTP_PASS=<gmail app password, 16 chars, no spaces>
-//   SMTP_FROM="Love meet <you@gmail.com>"
+//   SMTP_USER=lovemeet@highzcore.tech
+//   SMTP_PASS=<gmail app password, 16 chars, no spaces>
+//   SMTP_FROM="Love meet <lovemeet@highzcore.tech>"
 //   NOTIFY_EMAIL_SECRET=<any long random string, also set on the webhook>
 //   APP_URL=https://your-app-url        (for links in the email)
 //   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY  (provided by the platform)
