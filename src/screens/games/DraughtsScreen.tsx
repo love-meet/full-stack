@@ -1,15 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useMySubscription } from '../../hooks/usePayments'
 import { useCreateGame } from '../../hooks/usePixelGame'
 import { PopunderAd } from '../../components/FeedAd'
-import MembersOnlyGate from '../../components/games/MembersOnlyGate'
 
 /** Intro + create flow for Draughts (English Checkers). 1v1, best of 3. */
 export default function DraughtsScreen() {
   const navigate = useNavigate()
-  const isSubscriber = !!useMySubscription().data
   const createGame = useCreateGame()
   const [err, setErr] = useState<string | null>(null)
   // If reached via the Games-list modal (which already showed the rules),
@@ -25,9 +22,8 @@ export default function DraughtsScreen() {
     } catch (e) { setErr((e as Error).message) }
   }
 
-  if (!isSubscriber) {
-    return <Shell onBack={() => navigate(-1)}><MembersOnlyGate headline="Want to host a Draughts match?" /></Shell>
-  }
+  // Games gate temporarily open — re-enable subscriber check here when
+  // paid hosting comes back.
 
   return (
     <Shell onBack={() => navigate(-1)}>

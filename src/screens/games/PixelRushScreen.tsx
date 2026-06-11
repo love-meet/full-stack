@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCreateGame } from '../../hooks/usePixelGame'
-import { useMySubscription } from '../../hooks/usePayments'
 import { PopunderAd } from '../../components/FeedAd'
-import MembersOnlyGate from '../../components/games/MembersOnlyGate'
 
 const GRID = 5
 const N = GRID * GRID // 25 tiles
@@ -16,7 +14,6 @@ type Phase = 'guide' | 'mode' | 'setup' | 'preview' | 'play' | 'won'
 export default function PixelRushScreen() {
   const navigate = useNavigate()
   const createGame = useCreateGame()
-  const isSubscriber = !!useMySubscription().data
   const [groupCount, setGroupCount] = useState(4)
   const [createErr, setCreateErr] = useState<string | null>(null)
 
@@ -104,15 +101,9 @@ export default function PixelRushScreen() {
     setPhase('preview')
   }
 
-  // Members-only: only Premium / VIP can host a game. Free users can still
-  // join a game they were invited to (the /play/:code route is public).
-  if (!isSubscriber) {
-    return (
-      <Shell onBack={() => navigate(-1)}>
-        <MembersOnlyGate headline="Want to host your own Pixel Rush?" />
-      </Shell>
-    )
-  }
+  // Games gate temporarily open — anyone can host while we drive engagement.
+  // Re-enable by checking `useMySubscription().data` against the desired
+  // plan tier when paid hosting comes back.
 
   return (
     <Shell onBack={() => navigate(-1)}>
