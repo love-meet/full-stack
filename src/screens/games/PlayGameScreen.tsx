@@ -18,9 +18,11 @@ import {
   useLeaveGame,
   playerLabel,
   isNetworkError,
+  gamePlayersKey,
   type GamePlayer,
   type Game,
 } from '../../hooks/usePixelGame'
+import { useQueryClient } from '@tanstack/react-query'
 import { useOnline } from '../../hooks/useOnline'
 import { useUploadChatMedia } from '../../hooks/useUploadChatMedia'
 import { useGamePresence } from '../../hooks/useGamePresence'
@@ -81,6 +83,7 @@ export default function PlayGameScreen() {
   }, [ready, session])
 
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const game = useGameByCode(code)
   const players = useGamePlayers(game.data?.id)
   const join = useJoinGame()
@@ -126,17 +129,42 @@ export default function PlayGameScreen() {
   const playerIds = new Set(list.map((p) => p.user_id))
   const viewers = [...online].filter((id) => !playerIds.has(id)).length
 
+  // window.confirm renders BEHIND the canvas in Telegram Mini App fullscreen
+  // mode, so taps appear to do nothing. Use Telegram's native showConfirm
+  // when available — it floats above everything.
+  function confirmPrompt(message: string): Promise<boolean> {
+    const wa = window.Telegram?.WebApp
+    if (wa?.showConfirm) {
+      return new Promise<boolean>((resolve) => {
+        wa.showConfirm!(message, (ok: boolean) => resolve(!!ok))
+      })
+    }
+    return Promise.resolve(window.confirm(message))
+  }
+
   async function doClose() {
     if (!g) return
-    if (!window.confirm('Close this game for everyone?')) return
+    if (!(await confirmPrompt('Close this game for everyone?'))) return
     try { await closeGame.mutateAsync(g.id); navigate('/games') }
     catch (e) { alert((e as Error).message) }
   }
 
   async function doLeave() {
     if (!g) return
-    if (!window.confirm('Leave this game?')) return
-    try { await leaveGame.mutateAsync(g.id) } catch { /* ignore */ }
+    if (!(await confirmPrompt('Leave this game?'))) return
+    try {
+      await leaveGame.mutateAsync(g.id)
+      // Optimistically drop ourselves from the players cache so the host's
+      // realtime sub isn't the only thing the UI relies on for "they left".
+      qc.setQueryData(gamePlayersKey(g.id), (prev: GamePlayer[] | undefined) =>
+        (prev ?? []).filter((p) => p.user_id !== myId))
+    } catch (e) {
+      // Surface the failure instead of silently swallowing — without this,
+      // the leaver navigates away thinking they've left while their row is
+      // still alive server-side and the host still sees them.
+      alert(`Could not leave: ${(e as Error).message}`)
+      return
+    }
     navigate('/')
   }
 

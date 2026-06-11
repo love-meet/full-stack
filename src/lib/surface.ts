@@ -26,6 +26,11 @@ declare global {
         disableVerticalSwipes?: () => void
         enableVerticalSwipes?: () => void
         isVerticalSwipesEnabled?: boolean
+        // Bot API 6.2+ — Telegram-native confirm popup. Far more reliable
+        // than window.confirm inside fullscreen Mini Apps, where the
+        // browser's native dialog can render behind the canvas.
+        showConfirm?: (message: string, callback?: (ok: boolean) => void) => void
+        showAlert?: (message: string, callback?: () => void) => void
       }
     }
   }
