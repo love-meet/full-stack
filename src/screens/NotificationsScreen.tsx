@@ -32,6 +32,8 @@ export default function NotificationsScreen() {
       navigate(`/gift/${n.gift_id}`)
     } else if ((n.type === 'chat_message' || n.type === 'chat_reminder') && n.conversation_id) {
       navigate(`/chat/${n.conversation_id}`)
+    } else if (n.type === 'comment_mention' && n.post_id) {
+      navigate(`/p/${n.post_id}`)
     } else if (n.post_id) navigate(`/p/${n.post_id}`)
     else if (n.type === 'welcome' || n.type === 'welcome_signup') navigate('/guide')
     else if (n.type === 'launch_bonus') navigate('/wallet')
@@ -135,6 +137,7 @@ function message(n: AppNotification): React.ReactNode {
     case 'like': return <>{who} liked your post.</>
     case 'comment': return <>{who} commented: <span className="text-ink-2">“{n.body}”</span></>
     case 'reply': return <>{who} replied: <span className="text-ink-2">“{n.body}”</span></>
+    case 'comment_mention': return <>{who} mentioned you in a comment: <span className="text-ink-2">“{n.body}”</span></>
     case 'comment_like': return <>{who} liked your comment.</>
     case 'reply_like': return <>{who} liked your reply.</>
     case 'gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁 Tap to accept or decline.</>
@@ -169,6 +172,7 @@ function glyph(type: AppNotification['type']): string {
     case 'like': return '❤️'
     case 'comment': return '💬'
     case 'reply': return '↩️'
+    case 'comment_mention': return '💬'
     case 'comment_like': return '👍'
     case 'reply_like': return '👍'
     case 'gift': return '🎁'

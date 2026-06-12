@@ -10,6 +10,7 @@ import ComposeStep from './ComposeStep'
 import { bakeImageToBlob } from './filters'
 import { extractTrimmedClip } from './trimVideo'
 import type { AspectId, CropArea, Media, Step, Trim } from './types'
+import { type AudioTrack } from '../../hooks/useAudioTracks'
 
 export default function PostScreen() {
   const navigate = useNavigate()
@@ -22,6 +23,7 @@ export default function PostScreen() {
   const [hideLikeCount, setHideLikeCount] = useState(false)
   const [commentsDisabled, setCommentsDisabled] = useState(false)
   const [altText, setAltText] = useState('')
+  const [audioTrack, setAudioTrack] = useState<AudioTrack | null>(null)
   const [uploading, setUploading] = useState(false)
   const [phase, setPhase] = useState<'processing' | 'uploading'>('uploading')
   const [uploadPct, setUploadPct] = useState(0)
@@ -115,6 +117,7 @@ export default function PostScreen() {
         hide_like_count: hideLikeCount,
         comments_disabled: commentsDisabled,
         alt_text: altText.trim() || null,
+        audio_track_id: audioTrack?.id ?? null,
       })
 
       navigate('/feed', { replace: true })
@@ -177,6 +180,8 @@ export default function PostScreen() {
                 onChangeCommentsDisabled={setCommentsDisabled}
                 altText={altText}
                 onChangeAltText={setAltText}
+                audioTrack={audioTrack}
+                onChangeAudioTrack={setAudioTrack}
                 error={error}
               />
             )}

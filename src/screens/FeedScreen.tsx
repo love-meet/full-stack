@@ -262,7 +262,11 @@ function FeedSlide({ post, relation }: { post: FeedPost; relation?: Relation }) 
       {post.kind === 'image' ? (
         <img src={post.media_url} alt={post.alt_text ?? ''} className="w-full h-full object-contain" />
       ) : (
-        <FeedVideo src={post.media_url} />
+        <FeedVideo src={post.media_url} hasAudioTrack={!!post.audio_track_url} />
+      )}
+      
+      {post.audio_track_url && (
+        <FeedAudio src={post.audio_track_url} />
       )}
 
       {/* Top + bottom scrims for legibility. */}
@@ -292,6 +296,16 @@ function FeedSlide({ post, relation }: { post: FeedPost; relation?: Relation }) 
           >
             <span className={expanded ? '' : 'line-clamp-2'}>{post.caption}</span>
           </button>
+        )}
+        {post.audio_track_url && (
+          <div className="mt-2.5 inline-flex items-center gap-1.5 bg-black/40 backdrop-blur-md pl-1 pr-2.5 py-1 rounded-full text-[10px] font-semibold text-white drop-shadow border border-white/10">
+            <div className="w-4 h-4 flex items-center justify-center bg-white/20 rounded-full">🎵</div>
+            <div className="flex items-center gap-1 max-w-[150px]">
+              <span className="truncate">{post.audio_track_title}</span>
+              <span className="opacity-70">·</span>
+              <span className="truncate opacity-70">{post.audio_track_artist}</span>
+            </div>
+          </div>
         )}
       </div>
 
@@ -395,7 +409,7 @@ function RailButton({
 // center to pause/replay; buffering spinner; bottom progress bar to scrub;
 // speaker toggle for sound. Pauses automatically when scrolled off-screen.
 // ---------------------------------------------------------------------------
-function FeedVideo({ src }: { src: string }) {
+function FeedVideo({ src, hasAudioTrack }: { src: string; hasAudioTrack?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const barRef = useRef<HTMLDivElement>(null)
@@ -437,8 +451,8 @@ function FeedVideo({ src }: { src: string }) {
 
   // Keep the element's muted flag in sync with the shared preference.
   useEffect(() => {
-    if (ref.current) ref.current.muted = muted
-  }, [muted])
+    if (ref.current) ref.current.muted = hasAudioTrack || muted
+  }, [muted, hasAudioTrack])
 
   function togglePlay() {
     const v = ref.current
@@ -470,7 +484,7 @@ function FeedVideo({ src }: { src: string }) {
         className="w-full h-full object-contain"
         playsInline
         loop
-        muted={muted}
+        muted={hasAudioTrack || muted}
         preload="metadata"
         disablePictureInPicture
         onContextMenu={(e) => e.preventDefault()}
@@ -530,6 +544,65 @@ function FeedVideo({ src }: { src: string }) {
           <div className="h-full rounded-full bg-white" style={{ width: `${progress * 100}%` }} />
         </div>
       </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Standalone audio player for posts with a music track. Autoplays muted,
+// syncs with the shared feed mute preference.
+// ---------------------------------------------------------------------------
+function FeedAudio({ src }: { src: string }) {
+  const ref = useRef<HTMLAudioElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const muted = useFeedPrefs((s) => s.muted)
+  const setMuted = useFeedPrefs((s) => s.setMuted)
+
+  // Autoplay when this post is on screen
+  useEffect(() => {
+    const el = wrapRef.current
+    const a = ref.current
+    if (!el || !a) return
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        const onScreen = entry.intersectionRatio >= 0.6
+        if (onScreen) {
+          a.muted = useFeedPrefs.getState().muted
+          a.play().catch(() => {
+            a.muted = true
+            useFeedPrefs.getState().setMuted(true)
+            a.play().catch(() => {})
+          })
+        } else {
+          a.pause()
+          a.currentTime = 0
+        }
+      },
+      { threshold: [0, 0.6, 1] }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (ref.current) ref.current.muted = muted
+  }, [muted])
+
+  return (
+    <div ref={wrapRef} className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
+      <audio ref={ref} src={src} loop muted={muted} />
+      
+      {/* Floating mute toggle for audio-only posts. 
+          Placed in the center to match the video UI when video isn't handling it.
+          Only visible if there is no video to show the toggle. */}
+      <button
+        onClick={(e) => { e.stopPropagation(); setMuted(!muted) }}
+        className="pointer-events-auto absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 opacity-0 hover:opacity-100 transition-opacity grid place-items-center"
+      >
+        <span className="w-12 h-12 rounded-full bg-black/45 backdrop-blur-sm grid place-items-center text-white shadow-lg">
+          {muted ? <IconMuted /> : <IconSound />}
+        </span>
+      </button>
     </div>
   )
 }

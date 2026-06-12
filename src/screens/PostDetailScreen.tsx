@@ -21,6 +21,8 @@ import { InlineAd } from '../components/FeedAd'
 import AuthorTick from '../components/AuthorTick'
 import { IconBack, IconComment, IconShare, IconMore } from '../components/icons'
 import type { FeedPost } from '../hooks/useFeed'
+import MentionTextarea from '../components/MentionTextarea'
+import CommentBody from '../components/CommentBody'
 
 export default function PostDetailScreen() {
   const navigate = useNavigate()
@@ -134,6 +136,22 @@ export default function PostDetailScreen() {
           </p>
         )}
 
+        {/* Music Track Pill */}
+        {post.audio_track_url && (
+          <div className="mt-3 inline-flex items-center gap-2 bg-surface-3 pl-1 pr-3 py-1.5 rounded-full relative overflow-hidden group border border-white/5">
+            {post.audio_track_cover_url ? (
+              <img src={post.audio_track_cover_url} alt="" className="w-6 h-6 rounded-full object-cover relative z-10" />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-[10px] relative z-10">🎵</div>
+            )}
+            <div className="flex flex-col min-w-0 pr-2 relative z-10">
+              <span className="text-[11px] font-bold text-ink truncate leading-tight">{post.audio_track_title}</span>
+              <span className="text-[9px] text-ink-muted truncate leading-tight">{post.audio_track_artist}</span>
+            </div>
+            <div className="absolute inset-0 bg-gradient-brand opacity-10" />
+          </div>
+        )}
+
         {/* Media — tap to open full-page */}
         <button
           type="button"
@@ -224,9 +242,9 @@ export default function PostDetailScreen() {
         >
           <div className="max-w-xl mx-auto flex items-end gap-2">
             <img src={avatarFor(profile.data)} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
-            <textarea
+            <MentionTextarea
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={setText}
               rows={1}
               maxLength={500}
               placeholder="Write a comment…"
@@ -416,9 +434,9 @@ function CommentRow({ postId, comment }: { postId: string; comment: PostCommentR
 
           {editing ? (
             <div className="mt-1">
-              <textarea
+              <MentionTextarea
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={setDraft}
                 rows={2}
                 maxLength={500}
                 className="w-full bg-surface/60 border border-white/10 rounded-2xl px-3 py-2 outline-none text-ink text-sm placeholder:text-ink-muted resize-none focus:ring-brand"
@@ -441,7 +459,9 @@ function CommentRow({ postId, comment }: { postId: string; comment: PostCommentR
               </div>
             </div>
           ) : (
-            <p className="text-ink-2 text-sm mt-0.5 whitespace-pre-wrap break-words">{comment.body}</p>
+            <p className="text-ink-2 text-sm mt-0.5 whitespace-pre-wrap break-words">
+              <CommentBody text={comment.body} />
+            </p>
           )}
 
           <div className="mt-1.5 flex items-center gap-4 text-[11px] font-bold text-ink-muted">
@@ -518,9 +538,9 @@ function ReplyComposer({
     >
       <div className="flex items-end gap-2">
         <img src={avatarFor(profile.data)} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
-        <textarea
+        <MentionTextarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={setText}
           rows={1}
           maxLength={500}
           placeholder={`Replying to ${recipientLabel}…`}

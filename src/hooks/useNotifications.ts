@@ -13,6 +13,7 @@ export type NotificationType =
   | 'launch_bonus' | 'subscription_expired' | 'referral_joined' | 'follow'
   | 'game_invite' | 'game_join' | 'game_waiting'
   | 'new_member_nearby'
+  | 'comment_mention'
 
 export type AppNotification = {
   id: string

@@ -3,6 +3,8 @@ import { useProfile } from '../../hooks/useProfile'
 import { avatarFor } from '../../lib/avatar'
 import CroppedImage from './CroppedImage'
 import type { Media } from './types'
+import MusicPickerSheet from '../../components/MusicPickerSheet'
+import { type AudioTrack } from '../../hooks/useAudioTracks'
 
 type Props = {
   media: Media
@@ -14,6 +16,8 @@ type Props = {
   onChangeCommentsDisabled: (v: boolean) => void
   altText: string
   onChangeAltText: (v: string) => void
+  audioTrack: AudioTrack | null
+  onChangeAudioTrack: (t: AudioTrack | null) => void
   error: string | null
 }
 
@@ -27,10 +31,13 @@ export default function ComposeStep({
   onChangeCommentsDisabled,
   altText,
   onChangeAltText,
+  audioTrack,
+  onChangeAudioTrack,
   error,
 }: Props) {
   const profile = useProfile()
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [musicPickerOpen, setMusicPickerOpen] = useState(false)
 
   // Pin thumbnail height to 96 px; width follows the cropped area's aspect,
   // clamped so very tall crops don't shrink to a sliver.
@@ -89,15 +96,42 @@ export default function ComposeStep({
         </div>
       </div>
 
-      <div className="text-right text-[11px] text-ink-muted px-4 pt-1">
+      <div className="text-right text-[11px] text-ink-muted px-4 pt-1 pb-2 border-b border-white/5">
         {caption.length}/2200
       </div>
+
+      {audioTrack && (
+        <div className="px-4 py-3 border-b border-white/5">
+          <div className="inline-flex items-center gap-2 bg-surface-3 pl-1 pr-3 py-1 rounded-full relative overflow-hidden group">
+            {audioTrack.cover_url ? (
+              <img src={audioTrack.cover_url} alt="" className="w-6 h-6 rounded-full object-cover relative z-10" />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-[10px] relative z-10">🎵</div>
+            )}
+            <div className="flex flex-col min-w-0 pr-6 relative z-10">
+              <span className="text-[11px] font-bold text-ink truncate leading-tight">{audioTrack.title}</span>
+              <span className="text-[9px] text-ink-muted truncate leading-tight">{audioTrack.artist}</span>
+            </div>
+            <button
+              onClick={() => onChangeAudioTrack(null)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black/40 flex items-center justify-center text-[10px] hover:bg-rose hover:text-white transition-colors z-20"
+            >
+              ✕
+            </button>
+            <div className="absolute inset-0 bg-gradient-brand opacity-10" />
+          </div>
+        </div>
+      )}
 
       {/* Settings rows */}
       <ul className="px-2 mt-2">
         <SettingsRow icon="👤" label="Tag people" rightHint="Coming soon" disabled />
         <SettingsRow icon="📍" label="Add location" rightHint="Coming soon" disabled />
-        <SettingsRow icon="🎵" label="Add music" rightHint="Coming soon" disabled />
+        <SettingsRow
+          icon="🎵"
+          label={audioTrack ? "Change music" : "Add music"}
+          onClick={() => setMusicPickerOpen(true)}
+        />
         <SettingsRow
           icon="⚙"
           label="Advanced settings"
@@ -126,6 +160,15 @@ export default function ComposeStep({
       {error && <p className="text-sm text-danger px-5 mt-3">{error}</p>}
 
       <div style={{ height: 'env(safe-area-inset-bottom)' }} />
+
+      <MusicPickerSheet
+        open={musicPickerOpen}
+        onClose={() => setMusicPickerOpen(false)}
+        onSelect={(track) => {
+          onChangeAudioTrack(track)
+          setMusicPickerOpen(false)
+        }}
+      />
     </div>
   )
 }

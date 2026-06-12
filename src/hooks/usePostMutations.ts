@@ -189,6 +189,7 @@ export function useCreatePost() {
       hide_like_count?: boolean
       comments_disabled?: boolean
       alt_text?: string | null
+      audio_track_id?: string | null
     }) => {
       if (!session) throw new Error('not signed in')
       const { data, error } = await supabase
@@ -202,6 +203,7 @@ export function useCreatePost() {
           hide_like_count: vars.hide_like_count ?? false,
           comments_disabled: vars.comments_disabled ?? false,
           alt_text: vars.alt_text ?? null,
+          audio_track_id: vars.audio_track_id ?? null,
         })
         .select()
         .single()

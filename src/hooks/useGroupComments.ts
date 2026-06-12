@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanst
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../stores/auth'
 import { groupFeedKey, type GroupPost } from './useGroupPosts'
+import { processMentions } from '../lib/mentions'
 
 export type GroupComment = {
   id: string
@@ -86,13 +87,16 @@ export function useAddGroupComment(slug: string, postId: string) {
       if (!session) throw new Error('not signed in')
       const body = vars.body.trim()
       if (!body) throw new Error('Empty comment')
-      const { error } = await supabase.from('group_post_comments').insert({
+      const { data, error } = await supabase.from('group_post_comments').insert({
         post_id: postId,
         author_id: session.user.id,
         body,
         parent_id: vars.parentId ?? null,
-      })
+      }).select('id').single()
       if (error) throw error
+      if (data) {
+        processMentions(body, data.id, 'group').catch(console.error)
+      }
     },
     onSuccess: () => {
       bumpFeedCount(qc, slug, postId, 1)

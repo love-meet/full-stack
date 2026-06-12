@@ -113,6 +113,7 @@ export const router = createBrowserRouter([
               { path: 'profile/edit',          element: <EditProfileScreen /> },
               { path: 'profile-menu',          element: <ProfileMenuScreen /> },
               { path: 'profile/:userId',       element: <ProfileScreen /> },
+              { path: 'profile/handle/:handle',element: <ProfileScreen /> },
               { path: 'wallet',                element: <WalletScreen /> },
               { path: 'wallet/deposit',        element: <DepositScreen /> },
               { path: 'wallet/withdraw',       element: <WithdrawScreen /> },

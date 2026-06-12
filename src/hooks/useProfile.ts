@@ -121,6 +121,24 @@ export function useProfileById(userId: string | null | undefined) {
   })
 }
 
+/** Fetch any profile by handle. Returns null if not found. */
+export function useProfileByHandle(handle: string | null | undefined) {
+  return useQuery<Profile | null>({
+    queryKey: ['profile-by-handle', handle ?? null],
+    enabled: !!handle,
+    queryFn: async () => {
+      if (!handle) return null
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('handle', handle)
+        .maybeSingle()
+      if (error) throw error
+      return (data as Profile | null) ?? null
+    },
+  })
+}
+
 /** Debounced-by-caller username availability check via RPC. */
 export async function checkUsernameAvailable(username: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('username_available', { candidate: username })

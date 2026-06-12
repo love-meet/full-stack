@@ -10,6 +10,8 @@ import { avatarFor, avatarUrlOr } from '../lib/avatar'
 import { cloudinaryPlaceholderUrl } from '../lib/cloudinary'
 import { InlineAd } from '../components/FeedAd'
 import AuthorTick from '../components/AuthorTick'
+import MentionTextarea from '../components/MentionTextarea'
+import CommentBody from '../components/CommentBody'
 
 export default function GroupPostDetailScreen() {
   const { slug = '', postId = '' } = useParams<{ slug: string; postId: string }>()
@@ -146,9 +148,9 @@ export default function GroupPostDetailScreen() {
         )}
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <img src={avatarFor(profile.data)} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
-          <textarea
+          <MentionTextarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={setText}
             rows={1}
             maxLength={500}
             placeholder={replyTo ? 'Write a reply…' : 'Add a comment…'}
@@ -278,7 +280,9 @@ function CommentNode({
               <AuthorTick userId={comment.author_id} />
               <span className="text-ink-muted text-[10px] ml-1">{timeAgo(comment.created_at)}</span>
             </div>
-            <p className="text-ink-2 text-sm mt-0.5 whitespace-pre-wrap break-words">{comment.body}</p>
+            <p className="text-ink-2 text-sm mt-0.5 whitespace-pre-wrap break-words">
+              <CommentBody text={comment.body} />
+            </p>
           </div>
           <div className="mt-1 ml-1 flex items-center gap-4 text-[11px] font-bold text-ink-muted">
             <button onClick={() => onReply(comment)} className="hover:text-rose">Reply</button>

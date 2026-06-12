@@ -12,6 +12,11 @@ export type FeedPost = {
   hide_like_count: boolean
   comments_disabled: boolean
   alt_text: string | null
+  audio_track_id: string | null
+  audio_track_title: string | null
+  audio_track_artist: string | null
+  audio_track_url: string | null
+  audio_track_cover_url: string | null
   like_count: number
   comment_count: number
   gift_count: number

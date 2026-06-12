@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../stores/auth'
-import { useProfile, useProfileById } from '../hooks/useProfile'
+import { useProfile, useProfileById, useProfileByHandle } from '../hooks/useProfile'
 import { useMySubscription, useSubscriptionPlans } from '../hooks/usePayments'
 import { useStartDM } from '../hooks/useStartDM'
 import { useProfileSocial, useToggleFollow, type ProfileSocial } from '../hooks/useFollow'
@@ -22,13 +22,14 @@ const HERO_VH_FRACTION = 0.52
 export default function ProfileScreen() {
   const navigate = useNavigate()
   const session = useAuth((s) => s.session)
-  // /profile/:userId? — when present, we render that user's profile.
-  // Otherwise default to the signed-in user's own profile.
-  const { userId: routeUserId } = useParams<{ userId?: string }>()
+  // /profile/:userId? or /profile/handle/:handle
+  const { userId: routeUserId, handle: routeHandle } = useParams<{ userId?: string; handle?: string }>()
   const myProfileQ = useProfile()
-  const otherProfileQ = useProfileById(routeUserId ?? null)
-  const profileQ = routeUserId ? otherProfileQ : myProfileQ
-  const profileSocial = useProfileSocial(routeUserId ?? myProfileQ.data?.id ?? null)
+  const byIdQ = useProfileById(routeUserId ?? null)
+  const byHandleQ = useProfileByHandle(routeHandle ?? null)
+  
+  const profileQ = routeUserId ? byIdQ : routeHandle ? byHandleQ : myProfileQ
+  const profileSocial = useProfileSocial(profileQ.data?.id ?? null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [imageOpen, setImageOpen] = useState(false)
 

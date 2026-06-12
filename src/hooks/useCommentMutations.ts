@@ -4,6 +4,7 @@ import { useAuth } from '../stores/auth'
 import { useProfile } from './useProfile'
 import { commentsKey, repliesKey, type PostCommentRow } from './useComments'
 import { feedQueryKey } from './useFeed'
+import { processMentions } from '../lib/mentions'
 
 function nowIso() { return new Date().toISOString() }
 
@@ -47,6 +48,9 @@ export function useAddComment(postId: string) {
         .select('id, post_id, parent_id, author_id, body, created_at')
         .single()
       if (error) throw error
+      if (data) {
+        processMentions(body, data.id, 'post').catch(console.error)
+      }
       return data
     },
     onMutate: async (body) => {
@@ -92,6 +96,9 @@ export function useReplyComment(postId: string, parentId: string) {
         .select('id, post_id, parent_id, author_id, body, created_at')
         .single()
       if (error) throw error
+      if (data) {
+        processMentions(body, data.id, 'post').catch(console.error)
+      }
       return data
     },
     onMutate: async (body) => {
