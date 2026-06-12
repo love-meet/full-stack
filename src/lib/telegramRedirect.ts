@@ -22,6 +22,7 @@
 //     gesture, unlike the silent attempt).
 
 import { getSurface } from './surface'
+import { supabase } from './supabase'
 
 const BOT_USERNAME = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined) ?? ''
 // Telegram short names are 5–32 chars, alphanumeric + underscore only. Anything
@@ -74,7 +75,13 @@ function canAttemptSilentRedirect(): boolean {
   return true
 }
 
-function buildDeepLinks(path: string): { scheme: string; universal: string } {
+function buildDeepLinks(
+  path: string,
+  /** Optional explicit start_param override. When set, takes precedence
+   *  over the URL's ?ref= code. Used for "LINK-XXX" identity-linking
+   *  tokens — see openInTelegramNow + main.tsx bootstrap. */
+  startParamOverride?: string,
+): { scheme: string; universal: string } {
   // start_param spec (Bot API): 1–64 chars, ONLY [A-Z a-z 0-9 _ -]. Anything
   // else (a `%`-escaped path, a `/`, a `?`, an `&`) makes Telegram reject the
   // deep link with a vague "Something went wrong" inside the client. The only
@@ -82,15 +89,19 @@ function buildDeepLinks(path: string): { scheme: string; universal: string } {
   // referral code (`?ref=LM-XXXX`) — any other in-app routing happens after
   // launch via the SPA router, so it's safer to omit `startapp` entirely when
   // there's nothing valid to pass.
-  let validRef: string | null = null
-  try {
-    const qs = path.split('?')[1] ?? ''
-    const ref = new URLSearchParams(qs).get('ref')
-    if (ref && /^LM-[A-Za-z0-9_-]{2,60}$/i.test(ref)) validRef = ref
-  } catch { /* malformed URL — skip ref */ }
+  let startParam: string | null = null
+  if (startParamOverride && /^[A-Za-z0-9_-]{1,64}$/.test(startParamOverride)) {
+    startParam = startParamOverride
+  } else {
+    try {
+      const qs = path.split('?')[1] ?? ''
+      const ref = new URLSearchParams(qs).get('ref')
+      if (ref && /^LM-[A-Za-z0-9_-]{2,60}$/i.test(ref)) startParam = ref
+    } catch { /* malformed URL — skip ref */ }
+  }
 
-  const startQS = validRef ? `&startapp=${validRef}` : ''
-  const startQSUni = validRef ? `?startapp=${validRef}` : ''
+  const startQS = startParam ? `&startapp=${startParam}` : ''
+  const startQSUni = startParam ? `?startapp=${startParam}` : ''
 
   if (MINI_APP_NAME) {
     // Named Mini App (created with `/newapp` in BotFather, has a short name).
@@ -145,9 +156,39 @@ export function attemptTelegramRedirect(): Promise<boolean> {
  * `https://t.me/...` form which iOS / Android treat as an Universal / App
  * Link — Telegram opens if installed, otherwise Telegram's web preview shows.
  * Under a user gesture this is reliable on every platform.
+ *
+ * If the user is already signed in on the web, we mint a one-shot link
+ * token first and embed it in start_param. The Telegram Mini App side
+ * (main.tsx) detects the LINK- prefix and uses it to sign into the SAME
+ * existing account — instead of creating a brand-new Telegram-only one.
+ * This is the core of the cross-surface identity fix.
  */
-export function openInTelegramNow(): void {
+export async function openInTelegramNow(): Promise<void> {
   if (!BOT_USERNAME) return
-  const { universal } = buildDeepLinks(window.location.pathname + window.location.search)
+  const linkToken = await tryFetchLinkToken()
+  const { universal } = buildDeepLinks(
+    window.location.pathname + window.location.search,
+    linkToken ?? undefined,
+  )
   window.location.href = universal
+}
+
+/**
+ * Mint a one-shot identity-linking token if the user is currently signed
+ * in. Resolves to null in every error / unauthenticated case so the caller
+ * just falls back to the normal redirect (which is correct for guest
+ * visitors who don't yet have an account).
+ */
+async function tryFetchLinkToken(): Promise<string | null> {
+  try {
+    const { data: sessionRes } = await supabase.auth.getSession()
+    if (!sessionRes.session) return null
+    const { data, error } = await supabase.rpc('request_link_token')
+    if (error || !data) return null
+    const token = String(data)
+    if (!/^LINK-[A-Za-z0-9]{6,32}$/.test(token)) return null
+    return token
+  } catch {
+    return null
+  }
 }

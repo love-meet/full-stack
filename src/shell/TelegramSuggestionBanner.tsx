@@ -24,6 +24,11 @@ export default function TelegramSuggestionBanner() {
     hide()
   }
 
+  // openInTelegramNow is async (it fetches a link token for signed-in
+  // users so Telegram opens into the SAME account, not a duplicate).
+  // Fire-and-forget — the page navigates away on success.
+  function onOpenTelegram() { void openInTelegramNow() }
+
   return (
     <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-brand text-white text-sm shadow-md">
       <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center gap-3">
@@ -32,7 +37,7 @@ export default function TelegramSuggestionBanner() {
           Love meet works best in Telegram.
         </p>
         <button
-          onClick={openInTelegramNow}
+          onClick={onOpenTelegram}
           className="shrink-0 rounded-full bg-white text-rose px-3 py-1.5 font-bold"
         >
           Open in Telegram
