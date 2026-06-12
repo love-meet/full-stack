@@ -33,7 +33,7 @@ export default function NotificationsScreen() {
     } else if ((n.type === 'chat_message' || n.type === 'chat_reminder') && n.conversation_id) {
       navigate(`/chat/${n.conversation_id}`)
     } else if (n.type === 'comment_mention' && n.post_id) {
-      navigate(`/p/${n.post_id}`)
+      navigate(`/p/${n.post_id}${n.comment_id ? `#c-${n.comment_id}` : ''}`)
     } else if (n.post_id) navigate(`/p/${n.post_id}`)
     else if (n.type === 'welcome' || n.type === 'welcome_signup') navigate('/guide')
     else if (n.type === 'launch_bonus') navigate('/wallet')
