@@ -38,6 +38,7 @@ export default function NotificationsScreen() {
     else if (n.type === 'subscription_expired') navigate('/subscription')
     else if (n.type === 'referral_joined') navigate('/affiliate')
     else if (n.type === 'follow' && n.actor_id) navigate(`/profile/${n.actor_id}`)
+    else if (n.type === 'new_member_nearby' && n.actor_id) navigate(`/profile/${n.actor_id}`)
     else if (n.type === 'deposit') navigate('/wallet')
     else if (n.type.startsWith('withdrawal')) navigate('/earnings')
     else if (n.type === 'password_changed') navigate('/security')
@@ -143,6 +144,7 @@ function message(n: AppNotification): React.ReactNode {
     case 'gift_accepted': return <>{who} accepted your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎉</>
     case 'gift_rejected': return <>{who} declined your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''}.</>
     case 'match_post': return <>{who} — who matches your preferences — just posted. ✨</>
+    case 'new_member_nearby': return <>{who} just joined Love meet near you 💕 Say hello!</>
     case 'support_user_msg': return <>{who} messaged live support: <span className="text-ink-2">“{n.body}”</span></>
     case 'support_reply': return <>Support replied{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : ''} 🛟</>
     case 'game_invite': return <>{who} invited you to play a game 🎮 Tap to join.</>
@@ -173,6 +175,7 @@ function glyph(type: AppNotification['type']): string {
     case 'gift_accepted': return '🎉'
     case 'gift_rejected': return '🎁'
     case 'match_post': return '✨'
+    case 'new_member_nearby': return '💕'
     case 'welcome': return '💕'
     case 'welcome_signup': return '💘'
     case 'deposit': return '✅'
