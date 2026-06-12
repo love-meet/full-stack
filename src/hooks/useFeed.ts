@@ -9,6 +9,9 @@ export type FeedPost = {
   media_aspect: number | null
   caption: string | null
   created_at: string
+  location_label: string | null
+  location_lat: number | null
+  location_lon: number | null
   hide_like_count: boolean
   comments_disabled: boolean
   alt_text: string | null

@@ -300,6 +300,17 @@ function FeedSlide({ post, relation }: { post: FeedPost; relation?: Relation }) 
             <span className={expanded ? '' : 'line-clamp-2'}>{post.caption}</span>
           </button>
         )}
+        {post.location_label && (
+          <a
+            href={`https://maps.google.com/?q=${post.location_lat},${post.location_lon}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-white/90 hover:text-white text-xs drop-shadow transition-colors"
+          >
+            <span>📍</span>
+            <span className="truncate">{post.location_label}</span>
+          </a>
+        )}
       </div>
 
       {/* Action rail — vertical, bottom-right. */}

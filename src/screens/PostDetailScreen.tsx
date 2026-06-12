@@ -138,6 +138,19 @@ export default function PostDetailScreen() {
           </p>
         )}
 
+        {/* Location */}
+        {post.location_label && (
+          <a
+            href={`https://maps.google.com/?q=${post.location_lat},${post.location_lon}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1.5 text-ink-2 hover:text-ink text-xs transition-colors"
+          >
+            <span>📍</span>
+            <span className="truncate">{post.location_label}</span>
+          </a>
+        )}
+
         {/* Media — tap to open full-page */}
         <button
           type="button"
