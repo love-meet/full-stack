@@ -127,20 +127,9 @@ create policy "comments_delete_own" on public.post_comments for delete to authen
 -- Add the three tables to the realtime publication so the client can listen
 -- for INSERT/DELETE events and update the cached counts live.
 
-do $$ begin
-  alter publication supabase_realtime add table public.posts;
-exception when duplicate_object then null;
-end $$;
-
-do $$ begin
-  alter publication supabase_realtime add table public.post_likes;
-exception when duplicate_object then null;
-end $$;
-
-do $$ begin
-  alter publication supabase_realtime add table public.post_comments;
-exception when duplicate_object then null;
-end $$;
+alter publication supabase_realtime add table public.posts;
+alter publication supabase_realtime add table public.post_likes;
+alter publication supabase_realtime add table public.post_comments;
 
 -- =========================================================================
 -- Storage policies — paste these AFTER creating the `post_media` bucket.
