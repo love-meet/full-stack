@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useProfile } from '../../hooks/useProfile'
 import { avatarFor } from '../../lib/avatar'
 import CroppedImage from './CroppedImage'
 import LocationPickerSheet, { type LocationResult } from '../../components/LocationPickerSheet'
+import { IconLocation, IconPerson, IconMusic, IconSettings } from '../../components/icons'
 import type { Media } from './types'
 
 type Props = {
@@ -115,16 +116,16 @@ export default function ComposeStep({
 
       {/* Settings rows */}
       <ul className="px-2 mt-2">
-        <SettingsRow icon="👤" label="Tag people" rightHint="Coming soon" disabled />
+        <SettingsRow icon={<IconPerson className="w-4 h-4" />} label="Tag people" rightHint="Coming soon" disabled />
         <SettingsRow
-          icon="📍"
+          icon={<IconLocation className="w-4 h-4" />}
           label="Add location"
           rightHint={location ? '✓' : undefined}
           onClick={() => setLocationPickerOpen(true)}
         />
-        <SettingsRow icon="🎵" label="Add music" rightHint="Coming soon" disabled />
+        <SettingsRow icon={<IconMusic className="w-4 h-4" />} label="Add music" rightHint="Coming soon" disabled />
         <SettingsRow
-          icon="⚙"
+          icon={<IconSettings className="w-4 h-4" />}
           label="Advanced settings"
           rightHint={advancedOpen ? '▴' : '▾'}
           onClick={() => setAdvancedOpen((o) => !o)}
@@ -173,7 +174,7 @@ function SettingsRow({
   onClick,
   disabled,
 }: {
-  icon: string
+  icon: ReactNode
   label: string
   rightHint?: string
   onClick?: () => void
@@ -190,7 +191,7 @@ function SettingsRow({
           disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/[0.04]',
         ].join(' ')}
       >
-        <span className="text-lg w-6 text-center">{icon}</span>
+        <span className="w-6 h-6 flex items-center justify-center text-lg">{icon}</span>
         <span className="flex-1 text-ink font-medium">{label}</span>
         {rightHint && <span className="text-xs text-ink-muted">{rightHint}</span>}
       </button>
