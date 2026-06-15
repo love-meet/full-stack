@@ -34,6 +34,10 @@ export type Profile = {
   last_seen_at: string | null
   created_at: string
   updated_at: string
+  coins: number
+  last_daily_coins_at: string | null
+  is_premium: boolean
+  premium_expires_at: string | null
 }
 
 export function useProfile() {
