@@ -107,7 +107,7 @@ export const router = createBrowserRouter([
               { path: 'gift/:giftId',          element: <GiftDetailScreen /> },
               { path: 'guide',                 element: <GuideScreen /> },
               { path: 'chat',                  element: <ChatScreen /> },
-              { path: 'search',                element: <SearchScreen /> }, // header-link, not a bottom-nav tab
+              { path: 'search',                element: <SearchScreen /> },
               { path: 'notifications',         element: <NotificationsScreen /> },
               { path: 'profile',               element: <ProfileScreen /> },
               { path: 'profile/edit',          element: <EditProfileScreen /> },

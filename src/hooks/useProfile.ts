@@ -20,6 +20,8 @@ export type Profile = {
   age_max: number | null
   show_online_status: boolean
   show_distance: boolean
+  intent: 'relationship' | 'fun' | null
+  gallery_urls: string[]
   email_notifications: boolean
   telegram_notifications: boolean
   age_18_confirmed: boolean
@@ -71,6 +73,8 @@ export type ProfileUpdate = Partial<
     | 'age_max'
     | 'show_online_status'
     | 'show_distance'
+    | 'intent'
+    | 'gallery_urls'
     | 'email_notifications'
     | 'telegram_notifications'
     | 'age_18_confirmed'
