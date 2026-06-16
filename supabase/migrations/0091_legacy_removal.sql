@@ -27,6 +27,8 @@ $$;
 drop view if exists public.my_affiliate_summary cascade;
 drop view if exists public.my_transactions cascade;
 
+drop trigger if exists launch_bonus_on_signup on public.profiles cascade;
+drop function if exists public.tg_launch_bonus() cascade;
 drop function if exists public.subscribe(text) cascade;
 drop function if exists public.apply_referral(text) cascade;
 drop function if exists public.request_withdrawal(numeric, text, text) cascade;

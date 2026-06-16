@@ -47,3 +47,5 @@ left join lateral (
   select count(*) as gift_count from public.post_gifts where post_id = p.id
 ) g on true
 left join public.profiles pr on pr.id = p.author_id;
+
+grant select on public.posts_with_counts to authenticated;
