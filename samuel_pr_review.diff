@@ -1,0 +1,355 @@
+diff --git a/src/hooks/useNotifications.ts b/src/hooks/useNotifications.ts
+index 13221dc..92af862 100644
+--- a/src/hooks/useNotifications.ts
++++ b/src/hooks/useNotifications.ts
+@@ -12,7 +12,6 @@ export type NotificationType =
+   | 'support_user_msg' | 'support_reply'
+   | 'launch_bonus' | 'subscription_expired' | 'referral_joined' | 'follow'
+   | 'game_invite' | 'game_join' | 'game_waiting'
+-  | 'new_member_nearby'
+ 
+ export type AppNotification = {
+   id: string
+diff --git a/src/screens/NotificationsScreen.tsx b/src/screens/NotificationsScreen.tsx
+index 88c1a63..e346b5b 100644
+--- a/src/screens/NotificationsScreen.tsx
++++ b/src/screens/NotificationsScreen.tsx
+@@ -38,7 +38,6 @@ export default function NotificationsScreen() {
+     else if (n.type === 'subscription_expired') navigate('/subscription')
+     else if (n.type === 'referral_joined') navigate('/affiliate')
+     else if (n.type === 'follow' && n.actor_id) navigate(`/profile/${n.actor_id}`)
+-    else if (n.type === 'new_member_nearby' && n.actor_id) navigate(`/profile/${n.actor_id}`)
+     else if (n.type === 'deposit') navigate('/wallet')
+     else if (n.type.startsWith('withdrawal')) navigate('/earnings')
+     else if (n.type === 'password_changed') navigate('/security')
+@@ -144,7 +143,6 @@ function message(n: AppNotification): React.ReactNode {
+     case 'gift_accepted': return <>{who} accepted your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎉</>
+     case 'gift_rejected': return <>{who} declined your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''}.</>
+     case 'match_post': return <>{who} — who matches your preferences — just posted. ✨</>
+-    case 'new_member_nearby': return <>{who} just joined Love meet near you 💕 Say hello!</>
+     case 'support_user_msg': return <>{who} messaged live support: <span className="text-ink-2">“{n.body}”</span></>
+     case 'support_reply': return <>Support replied{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : ''} 🛟</>
+     case 'game_invite': return <>{who} invited you to play a game 🎮 Tap to join.</>
+@@ -175,7 +173,6 @@ function glyph(type: AppNotification['type']): string {
+     case 'gift_accepted': return '🎉'
+     case 'gift_rejected': return '🎁'
+     case 'match_post': return '✨'
+-    case 'new_member_nearby': return '💕'
+     case 'welcome': return '💕'
+     case 'welcome_signup': return '💘'
+     case 'deposit': return '✅'
+diff --git a/src/screens/ProfileScreen.tsx b/src/screens/ProfileScreen.tsx
+index 11455d6..5998c90 100644
+--- a/src/screens/ProfileScreen.tsx
++++ b/src/screens/ProfileScreen.tsx
+@@ -69,6 +69,7 @@ export default function ProfileScreen() {
+   const heroTop     = useTransform(scrollY, [0, ANIM_END], [0,           24])
+   const overlayOpacity = useTransform(scrollY, [0, ANIM_END / 2], [1, 0])
+   const compactOpacity = useTransform(scrollY, [50, 100], [0, 1])
++  const compactPointerEvents = useTransform(compactOpacity, (v) => (v > 0.1 ? 'auto' : 'none'))
+ 
+   if (profileQ.isLoading || !profileQ.data) {
+     return (
+@@ -87,7 +88,7 @@ export default function ProfileScreen() {
+     <div className="relative">
+       {/* === Compact header (fades in once you scroll past the hero) === */}
+       <motion.div
+-        style={{ opacity: compactOpacity }}
++        style={{ opacity: compactOpacity, pointerEvents: compactPointerEvents }}
+         className="fixed top-0 left-0 right-0 lg:left-64 z-20 glass border-b border-white/5"
+       >
+         <div
+diff --git a/src/screens/games/PlayGameScreen.tsx b/src/screens/games/PlayGameScreen.tsx
+index 77c99dd..5cbcf18 100644
+--- a/src/screens/games/PlayGameScreen.tsx
++++ b/src/screens/games/PlayGameScreen.tsx
+@@ -1,4 +1,4 @@
+-import React, { useEffect, useMemo, useState } from 'react'
++import { useEffect, useMemo, useState } from 'react'
+ import { useParams, Link, useNavigate } from 'react-router-dom'
+ import { motion } from 'framer-motion'
+ import { supabase } from '../../lib/supabase'
+@@ -109,21 +109,6 @@ export default function PlayGameScreen() {
+   // lobby_since resets when a mid-game stall reverts the game to lobby,
+   // so a reverted game gets a fresh 3-min window to find an opponent.
+   const [lobbyElapsedSec, setLobbyElapsedSec] = useState(0)
+-  const [newMemberToast, setNewMemberToast] = useState<string | null>(null)
+-  const prevPlayersCount = React.useRef(0)
+-
+-  useEffect(() => {
+-    if (!g || g.status !== 'lobby') return
+-    if (prevPlayersCount.current > 0 && list.length > prevPlayersCount.current) {
+-      const newPlayer = list.find((p) => p.user_id !== myId && p.joined_at > g.created_at) // Approximate new player
+-      if (newPlayer) {
+-        setNewMemberToast(`👋 ${playerLabel(newPlayer)} joined the lobby!`)
+-        setTimeout(() => setNewMemberToast(null), 3500)
+-      }
+-    }
+-    prevPlayersCount.current = list.length
+-  }, [list.length, g?.status, myId, list, g?.created_at])
+-
+   useEffect(() => {
+     if (!g || g.status !== 'lobby') return
+     const start = new Date(g.lobby_since ?? g.created_at).getTime()
+@@ -367,11 +352,6 @@ export default function PlayGameScreen() {
+       </Card>
+ 
+       {shareOpen && <ShareSheet url={inviteUrl} text={shareText} title="Invite to Pixel Rush" onClose={() => setShareOpen(false)} />}
+-      {newMemberToast && (
+-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-ink text-surface px-4 py-2 rounded-full shadow-lg text-sm font-bold z-50 whitespace-nowrap pointer-events-none animate-in fade-in slide-in-from-bottom-4">
+-          {newMemberToast}
+-        </div>
+-      )}
+     </Frame>
+   )
+ }
+diff --git a/supabase/migrations/0085_targeted_notifications.sql b/supabase/migrations/0085_targeted_notifications.sql
+deleted file mode 100644
+index 413a7cc..0000000
+--- a/supabase/migrations/0085_targeted_notifications.sql
++++ /dev/null
+@@ -1,244 +0,0 @@
+--- 0085_targeted_notifications.sql
+---
+--- Task A — New-member nearby notification.
+---   When a user completes onboarding (onboarded_at: NULL → non-null), notify
+---   up to 50 existing members in the SAME REGION who are compatible by intent
+---   (looking_for) and have the new user's age within their preferred range.
+---   Recipients are capped at 2 new_member_nearby notifications per UTC day to
+---   prevent spam. The notifications table itself is the throttle store — no
+---   additional table is introduced.
+---
+--- Task B — Tighten tg_notify_match_post.
+---   Apply the same region + intent + daily-flood-protection filters to the
+---   existing "new post" fan-out and reduce the cap 100 → 50. Previously this
+---   triggered for every user platform-wide whose age happened to match. Now it
+---   is scoped to the same region as the post author, with compatible intent.
+---
+--- Rollback: see bottom of file.
+-
+--- ============================================================================
+--- 1. Indexes
+---    These must exist BEFORE the functions that use them. All are partial so
+---    they stay small and add zero overhead for rows that don't match.
+--- ============================================================================
+-
+--- Recipient filter for both fan-outs: onboarded, not deleted, by country + region.
+--- country_code leads so the (country_code, region) compound predicate hits this index.
+-create index if not exists profiles_notification_recipient_idx
+-  on public.profiles (country_code, region, looking_for)
+-  where onboarded_at is not null and deleted_at is null and region is not null;
+-
+--- Throttle sub-query: count today's new_member_nearby rows for a given user.
+--- A partial index on the two notification types keeps it tiny and fast.
+-create index if not exists notifications_new_member_throttle_idx
+-  on public.notifications (user_id, created_at desc)
+-  where type = 'new_member_nearby';
+-
+-create index if not exists notifications_match_post_throttle_idx
+-  on public.notifications (user_id, created_at desc)
+-  where type = 'match_post';
+-
+--- ============================================================================
+--- 2. Task A — extend tg_notify_welcome to fan out new_member_nearby.
+---    The trigger already fires after UPDATE OF onboarded_at. We replace the
+---    function body (trigger DDL stays identical — recreated defensively below).
+---    By this point the new user's country_code, region, dob, and looking_for
+---    are all populated by the onboarding form, making filtering meaningful.
+--- ============================================================================
+-create or replace function public.tg_notify_welcome()
+-returns trigger language plpgsql security definer set search_path = public as $$
+-declare
+-  actor_name   text;
+-  new_user_age int;
+-begin
+-  -- Guard: only act when onboarded_at transitions NULL → non-null.
+-  if new.onboarded_at is null or old.onboarded_at is not null then
+-    return new;
+-  end if;
+-
+-  -- ── Self-welcome (unchanged from 0040) ───────────────────────────────────
+-  insert into public.notifications (user_id, type, body)
+-  values (new.id, 'welcome',
+-    'Your profile is live and looking lovely 💕 The right person could be one hello away — so don''t be shy. Make the first move; fortune favours the bold (and the charming).');
+-
+-  -- ── Fan-out to nearby members ────────────────────────────────────────────
+-  -- Requires region — without it we cannot scope the delivery.
+-  if new.region is null then
+-    return new;
+-  end if;
+-
+-  -- Friendly name for the notification body.
+-  actor_name := coalesce(
+-    nullif(trim(new.first_name), ''),
+-    nullif(trim(new.display_name), ''),
+-    nullif(trim(new.handle), ''),
+-    'Someone new'
+-  );
+-
+-  -- Age from dob (same expression used by tg_notify_match_post and ranked_feed).
+-  if new.dob is not null then
+-    new_user_age := extract(year from age(now(), new.dob))::int;
+-  end if;
+-
+-  insert into public.notifications (user_id, actor_id, type, body)
+-  select
+-    u.id,
+-    new.id,
+-    'new_member_nearby',
+-    actor_name || ' just joined Love meet near you 💕'
+-  from public.profiles u
+-  where u.id <> new.id
+-    and u.onboarded_at is not null
+-    and u.deleted_at is null
+-    -- Geography: same country AND same region.
+-    -- country_code guards against region-name collisions across countries;
+-    -- region alone narrows to sub-national scope (not every user in a country).
+-    -- If the new user's country_code is NULL we skip the country guard (graceful).
+-    and (new.country_code is null or u.country_code = new.country_code)
+-    and u.region = new.region
+-    -- Intent: match if either side is NULL or values are identical.
+-    -- (serious↔serious, casual↔casual, friends↔friends, NULL↔any)
+-    and (
+-      new.looking_for is null
+-      or u.looking_for is null
+-      or u.looking_for = new.looking_for
+-    )
+-    -- Age targeting: new user's age must fall inside recipient's preferred range.
+-    -- If either side is missing, the filter is skipped (conservative default).
+-    and (
+-      new_user_age is null
+-      or u.age_min is null
+-      or u.age_max is null
+-      or new_user_age between u.age_min and u.age_max
+-    )
+-    -- Flood protection: at most 2 new_member_nearby notifications per recipient
+-    -- per UTC calendar day.
+-    and (
+-      select count(*) from public.notifications n2
+-       where n2.user_id = u.id
+-         and n2.type    = 'new_member_nearby'
+-         and n2.created_at >= current_date
+-    ) < 2
+-  order by random()
+-  limit 50;
+-
+-  return new;
+-end $$;
+-
+--- Re-attach trigger (name unchanged from 0036/0040).
+-drop trigger if exists notify_on_welcome on public.profiles;
+-create trigger notify_on_welcome
+-  after update of onboarded_at on public.profiles
+-  for each row execute function public.tg_notify_welcome();
+-
+--- ============================================================================
+--- 3. Task B — tighten tg_notify_match_post with region + intent + flood cap.
+---    Previously: age-only filter, no geography, no throttle, LIMIT 100.
+---    Now:        region + intent + age + flood protection (2/day), LIMIT 50.
+--- ============================================================================
+-create or replace function public.tg_notify_match_post()
+-returns trigger language plpgsql security definer set search_path = public as $$
+-declare
+-  author_age    int;
+-  author_region text;
+-  author_intent text;
+-begin
+-  -- Fetch the author's age, region, and intent in one query.
+-  select
+-    extract(year from age(now(), p.dob))::int,
+-    p.region,
+-    p.looking_for
+-  into author_age, author_region, author_intent
+-  from public.profiles p
+-  where p.id = new.author_id;
+-
+-  -- Region is required to scope delivery. Without it we cannot safely fan out.
+-  if author_region is null then
+-    return new;
+-  end if;
+-
+-  insert into public.notifications (user_id, actor_id, type, post_id, body)
+-  select u.id, new.author_id, 'match_post', new.id, null
+-    from public.profiles u
+-   where u.id <> new.author_id
+-     and u.onboarded_at is not null
+-     and u.deleted_at is null
+-     -- Geography: same region as the author.
+-     and u.region = author_region
+-     -- Intent compatibility.
+-     and (
+-       author_intent is null
+-       or u.looking_for is null
+-       or u.looking_for = author_intent
+-     )
+-     -- Age targeting: author's age must fall inside the recipient's preferred range.
+-     and (
+-       author_age is null
+-       or u.age_min is null
+-       or u.age_max is null
+-       or author_age between u.age_min and u.age_max
+-     )
+-     -- Flood protection: at most 2 match_post notifications per recipient per day.
+-     and (
+-       select count(*) from public.notifications n2
+-        where n2.user_id = u.id
+-          and n2.type    = 'match_post'
+-          and n2.created_at >= current_date
+-     ) < 2
+-   order by random()
+-   limit 50;
+-
+-  return new;
+-end $$;
+-
+--- Trigger DDL unchanged — just re-declare to be safe.
+-drop trigger if exists notify_on_match_post on public.posts;
+-create trigger notify_on_match_post after insert on public.posts
+-  for each row execute function public.tg_notify_match_post();
+-
+--- ============================================================================
+--- ROLLBACK INSTRUCTIONS (run manually if a revert is needed)
+--- ============================================================================
+---
+--- 1. Drop the new indexes:
+---      drop index if exists public.profiles_notification_recipient_idx;
+---      drop index if exists public.notifications_new_member_throttle_idx;
+---      drop index if exists public.notifications_match_post_throttle_idx;
+---
+--- 2. Revert tg_notify_welcome to the 0040 body:
+---      create or replace function public.tg_notify_welcome()
+---      returns trigger language plpgsql security definer set search_path = public as $$
+---      begin
+---        if new.onboarded_at is not null and old.onboarded_at is null then
+---          insert into public.notifications (user_id, type, body)
+---          values (new.id, 'welcome',
+---            'Your profile is live and looking lovely ...');
+---        end if;
+---        return new;
+---      end $$;
+---
+--- 3. Revert tg_notify_match_post to the 0039 body:
+---      create or replace function public.tg_notify_match_post()
+---      returns trigger language plpgsql security definer set search_path = public as $$
+---      declare author_age int;
+---      begin
+---        select extract(year from age(now(), dob))::int into author_age
+---          from public.profiles where id = new.author_id;
+---        if author_age is null then return new; end if;
+---        insert into public.notifications (user_id, actor_id, type, post_id, body)
+---        select u.id, new.author_id, 'match_post', new.id, null
+---          from public.profiles u
+---         where u.id <> new.author_id
+---           and u.onboarded_at is not null
+---           and u.deleted_at is null
+---           and u.age_min is not null and u.age_max is not null
+---           and author_age between u.age_min and u.age_max
+---         order by u.created_at desc
+---         limit 100;
+---        return new;
+---      end $$;
+---
+--- 4. Purge new_member_nearby rows if desired (optional):
+---      delete from public.notifications where type = 'new_member_nearby';
+---
+--- ============================================================================

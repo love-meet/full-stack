@@ -1,0 +1,21 @@
+diff --git a/src/screens/ProfileScreen.tsx b/src/screens/ProfileScreen.tsx
+index 11455d6..5998c90 100644
+--- a/src/screens/ProfileScreen.tsx
++++ b/src/screens/ProfileScreen.tsx
+@@ -69,6 +69,7 @@ export default function ProfileScreen() {
+   const heroTop     = useTransform(scrollY, [0, ANIM_END], [0,           24])
+   const overlayOpacity = useTransform(scrollY, [0, ANIM_END / 2], [1, 0])
+   const compactOpacity = useTransform(scrollY, [50, 100], [0, 1])
++  const compactPointerEvents = useTransform(compactOpacity, (v) => (v > 0.1 ? 'auto' : 'none'))
+ 
+   if (profileQ.isLoading || !profileQ.data) {
+     return (
+@@ -87,7 +88,7 @@ export default function ProfileScreen() {
+     <div className="relative">
+       {/* === Compact header (fades in once you scroll past the hero) === */}
+       <motion.div
+-        style={{ opacity: compactOpacity }}
++        style={{ opacity: compactOpacity, pointerEvents: compactPointerEvents }}
+         className="fixed top-0 left-0 right-0 lg:left-64 z-20 glass border-b border-white/5"
+       >
+         <div
