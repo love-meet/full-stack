@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../stores/auth'
-import { useProfile } from '../../hooks/useProfile'
+import { useProfile, useUpdateProfile } from '../../hooks/useProfile'
 import { useWallet } from '../../hooks/useWallet'
 import { useEarningsSummary } from '../../hooks/useWallet'
 import { useIsAdmin } from '../../hooks/useAdmin'
@@ -16,6 +16,7 @@ type Item = {
   disabled?: boolean
   soon?: string
   onClick?: () => void
+  toggle?: { value: boolean; onChange: (v: boolean) => void; busy?: boolean }
 }
 
 /**
@@ -30,6 +31,7 @@ export default function ProfileMenuScreen() {
   const wallet = useWallet()
   const earnings = useEarningsSummary()
   const isAdmin = useIsAdmin()
+  const updateProfile = useUpdateProfile()
   const [confirmLogout, setConfirmLogout] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -70,6 +72,31 @@ export default function ProfileMenuScreen() {
         { icon: '💰', label: 'Earnings history', hint: 'Tips, gifts, referrals received', onClick: () => navigate('/earnings') },
         { icon: '⭐', label: 'Subscription', hint: 'Premium plans', onClick: () => navigate('/subscription') },
         { icon: '💸', label: 'Affiliate', hint: 'Earn 5% for life on referrals', onClick: () => navigate('/affiliate') },
+      ],
+    },
+    {
+      title: 'Notifications',
+      items: [
+        {
+          icon: '✉',
+          label: 'Email notifications',
+          hint: 'Receive updates via email',
+          toggle: {
+            value: profile.email_notifications,
+            busy: updateProfile.isPending,
+            onChange: (v) => updateProfile.mutate({ email_notifications: v }),
+          },
+        },
+        {
+          icon: '✈',
+          label: 'Telegram notifications',
+          hint: 'Receive updates via Telegram bot',
+          toggle: {
+            value: profile.telegram_notifications,
+            busy: updateProfile.isPending,
+            onChange: (v) => updateProfile.mutate({ telegram_notifications: v }),
+          },
+        },
       ],
     },
     {
@@ -145,32 +172,64 @@ export default function ProfileMenuScreen() {
               <ul className="glass rounded-3xl overflow-hidden divide-y divide-white/5">
                 {section.items.map((it) => (
                   <li key={it.label}>
-                    <button
-                      onClick={it.disabled ? undefined : it.onClick}
-                      disabled={busy || it.disabled}
-                      className={[
-                        'w-full flex items-center gap-4 px-4 py-3.5 text-left transition-colors',
-                        it.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/[0.04]',
-                        it.destructive ? 'text-danger' : 'text-ink',
-                      ].join(' ')}
-                    >
-                      <span className="text-xl w-6 text-center shrink-0">{it.icon}</span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block font-semibold truncate">{it.label}</span>
-                        {it.hint && (
-                          <span className="block text-[11px] text-ink-muted font-medium truncate">
-                            {it.hint}
-                          </span>
-                        )}
-                      </span>
-                      {it.soon ? (
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gold/15 text-gold shrink-0">
-                          {it.soon}
+                    {it.toggle ? (
+                      <div className="w-full flex items-center gap-4 px-4 py-3.5">
+                        <span className="text-xl w-6 text-center shrink-0">{it.icon}</span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block font-semibold truncate text-ink">{it.label}</span>
+                          {it.hint && (
+                            <span className="block text-[11px] text-ink-muted font-medium truncate">
+                              {it.hint}
+                            </span>
+                          )}
                         </span>
-                      ) : !it.disabled ? (
-                        <span className="text-ink-muted text-base shrink-0">›</span>
-                      ) : null}
-                    </button>
+                        <button
+                          role="switch"
+                          aria-checked={it.toggle.value}
+                          disabled={it.toggle.busy}
+                          onClick={() => it.toggle!.onChange(!it.toggle!.value)}
+                          className={[
+                            'relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose',
+                            it.toggle.value ? 'bg-rose' : 'bg-white/20',
+                            it.toggle.busy ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+                          ].join(' ')}
+                        >
+                          <span
+                            className={[
+                              'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200',
+                              it.toggle.value ? 'translate-x-5' : 'translate-x-0',
+                            ].join(' ')}
+                          />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={it.disabled ? undefined : it.onClick}
+                        disabled={busy || it.disabled}
+                        className={[
+                          'w-full flex items-center gap-4 px-4 py-3.5 text-left transition-colors',
+                          it.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/[0.04]',
+                          it.destructive ? 'text-danger' : 'text-ink',
+                        ].join(' ')}
+                      >
+                        <span className="text-xl w-6 text-center shrink-0">{it.icon}</span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block font-semibold truncate">{it.label}</span>
+                          {it.hint && (
+                            <span className="block text-[11px] text-ink-muted font-medium truncate">
+                              {it.hint}
+                            </span>
+                          )}
+                        </span>
+                        {it.soon ? (
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gold/15 text-gold shrink-0">
+                            {it.soon}
+                          </span>
+                        ) : !it.disabled ? (
+                          <span className="text-ink-muted text-base shrink-0">›</span>
+                        ) : null}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
