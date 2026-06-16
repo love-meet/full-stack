@@ -187,9 +187,8 @@ function stepStatus(step: number, d: FormData): StepStatus {
       return { valid: true, hint: null }
     }
     case 4: {
-      // Require a successful detection: coords present + a country resolved.
-      if (d.lat === null || d.lon === null || d.countryName.trim().length === 0) {
-        return { valid: false, hint: 'Tap "Add location" to set your location.' }
+      if (d.countryName.trim().length === 0) {
+        return { valid: false, hint: 'Add your location to continue.' }
       }
       return { valid: true, hint: null }
     }

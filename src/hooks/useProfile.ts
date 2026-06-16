@@ -86,6 +86,7 @@ export type ProfileUpdate = Partial<
 export function useUpdateProfile() {
   const session = useAuth((s) => s.session)
   const qc = useQueryClient()
+  const key = ['profile', session?.user.id ?? null] as const
   return useMutation({
     mutationFn: async (patch: ProfileUpdate) => {
       if (!session) throw new Error('not signed in')
@@ -98,8 +99,17 @@ export function useUpdateProfile() {
       if (error) throw error
       return data as Profile
     },
+    onMutate: async (patch) => {
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<Profile>(key)
+      if (previous) qc.setQueryData(key, { ...previous, ...patch })
+      return { previous }
+    },
+    onError: (_err, _patch, ctx) => {
+      if (ctx?.previous) qc.setQueryData(key, ctx.previous)
+    },
     onSuccess: (profile) => {
-      qc.setQueryData(['profile', session?.user.id ?? null], profile)
+      qc.setQueryData(key, profile)
     },
   })
 }
