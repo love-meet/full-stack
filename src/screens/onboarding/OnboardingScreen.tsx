@@ -74,13 +74,6 @@ export default function OnboardingScreen() {
     }
   }, [profileQuery.data, navigate, update])
 
-  // Block the wizard from painting while we still have any of the above to
-  // resolve: profile is loading, profile is already onboarded, or we're
-  // backfilling.
-  if (profileQuery.isLoading) return <LoadingShell />
-  if (profileQuery.data?.onboarded_at) return <Navigate to="/feed" replace />
-  if (backfillRef.current) return <LoadingShell />
-
   const set = useCallback(
     (patch: Partial<FormData>) => setData((d) => ({ ...d, ...patch })),
     [],
@@ -132,6 +125,13 @@ export default function OnboardingScreen() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // Block the wizard from painting while we still have any of the above to
+  // resolve: profile is loading, profile is already onboarded, or we're
+  // backfilling.
+  if (profileQuery.isLoading) return <LoadingShell />
+  if (profileQuery.data?.onboarded_at) return <Navigate to="/feed" replace />
+  if (backfillRef.current) return <LoadingShell />
 
   const StepBody = STEP_COMPONENTS[steps[step].key]
   const meta = steps[step]

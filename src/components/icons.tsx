@@ -115,6 +115,36 @@ export function IconPlay({ className, size = 24 }: IconProps) {
   )
 }
 
+/** Person head+shoulders. */
+export function IconPerson({ className, size = 20, strokeWidth = 2 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  )
+}
+
+/** Music note. */
+export function IconMusic({ className, size = 20, strokeWidth = 2 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="9" cy="18" r="3" />
+    </svg>
+  )
+}
+
+/** Settings gear. */
+export function IconSettings({ className, size = 20, strokeWidth = 2 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8c.66 0 1.24-.39 1.51-1V3a2 2 0 1 1 4 0v.09c0 .66.39 1.24 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8c.66 0 1.24.39 1.51 1H21a2 2 0 1 1 0 4h-.09c-.66 0-1.24.39-1.51 1z" />
+    </svg>
+  )
+}
+
 /** Camera with circular arrows — flip front/back. */
 export function IconFlipCamera({ className, size = 22, strokeWidth = 2 }: IconProps) {
   return (
@@ -152,6 +182,16 @@ export function IconTimer({ className, size = 22, strokeWidth = 2 }: IconProps) 
     <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
       <circle cx="12" cy="13" r="8" />
       <path d="M12 9v4l2.5 2M9 2h6" />
+    </svg>
+  )
+}
+
+/** Location pin — used for post location settings. */
+export function IconLocation({ className, size = 20, strokeWidth = 2 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
+      <path d="M12 21s-8-4.35-8-10a8 8 0 0 1 16 0c0 5.65-8 10-8 10z" />
+      <circle cx="12" cy="11" r="3" />
     </svg>
   )
 }

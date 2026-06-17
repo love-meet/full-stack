@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
@@ -109,6 +109,21 @@ export default function PlayGameScreen() {
   // lobby_since resets when a mid-game stall reverts the game to lobby,
   // so a reverted game gets a fresh 3-min window to find an opponent.
   const [lobbyElapsedSec, setLobbyElapsedSec] = useState(0)
+  const [newMemberToast, setNewMemberToast] = useState<string | null>(null)
+  const prevPlayersCount = React.useRef(0)
+
+  useEffect(() => {
+    if (!g || g.status !== 'lobby') return
+    if (prevPlayersCount.current > 0 && list.length > prevPlayersCount.current) {
+      const newPlayer = list.find((p) => p.user_id !== myId && p.joined_at > g.created_at) // Approximate new player
+      if (newPlayer) {
+        setNewMemberToast(`👋 ${playerLabel(newPlayer)} joined the lobby!`)
+        setTimeout(() => setNewMemberToast(null), 3500)
+      }
+    }
+    prevPlayersCount.current = list.length
+  }, [list.length, g?.status, myId, list, g?.created_at])
+
   useEffect(() => {
     if (!g || g.status !== 'lobby') return
     const start = new Date(g.lobby_since ?? g.created_at).getTime()
@@ -352,6 +367,11 @@ export default function PlayGameScreen() {
       </Card>
 
       {shareOpen && <ShareSheet url={inviteUrl} text={shareText} title="Invite to Pixel Rush" onClose={() => setShareOpen(false)} />}
+      {newMemberToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-ink text-surface px-4 py-2 rounded-full shadow-lg text-sm font-bold z-50 whitespace-nowrap pointer-events-none animate-in fade-in slide-in-from-bottom-4">
+          {newMemberToast}
+        </div>
+      )}
     </Frame>
   )
 }

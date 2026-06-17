@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useProfile } from '../../hooks/useProfile'
 import { avatarFor } from '../../lib/avatar'
 import CroppedImage from './CroppedImage'
+import LocationPickerSheet, { type LocationResult } from '../../components/LocationPickerSheet'
+import { IconLocation, IconPerson, IconMusic, IconSettings } from '../../components/icons'
 import type { Media } from './types'
 
 type Props = {
@@ -14,6 +16,8 @@ type Props = {
   onChangeCommentsDisabled: (v: boolean) => void
   altText: string
   onChangeAltText: (v: string) => void
+  location: LocationResult | null
+  onChangeLocation: (v: LocationResult | null) => void
   error: string | null
 }
 
@@ -27,10 +31,13 @@ export default function ComposeStep({
   onChangeCommentsDisabled,
   altText,
   onChangeAltText,
+  location,
+  onChangeLocation,
   error,
 }: Props) {
   const profile = useProfile()
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false)
 
   // Pin thumbnail height to 96 px; width follows the cropped area's aspect,
   // clamped so very tall crops don't shrink to a sliver.
@@ -93,13 +100,32 @@ export default function ComposeStep({
         {caption.length}/2200
       </div>
 
+      {/* Location pill */}
+      {location && (
+        <div className="px-4 pt-3 pb-1">
+          <button
+            onClick={() => onChangeLocation(null)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 text-ink text-sm hover:bg-white/15 transition-colors"
+          >
+            <span>📍</span>
+            <span className="max-w-xs truncate">{location.label}</span>
+            <span className="text-xs">×</span>
+          </button>
+        </div>
+      )}
+
       {/* Settings rows */}
       <ul className="px-2 mt-2">
-        <SettingsRow icon="👤" label="Tag people" rightHint="Coming soon" disabled />
-        <SettingsRow icon="📍" label="Add location" rightHint="Coming soon" disabled />
-        <SettingsRow icon="🎵" label="Add music" rightHint="Coming soon" disabled />
+        <SettingsRow icon={<IconPerson className="w-4 h-4" />} label="Tag people" rightHint="Coming soon" disabled />
         <SettingsRow
-          icon="⚙"
+          icon={<IconLocation className="w-4 h-4" />}
+          label="Add location"
+          rightHint={location ? '✓' : undefined}
+          onClick={() => setLocationPickerOpen(true)}
+        />
+        <SettingsRow icon={<IconMusic className="w-4 h-4" />} label="Add music" rightHint="Coming soon" disabled />
+        <SettingsRow
+          icon={<IconSettings className="w-4 h-4" />}
           label="Advanced settings"
           rightHint={advancedOpen ? '▴' : '▾'}
           onClick={() => setAdvancedOpen((o) => !o)}
@@ -126,6 +152,17 @@ export default function ComposeStep({
       {error && <p className="text-sm text-danger px-5 mt-3">{error}</p>}
 
       <div style={{ height: 'env(safe-area-inset-bottom)' }} />
+
+      {/* Location picker sheet */}
+      {locationPickerOpen && (
+        <LocationPickerSheet
+          onSelect={(loc) => {
+            onChangeLocation(loc)
+            setLocationPickerOpen(false)
+          }}
+          onClose={() => setLocationPickerOpen(false)}
+        />
+      )}
     </div>
   )
 }
@@ -137,7 +174,7 @@ function SettingsRow({
   onClick,
   disabled,
 }: {
-  icon: string
+  icon: ReactNode
   label: string
   rightHint?: string
   onClick?: () => void
@@ -154,7 +191,7 @@ function SettingsRow({
           disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/[0.04]',
         ].join(' ')}
       >
-        <span className="text-lg w-6 text-center">{icon}</span>
+        <span className="w-6 h-6 flex items-center justify-center text-lg">{icon}</span>
         <span className="flex-1 text-ink font-medium">{label}</span>
         {rightHint && <span className="text-xs text-ink-muted">{rightHint}</span>}
       </button>

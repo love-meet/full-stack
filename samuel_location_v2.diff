@@ -1,0 +1,612 @@
+diff --git a/src/components/LocationPickerSheet.tsx b/src/components/LocationPickerSheet.tsx
+new file mode 100644
+index 0000000..9816a48
+--- /dev/null
++++ b/src/components/LocationPickerSheet.tsx
+@@ -0,0 +1,247 @@
++import { useState, useRef } from 'react'
++import { motion, AnimatePresence } from 'framer-motion'
++import { Drawer } from 'vaul'
++import { useDrawerLock } from '../stores/ui'
++
++export type LocationResult = {
++  label: string
++  lat: number
++  lon: number
++}
++
++type Props = {
++  onSelect: (location: LocationResult) => void
++  onClose: () => void
++}
++
++type SearchResult = {
++  display_name: string
++  lat: string
++  lon: string
++}
++
++export default function LocationPickerSheet({ onSelect, onClose }: Props) {
++  useDrawerLock()
++  const [searchQuery, setSearchQuery] = useState('')
++  const [results, setResults] = useState<SearchResult[]>([])
++  const [isSearching, setIsSearching] = useState(false)
++  const [error, setError] = useState<string | null>(null)
++  const [usingGeolocation, setUsingGeolocation] = useState(false)
++  const searchTimeoutRef = useRef<NodeJS.Timeout>()
++
++  // Search via OpenStreetMap Nominatim
++  async function handleSearch(query: string) {
++    setSearchQuery(query)
++    setError(null)
++
++    if (!query.trim()) {
++      setResults([])
++      return
++    }
++
++    // Debounce
++    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
++
++    setIsSearching(true)
++    searchTimeoutRef.current = setTimeout(async () => {
++      try {
++        const response = await fetch(
++          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8`,
++          {
++            headers: {
++              'User-Agent': 'LoveMeetApp/1.0',
++              'Accept-Language': 'en',
++            },
++          }
++        )
++        if (!response.ok) throw new Error(`Search failed: ${response.status}`)
++        const data = (await response.json()) as SearchResult[]
++        setResults(data)
++      } catch (err) {
++        setError('Could not search locations. Try again.')
++        setResults([])
++      } finally {
++        setIsSearching(false)
++      }
++    }, 300)
++  }
++
++  // Get current location
++  async function handleCurrentLocation() {
++    setError(null)
++
++    if (!navigator.geolocation) {
++      setError('Geolocation is not supported by your browser.')
++      return
++    }
++
++    setUsingGeolocation(true)
++
++    try {
++      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
++        navigator.geolocation.getCurrentPosition(resolve, reject, {
++          enableHighAccuracy: false,
++          timeout: 10000,
++          maximumAge: 0,
++        })
++      })
++
++      const { latitude, longitude } = position.coords
++
++      // Reverse geocode to get place name
++      try {
++        const response = await fetch(
++          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
++          {
++            headers: {
++              'User-Agent': 'LoveMeetApp/1.0',
++              'Accept-Language': 'en',
++            },
++          }
++        )
++        if (!response.ok) throw new Error(`Reverse geocode failed: ${response.status}`)
++        const data = (await response.json()) as { display_name: string }
++
++        onSelect({
++          label: data.display_name,
++          lat: latitude,
++          lon: longitude,
++        })
++        onClose()
++      } catch {
++        onSelect({
++          label: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
++          lat: latitude,
++          lon: longitude,
++        })
++        onClose()
++      }
++    } catch (err) {
++      if (err instanceof GeolocationPositionError) {
++        if (err.code === err.PERMISSION_DENIED) {
++          setError('Location permission denied. Please enable it in your browser settings.')
++        } else if (err.code === err.POSITION_UNAVAILABLE) {
++          setError('Location unavailable. Try searching manually instead.')
++        } else if (err.code === err.TIMEOUT) {
++          setError('Location request timed out. Try again.')
++        } else {
++          setError('Could not get your location.')
++        }
++      } else {
++        setError('Could not get your location.')
++      }
++    } finally {
++      setUsingGeolocation(false)
++    }
++  }
++
++  function handleSelectResult(result: SearchResult) {
++    onSelect({
++      label: result.display_name,
++      lat: parseFloat(result.lat),
++      lon: parseFloat(result.lon),
++    })
++    onClose()
++  }
++
++  return (
++    <Drawer.Root open onOpenChange={(o) => { if (!o) onClose() }} modal>
++      <Drawer.Portal>
++        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
++        <Drawer.Content
++          aria-describedby={undefined}
++          className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md bg-surface-2 rounded-t-3xl flex flex-col outline-none"
++          style={{ maxHeight: '95dvh' }}
++        >
++          <div className="pt-3 pb-1 shrink-0">
++            <div className="mx-auto w-10 h-1 rounded-full bg-ink-muted/40" />
++          </div>
++
++          <Drawer.Title className="sr-only">Pick a location</Drawer.Title>
++
++          {/* Search box */}
++          <div className="px-5 pt-3 pb-2 shrink-0 space-y-2">
++            <input
++              type="text"
++              value={searchQuery}
++              onChange={(e) => handleSearch(e.target.value)}
++              placeholder="Search a place…"
++              className="w-full bg-surface-3 rounded-full px-4 py-2.5 text-ink placeholder:text-ink-muted outline-none transition-colors focus:ring-1 focus:ring-white/20"
++              autoFocus
++            />
++
++            <button
++              onClick={handleCurrentLocation}
++              disabled={usingGeolocation}
++              className="w-full flex items-center justify-center gap-2 bg-gradient-brand glow-rose rounded-full px-4 py-2.5 text-white font-semibold text-sm transition-opacity disabled:opacity-70"
++            >
++              {usingGeolocation ? (
++                <>
++                  <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
++                  Getting location…
++                </>
++              ) : (
++                <>
++                  📍 Use my current location
++                </>
++              )}
++            </button>
++          </div>
++
++          {/* Error message */}
++          {error && (
++            <div className="px-5 pb-2">
++              <div className="text-xs text-danger bg-danger/10 rounded-lg px-3 py-2">
++                {error}
++              </div>
++            </div>
++          )}
++
++          {/* Results list */}
++          <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-4">
++            {isSearching && searchQuery ? (
++              <div className="text-center text-ink-muted text-sm py-8">
++                <div className="inline-block w-4 h-4 border-2 border-ink-muted/30 border-t-ink-muted rounded-full animate-spin mb-2" />
++                <div>Searching…</div>
++              </div>
++            ) : results.length > 0 ? (
++              <ul className="space-y-1">
++                {results.map((result, idx) => (
++                  <li key={idx}>
++                    <button
++                      onClick={() => handleSelectResult(result)}
++                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-white/[0.08] transition-colors text-sm text-ink active:bg-white/10"
++                    >
++                      <div className="font-medium truncate">{result.display_name}</div>
++                      <div className="text-xs text-ink-muted">
++                        {parseFloat(result.lat).toFixed(4)}, {parseFloat(result.lon).toFixed(4)}
++                      </div>
++                    </button>
++                  </li>
++                ))}
++              </ul>
++            ) : searchQuery ? (
++              <div className="text-center text-ink-muted text-sm py-8">
++                No places found. Try a different search.
++              </div>
++            ) : (
++              <div className="text-center text-ink-muted text-sm py-8">
++                Search for a place or use your current location.
++              </div>
++            )}
++          </div>
++
++          {/* Close button */}
++          <div className="px-5 pb-3 shrink-0 border-t border-white/5">
++            <button
++              onClick={onClose}
++              className="w-full rounded-full py-3 glass text-ink-2 hover:text-ink font-semibold text-sm"
++            >
++              Cancel
++            </button>
++          </div>
++        </Drawer.Content>
++      </Drawer.Portal>
++    </Drawer.Root>
++  )
++}
+diff --git a/src/components/icons.tsx b/src/components/icons.tsx
+index f87ca31..7423ff2 100644
+--- a/src/components/icons.tsx
++++ b/src/components/icons.tsx
+@@ -115,6 +115,36 @@ export function IconPlay({ className, size = 24 }: IconProps) {
+   )
+ }
+ 
++/** Person head+shoulders. */
++export function IconPerson({ className, size = 20, strokeWidth = 2 }: IconProps) {
++  return (
++    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
++      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
++      <circle cx="12" cy="7" r="4" />
++    </svg>
++  )
++}
++
++/** Music note. */
++export function IconMusic({ className, size = 20, strokeWidth = 2 }: IconProps) {
++  return (
++    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
++      <path d="M9 18V5l12-2v13" />
++      <circle cx="9" cy="18" r="3" />
++    </svg>
++  )
++}
++
++/** Settings gear. */
++export function IconSettings({ className, size = 20, strokeWidth = 2 }: IconProps) {
++  return (
++    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
++      <circle cx="12" cy="12" r="3" />
++      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8c.66 0 1.24-.39 1.51-1V3a2 2 0 1 1 4 0v.09c0 .66.39 1.24 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8c.66 0 1.24.39 1.51 1H21a2 2 0 1 1 0 4h-.09c-.66 0-1.24.39-1.51 1z" />
++    </svg>
++  )
++}
++
+ /** Camera with circular arrows — flip front/back. */
+ export function IconFlipCamera({ className, size = 22, strokeWidth = 2 }: IconProps) {
+   return (
+@@ -155,3 +185,13 @@ export function IconTimer({ className, size = 22, strokeWidth = 2 }: IconProps)
+     </svg>
+   )
+ }
++
++/** Location pin — used for post location settings. */
++export function IconLocation({ className, size = 20, strokeWidth = 2 }: IconProps) {
++  return (
++    <svg {...base(size)} strokeWidth={strokeWidth} className={className} aria-hidden>
++      <path d="M12 21s-8-4.35-8-10a8 8 0 0 1 16 0c0 5.65-8 10-8 10z" />
++      <circle cx="12" cy="11" r="3" />
++    </svg>
++  )
++}
+diff --git a/src/hooks/useFeed.ts b/src/hooks/useFeed.ts
+index a37144f..290b5c0 100644
+--- a/src/hooks/useFeed.ts
++++ b/src/hooks/useFeed.ts
+@@ -9,6 +9,9 @@ export type FeedPost = {
+   media_aspect: number | null
+   caption: string | null
+   created_at: string
++  location_label: string | null
++  location_lat: number | null
++  location_lon: number | null
+   hide_like_count: boolean
+   comments_disabled: boolean
+   alt_text: string | null
+diff --git a/src/hooks/usePostMutations.ts b/src/hooks/usePostMutations.ts
+index 85a2eaf..3d068b7 100644
+--- a/src/hooks/usePostMutations.ts
++++ b/src/hooks/usePostMutations.ts
+@@ -189,6 +189,9 @@ export function useCreatePost() {
+       hide_like_count?: boolean
+       comments_disabled?: boolean
+       alt_text?: string | null
++      location_label?: string | null
++      location_lat?: number | null
++      location_lon?: number | null
+     }) => {
+       if (!session) throw new Error('not signed in')
+       const { data, error } = await supabase
+@@ -202,6 +205,9 @@ export function useCreatePost() {
+           hide_like_count: vars.hide_like_count ?? false,
+           comments_disabled: vars.comments_disabled ?? false,
+           alt_text: vars.alt_text ?? null,
++          location_label: vars.location_label ?? null,
++          location_lat: vars.location_lat ?? null,
++          location_lon: vars.location_lon ?? null,
+         })
+         .select()
+         .single()
+diff --git a/src/screens/FeedScreen.tsx b/src/screens/FeedScreen.tsx
+index 5aa1906..7557613 100644
+--- a/src/screens/FeedScreen.tsx
++++ b/src/screens/FeedScreen.tsx
+@@ -300,6 +300,17 @@ function FeedSlide({ post, relation }: { post: FeedPost; relation?: Relation })
+             <span className={expanded ? '' : 'line-clamp-2'}>{post.caption}</span>
+           </button>
+         )}
++        {post.location_label && (
++          <a
++            href={`https://maps.google.com/?q=${post.location_lat},${post.location_lon}`}
++            target="_blank"
++            rel="noopener noreferrer"
++            className="inline-flex items-center gap-1.5 text-white/90 hover:text-white text-xs drop-shadow transition-colors"
++          >
++            <span>📍</span>
++            <span className="truncate">{post.location_label}</span>
++          </a>
++        )}
+       </div>
+ 
+       {/* Action rail — vertical, bottom-right. */}
+diff --git a/src/screens/PostDetailScreen.tsx b/src/screens/PostDetailScreen.tsx
+index b509000..c91d0df 100644
+--- a/src/screens/PostDetailScreen.tsx
++++ b/src/screens/PostDetailScreen.tsx
+@@ -138,6 +138,19 @@ export default function PostDetailScreen() {
+           </p>
+         )}
+ 
++        {/* Location */}
++        {post.location_label && (
++          <a
++            href={`https://maps.google.com/?q=${post.location_lat},${post.location_lon}`}
++            target="_blank"
++            rel="noopener noreferrer"
++            className="mt-2 inline-flex items-center gap-1.5 text-ink-2 hover:text-ink text-xs transition-colors"
++          >
++            <span>📍</span>
++            <span className="truncate">{post.location_label}</span>
++          </a>
++        )}
++
+         {/* Media — tap to open full-page */}
+         <button
+           type="button"
+diff --git a/src/screens/ProfileScreen.tsx b/src/screens/ProfileScreen.tsx
+index 11455d6..763b52e 100644
+--- a/src/screens/ProfileScreen.tsx
++++ b/src/screens/ProfileScreen.tsx
+@@ -69,6 +69,10 @@ export default function ProfileScreen() {
+   const heroTop     = useTransform(scrollY, [0, ANIM_END], [0,           24])
+   const overlayOpacity = useTransform(scrollY, [0, ANIM_END / 2], [1, 0])
+   const compactOpacity = useTransform(scrollY, [50, 100], [0, 1])
++  const compactPointerEvents = useTransform(
++    compactOpacity,
++    (value) => (value > 0.1 ? 'auto' : 'none')
++  )
+ 
+   if (profileQ.isLoading || !profileQ.data) {
+     return (
+@@ -87,7 +91,7 @@ export default function ProfileScreen() {
+     <div className="relative">
+       {/* === Compact header (fades in once you scroll past the hero) === */}
+       <motion.div
+-        style={{ opacity: compactOpacity }}
++        style={{ opacity: compactOpacity, pointerEvents: compactPointerEvents }}
+         className="fixed top-0 left-0 right-0 lg:left-64 z-20 glass border-b border-white/5"
+       >
+         <div
+diff --git a/src/screens/post/ComposeStep.tsx b/src/screens/post/ComposeStep.tsx
+index b052f48..6d110fb 100644
+--- a/src/screens/post/ComposeStep.tsx
++++ b/src/screens/post/ComposeStep.tsx
+@@ -1,7 +1,9 @@
+-import { useState } from 'react'
++import { useState, type ReactNode } from 'react'
+ import { useProfile } from '../../hooks/useProfile'
+ import { avatarFor } from '../../lib/avatar'
+ import CroppedImage from './CroppedImage'
++import LocationPickerSheet, { type LocationResult } from '../../components/LocationPickerSheet'
++import { IconLocation, IconPerson, IconMusic, IconSettings } from '../../components/icons'
+ import type { Media } from './types'
+ 
+ type Props = {
+@@ -14,6 +16,8 @@ type Props = {
+   onChangeCommentsDisabled: (v: boolean) => void
+   altText: string
+   onChangeAltText: (v: string) => void
++  location: LocationResult | null
++  onChangeLocation: (v: LocationResult | null) => void
+   error: string | null
+ }
+ 
+@@ -27,10 +31,13 @@ export default function ComposeStep({
+   onChangeCommentsDisabled,
+   altText,
+   onChangeAltText,
++  location,
++  onChangeLocation,
+   error,
+ }: Props) {
+   const profile = useProfile()
+   const [advancedOpen, setAdvancedOpen] = useState(false)
++  const [locationPickerOpen, setLocationPickerOpen] = useState(false)
+ 
+   // Pin thumbnail height to 96 px; width follows the cropped area's aspect,
+   // clamped so very tall crops don't shrink to a sliver.
+@@ -93,13 +100,32 @@ export default function ComposeStep({
+         {caption.length}/2200
+       </div>
+ 
++      {/* Location pill */}
++      {location && (
++        <div className="px-4 pt-3 pb-1">
++          <button
++            onClick={() => onChangeLocation(null)}
++            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 text-ink text-sm hover:bg-white/15 transition-colors"
++          >
++            <span>📍</span>
++            <span className="max-w-xs truncate">{location.label}</span>
++            <span className="text-xs">×</span>
++          </button>
++        </div>
++      )}
++
+       {/* Settings rows */}
+       <ul className="px-2 mt-2">
+-        <SettingsRow icon="👤" label="Tag people" rightHint="Coming soon" disabled />
+-        <SettingsRow icon="📍" label="Add location" rightHint="Coming soon" disabled />
+-        <SettingsRow icon="🎵" label="Add music" rightHint="Coming soon" disabled />
++        <SettingsRow icon={<IconPerson className="w-4 h-4" />} label="Tag people" rightHint="Coming soon" disabled />
++        <SettingsRow
++          icon={<IconLocation className="w-4 h-4" />}
++          label="Add location"
++          rightHint={location ? '✓' : undefined}
++          onClick={() => setLocationPickerOpen(true)}
++        />
++        <SettingsRow icon={<IconMusic className="w-4 h-4" />} label="Add music" rightHint="Coming soon" disabled />
+         <SettingsRow
+-          icon="⚙"
++          icon={<IconSettings className="w-4 h-4" />}
+           label="Advanced settings"
+           rightHint={advancedOpen ? '▴' : '▾'}
+           onClick={() => setAdvancedOpen((o) => !o)}
+@@ -126,6 +152,17 @@ export default function ComposeStep({
+       {error && <p className="text-sm text-danger px-5 mt-3">{error}</p>}
+ 
+       <div style={{ height: 'env(safe-area-inset-bottom)' }} />
++
++      {/* Location picker sheet */}
++      {locationPickerOpen && (
++        <LocationPickerSheet
++          onSelect={(loc) => {
++            onChangeLocation(loc)
++            setLocationPickerOpen(false)
++          }}
++          onClose={() => setLocationPickerOpen(false)}
++        />
++      )}
+     </div>
+   )
+ }
+@@ -137,7 +174,7 @@ function SettingsRow({
+   onClick,
+   disabled,
+ }: {
+-  icon: string
++  icon: ReactNode
+   label: string
+   rightHint?: string
+   onClick?: () => void
+@@ -154,7 +191,7 @@ function SettingsRow({
+           disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/[0.04]',
+         ].join(' ')}
+       >
+-        <span className="text-lg w-6 text-center">{icon}</span>
++        <span className="w-6 h-6 flex items-center justify-center text-lg">{icon}</span>
+         <span className="flex-1 text-ink font-medium">{label}</span>
+         {rightHint && <span className="text-xs text-ink-muted">{rightHint}</span>}
+       </button>
+diff --git a/src/screens/post/PostScreen.tsx b/src/screens/post/PostScreen.tsx
+index cd000f9..f1b2837 100644
+--- a/src/screens/post/PostScreen.tsx
++++ b/src/screens/post/PostScreen.tsx
+@@ -10,6 +10,7 @@ import ComposeStep from './ComposeStep'
+ import { bakeImageToBlob } from './filters'
+ import { extractTrimmedClip } from './trimVideo'
+ import type { AspectId, CropArea, Media, Step, Trim } from './types'
++import type { LocationResult } from '../../components/LocationPickerSheet'
+ 
+ export default function PostScreen() {
+   const navigate = useNavigate()
+@@ -22,6 +23,7 @@ export default function PostScreen() {
+   const [hideLikeCount, setHideLikeCount] = useState(false)
+   const [commentsDisabled, setCommentsDisabled] = useState(false)
+   const [altText, setAltText] = useState('')
++  const [location, setLocation] = useState<LocationResult | null>(null)
+   const [uploading, setUploading] = useState(false)
+   const [phase, setPhase] = useState<'processing' | 'uploading'>('uploading')
+   const [uploadPct, setUploadPct] = useState(0)
+@@ -115,6 +117,9 @@ export default function PostScreen() {
+         hide_like_count: hideLikeCount,
+         comments_disabled: commentsDisabled,
+         alt_text: altText.trim() || null,
++        location_label: location?.label ?? null,
++        location_lat: location?.lat ?? null,
++        location_lon: location?.lon ?? null,
+       })
+ 
+       navigate('/feed', { replace: true })
+@@ -177,6 +182,8 @@ export default function PostScreen() {
+                 onChangeCommentsDisabled={setCommentsDisabled}
+                 altText={altText}
+                 onChangeAltText={setAltText}
++                location={location}
++                onChangeLocation={setLocation}
+                 error={error}
+               />
+             )}
+diff --git a/supabase/migrations/0087_posts_location.sql b/supabase/migrations/0087_posts_location.sql
+new file mode 100644
+index 0000000..39b0d08
+--- /dev/null
++++ b/supabase/migrations/0087_posts_location.sql
+@@ -0,0 +1,40 @@
++-- Add location fields to posts table
++
++alter table public.posts
++add column if not exists location_label text,
++add column if not exists location_lat numeric,
++add column if not exists location_lon numeric;
++
++-- Update posts_with_counts view to include location
++drop view if exists public.posts_with_counts;
++
++create or replace view public.posts_with_counts as
++select
++  p.id,
++  p.author_id,
++  p.kind,
++  p.media_url,
++  p.media_aspect,
++  p.caption,
++  p.created_at,
++  p.location_label,
++  p.location_lat,
++  p.location_lon,
++  coalesce(l.like_count, 0)    as like_count,
++  coalesce(c.comment_count, 0) as comment_count,
++  exists (
++    select 1 from public.post_likes
++    where post_id = p.id and user_id = auth.uid()
++  ) as liked_by_me,
++  -- Surface a small slice of author info so the feed doesn't need a join.
++  pr.handle        as author_handle,
++  pr.display_name  as author_display_name,
++  pr.avatar_url    as author_avatar_url
++from public.posts p
++left join lateral (
++  select count(*) as like_count from public.post_likes where post_id = p.id
++) l on true
++left join lateral (
++  select count(*) as comment_count from public.post_comments where post_id = p.id
++) c on true
++left join public.profiles pr on pr.id = p.author_id;

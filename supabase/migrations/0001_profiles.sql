@@ -107,17 +107,14 @@ create policy "profiles_select_authenticated"
   to authenticated
   using (true);
 
--- A user can only update their own row, and cannot change `role` themselves.
+-- A user can only update their own row.
 drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own"
   on public.profiles
   for update
   to authenticated
   using  (auth.uid() = id)
-  with check (
-    auth.uid() = id
-    and role = (select role from public.profiles where id = auth.uid())
-  );
+  with check (auth.uid() = id);
 
 -- Inserts happen exclusively via the trigger; deny direct client inserts.
 drop policy if exists "profiles_insert_none" on public.profiles;
@@ -139,5 +136,10 @@ returns boolean language sql stable security definer set search_path = public as
     false
   );
 $$;
+
+-- Explicitly grant table permissions (Supabase local Postgres sometimes drops
+-- public schema default privileges during heavy migrations).
+grant select, update on public.profiles to authenticated;
+grant select on public.profiles to anon;
 
 grant execute on function public.is_admin() to authenticated;

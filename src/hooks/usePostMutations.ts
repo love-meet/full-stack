@@ -189,6 +189,9 @@ export function useCreatePost() {
       hide_like_count?: boolean
       comments_disabled?: boolean
       alt_text?: string | null
+      location_label?: string | null
+      location_lat?: number | null
+      location_lon?: number | null
     }) => {
       if (!session) throw new Error('not signed in')
       const { data, error } = await supabase
@@ -202,6 +205,9 @@ export function useCreatePost() {
           hide_like_count: vars.hide_like_count ?? false,
           comments_disabled: vars.comments_disabled ?? false,
           alt_text: vars.alt_text ?? null,
+          location_label: vars.location_label ?? null,
+          location_lat: vars.location_lat ?? null,
+          location_lon: vars.location_lon ?? null,
         })
         .select()
         .single()
