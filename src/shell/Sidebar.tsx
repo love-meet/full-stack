@@ -35,17 +35,13 @@ export default function Sidebar() {
                 className={({ isActive }) =>
                   [
                     'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
-                    item.kind === 'post'
-                      ? 'bg-gradient-brand text-white glow-rose'
-                      : isActive
-                        ? 'text-white'
-                        : 'text-ink-2 hover:text-ink',
+                    isActive ? 'text-white' : 'text-ink-2 hover:text-ink',
                   ].join(' ')
                 }
               >
                 {({ isActive }) => (
                   <>
-                    {item.kind !== 'post' && isActive && (
+                    {isActive && (
                       <motion.span
                         layoutId="sidebar-active"
                         className="absolute inset-0 rounded-xl bg-gradient-brand glow-rose"

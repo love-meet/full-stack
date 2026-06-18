@@ -28,9 +28,6 @@ export default function BottomNav() {
               className="relative flex flex-col items-center justify-center h-full gap-0.5 text-[10px] font-semibold uppercase tracking-wider"
             >
               {({ isActive }) => {
-                if (item.kind === 'post') {
-                  return <PostButton active={isActive} />
-                }
                 if (item.kind === 'profile') {
                   return <ProfileButton active={isActive} avatarUrl={avatarUrl} />
                 }
@@ -62,22 +59,6 @@ function TabIcon({ item, active }: { item: typeof NAV_ITEMS[number]; active: boo
           active ? 'bg-rose opacity-100' : 'opacity-0',
         ].join(' ')}
       />
-    </motion.span>
-  )
-}
-
-function PostButton({ active }: { active: boolean }) {
-  return (
-    <motion.span
-      animate={{ scale: active ? 1.08 : 1 }}
-      transition={{ type: 'spring', stiffness: 360, damping: 18 }}
-      className="grid place-items-center w-11 h-11 rounded-full glow-rose -translate-y-2"
-      style={{
-        // Center post button — pink → purple, on-palette with every other CTA.
-        backgroundImage: 'linear-gradient(135deg, var(--color-rose) 0%, var(--color-magenta) 100%)',
-      }}
-    >
-      <span className="text-white text-2xl leading-none">+</span>
     </motion.span>
   )
 }

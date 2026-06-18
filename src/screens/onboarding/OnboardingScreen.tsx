@@ -1,19 +1,29 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import StepShell from './StepShell'
-import { STEPS, initialFormData, type FormData } from './types'
+import { stepsForIntent, initialFormData, type FormData, type StepProps } from './types'
 import { useUpdateProfile, useProfile, type ProfileUpdate } from '../../hooks/useProfile'
 import { useAuth } from '../../stores/auth'
 import { supabase } from '../../lib/supabase'
 import LoadingShell from '../../shell/LoadingShell'
 
+import PathStep from './steps/PathStep'
 import NameStep from './steps/NameStep'
 import DetailsStep from './steps/DetailsStep'
 import AboutStep from './steps/AboutStep'
 import PreferencesStep from './steps/PreferencesStep'
 import LocationStep from './steps/LocationStep'
+import GalleryStep from './steps/GalleryStep'
 
-const STEP_COMPONENTS = [NameStep, DetailsStep, AboutStep, PreferencesStep, LocationStep]
+const STEP_COMPONENTS: Record<string, React.ComponentType<StepProps>> = {
+  path: PathStep,
+  name: NameStep,
+  details: DetailsStep,
+  about: AboutStep,
+  preferences: PreferencesStep,
+  location: LocationStep,
+  gallery: GalleryStep,
+}
 
 export default function OnboardingScreen() {
   const navigate = useNavigate()
@@ -69,8 +79,9 @@ export default function OnboardingScreen() {
     [],
   )
 
-  const isLast = step === STEPS.length - 1
-  const { valid: canNext, hint: nextHint } = stepStatus(step, data)
+  const steps = stepsForIntent(data.intent)
+  const isLast = step === steps.length - 1
+  const { valid: canNext, hint: nextHint } = stepStatus(steps[step].key, data)
   const canBack = step > 0 && !update.isPending
 
   const next = useCallback(async () => {
@@ -122,13 +133,13 @@ export default function OnboardingScreen() {
   if (profileQuery.data?.onboarded_at) return <Navigate to="/feed" replace />
   if (backfillRef.current) return <LoadingShell />
 
-  const StepBody = STEP_COMPONENTS[step]
-  const meta = STEPS[step]
+  const StepBody = STEP_COMPONENTS[steps[step].key]
+  const meta = steps[step]
 
   return (
     <StepShell
       step={step}
-      total={STEPS.length}
+      total={steps.length}
       title={meta.title}
       subtitle={meta.subtitle}
       canBack={canBack}
@@ -151,9 +162,13 @@ export default function OnboardingScreen() {
 
 type StepStatus = { valid: boolean; hint: string | null }
 
-function stepStatus(step: number, d: FormData): StepStatus {
-  switch (step) {
-    case 0: {
+function stepStatus(stepKey: string, d: FormData): StepStatus {
+  switch (stepKey) {
+    case 'path': {
+      if (!d.intent) return { valid: false, hint: 'Pick one to continue.' }
+      return { valid: true, hint: null }
+    }
+    case 'name': {
       if (!d.firstName.trim() || !d.lastName.trim()) {
         return { valid: false, hint: 'Enter your first and last name.' }
       }
@@ -164,7 +179,7 @@ function stepStatus(step: number, d: FormData): StepStatus {
       if (d.usernameAvailable === false) return { valid: false, hint: 'That username is taken — try another.' }
       return { valid: true, hint: null }
     }
-    case 1: {
+    case 'details': {
       if (!d.gender) return { valid: false, hint: 'Select how you identify.' }
       if (!d.dobDay || !d.dobMonth || !d.dobYear) {
         return { valid: false, hint: 'Enter your full date of birth.' }
@@ -174,22 +189,30 @@ function stepStatus(step: number, d: FormData): StepStatus {
       if (dob.age < 18) return { valid: false, hint: 'You must be 18 or older to join.' }
       return { valid: true, hint: null }
     }
-    case 2: {
+    case 'about': {
       if (d.bio.trim().length < 3) return { valid: false, hint: 'Add a short bio about you.' }
       if (!d.lookingFor) return { valid: false, hint: "Tell us what you're looking for." }
       if (d.hobbies.length < 3) return { valid: false, hint: 'Pick at least 3 interests.' }
       return { valid: true, hint: null }
     }
-    case 3: {
+    case 'preferences': {
       if (!(d.ageMin >= 18 && d.ageMax >= d.ageMin && d.ageMax <= 100)) {
         return { valid: false, hint: 'Set a valid age range (18–100).' }
       }
       return { valid: true, hint: null }
     }
-    case 4: {
-      // Require a successful detection: coords present + a country resolved.
-      if (d.lat === null || d.lon === null || d.countryName.trim().length === 0) {
+    case 'location': {
+      // Either a successful GPS detection (coords + country) or a manually
+      // entered country satisfies this step — see LocationStep's ManualForm,
+      // which deliberately leaves lat/lon null.
+      if (d.countryName.trim().length === 0) {
         return { valid: false, hint: 'Tap "Add location" to set your location.' }
+      }
+      return { valid: true, hint: null }
+    }
+    case 'gallery': {
+      if (d.gallery.filter(Boolean).length < d.gallery.length) {
+        return { valid: false, hint: `Add ${d.gallery.length} photos to continue.` }
       }
       return { valid: true, hint: null }
     }
@@ -238,6 +261,8 @@ function toProfileUpdate(d: FormData): ProfileUpdate {
     country_name: d.countryName.trim() || null,
     lat: d.lat,
     lon: d.lon,
+    gallery_urls: d.gallery.filter(Boolean),
+    intent: (d.intent || null) as ProfileUpdate['intent'],
     onboarded_at: new Date().toISOString(),
   }
 }
