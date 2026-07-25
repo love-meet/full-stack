@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useUnreadNotifications, useNotificationsRealtime } from '../hooks/useNotifications'
 import { useConversations } from '../hooks/useConversations'
 import { IconBell, IconMail, IconSearch } from '../components/icons'
@@ -12,6 +13,7 @@ import { IconBell, IconMail, IconSearch } from '../components/icons'
  * (feed video overlay, in-game lobby), 'dark' for the regular app surface.
  */
 export default function TopIcons({ tone = 'dark' }: { tone?: 'light' | 'dark' }) {
+  const { t } = useTranslation()
   useNotificationsRealtime()
   const unread = useUnreadNotifications().data ?? 0
   const unreadChats = (useConversations().data ?? []).filter((c) => c.unread_count > 0).length
@@ -19,9 +21,9 @@ export default function TopIcons({ tone = 'dark' }: { tone?: 'light' | 'dark' })
     tone === 'light' ? 'text-white/90 hover:text-white drop-shadow' : 'text-ink-2 hover:text-ink'
   return (
     <div className="flex items-center gap-1">
-      <TopIcon to="/search" label="Search" icon={<IconSearch size={22} />} color={color} />
-      <TopIcon to="/notifications" label="Notifications" icon={<IconBell size={22} />} badge={unread} color={color} />
-      <TopIcon to="/chat" label="Chats" icon={<IconMail size={22} />} badge={unreadChats} color={color} />
+      <TopIcon to="/search" label={t('nav.search')} icon={<IconSearch size={22} />} color={color} />
+      <TopIcon to="/notifications" label={t('nav.notifications')} icon={<IconBell size={22} />} badge={unread} color={color} />
+      <TopIcon to="/chat" label={t('nav.chats')} icon={<IconMail size={22} />} badge={unreadChats} color={color} />
     </div>
   )
 }

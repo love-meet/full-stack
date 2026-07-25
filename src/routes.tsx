@@ -51,6 +51,7 @@ import TransactionsView from './screens/admin/TransactionsView'
 import SupportInbox from './screens/admin/SupportInbox'
 import SupportScreen from './screens/support/SupportScreen'
 import SupportTicketScreen from './screens/support/SupportTicketScreen'
+import LanguageScreen from './screens/settings/LanguageScreen'
 
 export const router = createBrowserRouter([
   // Public landing — no auth required.
@@ -112,6 +113,7 @@ export const router = createBrowserRouter([
               { path: 'profile',               element: <ProfileScreen /> },
               { path: 'profile/edit',          element: <EditProfileScreen /> },
               { path: 'profile-menu',          element: <ProfileMenuScreen /> },
+              { path: 'language',              element: <LanguageScreen /> },
               { path: 'profile/:userId',       element: <ProfileScreen /> },
               { path: 'wallet',                element: <WalletScreen /> },
               { path: 'wallet/deposit',        element: <DepositScreen /> },

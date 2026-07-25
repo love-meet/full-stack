@@ -1,6 +1,8 @@
+import { useTranslation } from 'react-i18next'
 import type { StepProps } from '../types'
 
 export default function PreferencesStep({ data, set }: StepProps) {
+  const { t } = useTranslation()
   function setMin(n: number) {
     const min = clamp(n, 18, 100)
     set({ ageMin: min, ageMax: Math.max(min, data.ageMax) })
@@ -14,28 +16,28 @@ export default function PreferencesStep({ data, set }: StepProps) {
     <div className="space-y-7">
       <section className="space-y-3">
         <div className="flex items-baseline justify-between px-1">
-          <Label>Age range</Label>
+          <Label>{t('onboarding.stepFields.preferences.ageRangeLabel')}</Label>
           <span className="text-sm font-semibold text-ink">
             {data.ageMin} – {data.ageMax}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <NumberField label="Min" value={data.ageMin} onChange={setMin} />
-          <NumberField label="Max" value={data.ageMax} onChange={setMax} />
+          <NumberField label={t('onboarding.stepFields.preferences.min')} value={data.ageMin} onChange={setMin} />
+          <NumberField label={t('onboarding.stepFields.preferences.max')} value={data.ageMax} onChange={setMax} />
         </div>
       </section>
 
       <section className="space-y-3">
-        <Label>Privacy</Label>
+        <Label>{t('onboarding.stepFields.preferences.privacyLabel')}</Label>
         <ToggleRow
-          title="Show online status"
-          subtitle="Let others see when you're active."
+          title={t('onboarding.stepFields.preferences.showOnlineTitle')}
+          subtitle={t('onboarding.stepFields.preferences.showOnlineSub')}
           value={data.showOnlineStatus}
           onChange={(v) => set({ showOnlineStatus: v })}
         />
         <ToggleRow
-          title="Show my distance"
-          subtitle="Display how far away you are."
+          title={t('onboarding.stepFields.preferences.showDistanceTitle')}
+          subtitle={t('onboarding.stepFields.preferences.showDistanceSub')}
           value={data.showDistance}
           onChange={(v) => set({ showDistance: v })}
         />

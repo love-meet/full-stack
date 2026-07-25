@@ -9,10 +9,15 @@ export type NavItem = {
   kind: 'tab' | 'profile'
 }
 
-export const NAV_ITEMS: readonly NavItem[] = [
-  { to: '/feed',    label: 'Home',    glyph: '⌂', kind: 'tab' },
-  { to: '/explore', label: 'Explore', glyph: '⌘', kind: 'tab' },
-  { to: '/games',   label: 'Games',   glyph: '🎮', kind: 'tab' },
-  { to: '/search',  label: 'Search',  glyph: '🔍', kind: 'tab' },
-  { to: '/profile', label: 'Profile', glyph: '☻', kind: 'profile' },
-] as const
+/** Minimal shape of react-i18next's `t` — avoids importing it into this data file. */
+type TFunc = (key: string) => string
+
+export function getNavItems(t: TFunc): readonly NavItem[] {
+  return [
+    { to: '/feed',    label: t('nav.home'),    glyph: '⌂', kind: 'tab' },
+    { to: '/explore', label: t('nav.explore'), glyph: '⌘', kind: 'tab' },
+    { to: '/games',   label: t('nav.games'),   glyph: '🎮', kind: 'tab' },
+    { to: '/search',  label: t('nav.search'),  glyph: '🔍', kind: 'tab' },
+    { to: '/profile', label: t('nav.profile'), glyph: '☻', kind: 'profile' },
+  ] as const
+}

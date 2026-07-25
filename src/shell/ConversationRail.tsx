@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useConversations, type Conversation } from '../hooks/useConversations'
 import { useActiveConversation } from '../stores/activeConversation'
 import { useRelations } from '../hooks/useFollow'
@@ -31,6 +33,7 @@ export default function ConversationRail() {
 }
 
 function ConversationList({ onOpen }: { onOpen: (id: string) => void }) {
+  const { t } = useTranslation()
   const q = useConversations()
   const items = q.data ?? []
   const relations = useRelations(items.map((c) => c.other_id))
@@ -38,8 +41,8 @@ function ConversationList({ onOpen }: { onOpen: (id: string) => void }) {
   return (
     <div className="flex flex-col h-full min-h-0">
       <header className="shrink-0 px-4 h-14 flex items-center justify-between border-b border-white/5">
-        <span className="font-extrabold text-ink">Messages</span>
-        <Link to="/search" className="text-ink-2 hover:text-rose text-lg" aria-label="New message">✎</Link>
+        <span className="font-extrabold text-ink">{t('chat.messages')}</span>
+        <Link to="/search" className="text-ink-2 hover:text-rose text-lg" aria-label={t('chat.newMessage')}>✎</Link>
       </header>
 
       <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
@@ -55,7 +58,7 @@ function ConversationList({ onOpen }: { onOpen: (id: string) => void }) {
           <div className="h-full grid place-items-center text-center px-6">
             <div>
               <div className="text-4xl mb-2">💬</div>
-              <p className="text-sm text-ink-muted">No conversations yet. Find someone and say hi.</p>
+              <p className="text-sm text-ink-muted">{t('chat.noConversationsRail')}</p>
             </div>
           </div>
         )}
@@ -79,12 +82,12 @@ function ConversationList({ onOpen }: { onOpen: (id: string) => void }) {
                       {c.other_id && relations.data?.get(c.other_id)?.is_subscriber && <BlueTick size={13} />}
                     </span>
                     {c.last_message_at && (
-                      <span className="text-[10px] text-ink-muted shrink-0">{timeAgo(c.last_message_at)}</span>
+                      <span className="text-[10px] text-ink-muted shrink-0">{timeAgo(c.last_message_at, t)}</span>
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[12px] text-ink-muted truncate">
-                      {preview(c)}
+                      {preview(c, t)}
                     </span>
                     {c.unread_count > 0 && (
                       <span className="shrink-0 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-rose text-white text-[10px] font-bold grid place-items-center">
@@ -102,14 +105,14 @@ function ConversationList({ onOpen }: { onOpen: (id: string) => void }) {
   )
 }
 
-function preview(c: Conversation): string {
-  if (!c.last_message_preview) return 'Say hi 👋'
+function preview(c: Conversation, t: TFunction): string {
+  if (!c.last_message_preview) return t('chat.sayHiWave')
   return c.last_message_preview
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: TFunction): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return 'now'
+  if (s < 60) return t('notif.now')
   if (s < 3600) return `${Math.floor(s / 60)}m`
   if (s < 86400) return `${Math.floor(s / 3600)}h`
   if (s < 86400 * 7) return `${Math.floor(s / 86400)}d`

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useMyTickets, useOpenTicket, useTicketsRealtime, type SupportTicket } from '../../hooks/useSupport'
 
 /**
@@ -8,6 +10,7 @@ import { useMyTickets, useOpenTicket, useTicketsRealtime, type SupportTicket } f
  * open a new one. Tapping a ticket opens the chat thread with an admin.
  */
 export default function SupportScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const tickets = useMyTickets()
   const open = useOpenTicket()
@@ -44,25 +47,24 @@ export default function SupportScreen() {
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
           <button
             onClick={() => navigate(-1)}
-            aria-label="Back"
+            aria-label={t('post.back')}
             className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2"
           >
             ←
           </button>
-          <div className="flex-1 text-center text-ink font-bold">Live support</div>
+          <div className="flex-1 text-center text-ink font-bold">{t('support.title')}</div>
           <button
             onClick={() => { setComposing(true); setError(null) }}
             className="text-sm font-bold px-3 py-1.5 rounded-full bg-gradient-brand text-white glow-rose"
           >
-            New
+            {t('support.new')}
           </button>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 py-6">
         <p className="text-sm text-ink-2 mb-5">
-          Chat directly with our team. Open a ticket and we'll reply right here —
-          replies show up live and your tickets keep their full history.
+          {t('support.description')}
         </p>
 
         {tickets.status === 'pending' && (
@@ -76,23 +78,23 @@ export default function SupportScreen() {
         {tickets.status === 'success' && list.length === 0 && !composing && (
           <div className="glass rounded-3xl p-8 text-center">
             <div className="text-4xl mb-3">💬</div>
-            <p className="text-ink font-semibold mb-1">No tickets yet</p>
+            <p className="text-ink font-semibold mb-1">{t('support.emptyTitle')}</p>
             <p className="text-sm text-ink-muted mb-4">
-              Have a question or an issue? Start a conversation with support.
+              {t('support.emptySubtitle')}
             </p>
             <button
               onClick={() => setComposing(true)}
               className="rounded-full px-5 py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose"
             >
-              Contact support
+              {t('support.contactSupport')}
             </button>
           </div>
         )}
 
         <ul className="space-y-2">
-          {list.map((t) => (
-            <li key={t.id}>
-              <TicketRow ticket={t} onOpen={() => navigate(`/support/${t.id}`)} />
+          {list.map((ticket) => (
+            <li key={ticket.id}>
+              <TicketRow ticket={ticket} onOpen={() => navigate(`/support/${ticket.id}`)} t={t} />
             </li>
           ))}
         </ul>
@@ -117,7 +119,7 @@ export default function SupportScreen() {
   )
 }
 
-function TicketRow({ ticket, onOpen }: { ticket: SupportTicket; onOpen: () => void }) {
+function TicketRow({ ticket, onOpen, t }: { ticket: SupportTicket; onOpen: () => void; t: TFunction }) {
   const unread = ticket.user_unread > 0
   return (
     <button
@@ -128,15 +130,15 @@ function TicketRow({ ticket, onOpen }: { ticket: SupportTicket; onOpen: () => vo
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-ink truncate">{ticket.subject}</span>
-          <StatusPill status={ticket.status} />
+          <StatusPill status={ticket.status} t={t} />
         </div>
         <div className={`text-[13px] truncate ${unread ? 'text-ink-2 font-semibold' : 'text-ink-muted'}`}>
-          {ticket.last_sender_is_admin ? 'Support: ' : 'You: '}
+          {ticket.last_sender_is_admin ? t('support.fromSupport') : t('support.fromYou')}
           {ticket.last_message_preview ?? '…'}
         </div>
       </div>
       <div className="shrink-0 flex flex-col items-end gap-1">
-        <span className="text-[11px] text-ink-muted">{timeAgo(ticket.last_message_at)}</span>
+        <span className="text-[11px] text-ink-muted">{timeAgo(ticket.last_message_at, t)}</span>
         {unread && (
           <span className="min-w-5 h-5 px-1.5 rounded-full bg-rose text-[10px] font-bold grid place-items-center text-white">
             {ticket.user_unread}
@@ -161,6 +163,7 @@ function NewTicketSheet({
   onClose: () => void
   onSubmit: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
@@ -178,30 +181,30 @@ function NewTicketSheet({
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.25rem)' }}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-extrabold text-ink">New support ticket</h2>
-          <button onClick={onClose} aria-label="Close" className="text-ink-muted hover:text-ink text-xl px-1">✕</button>
+          <h2 className="text-lg font-extrabold text-ink">{t('support.newTicketTitle')}</h2>
+          <button onClick={onClose} aria-label={t('post.close')} className="text-ink-muted hover:text-ink text-xl px-1">✕</button>
         </div>
 
         <label className="block mb-3">
-          <div className="text-xs font-bold text-ink-2 mb-1.5">Subject</div>
+          <div className="text-xs font-bold text-ink-2 mb-1.5">{t('support.subjectLabel')}</div>
           <input
             type="text"
             maxLength={160}
             value={subject}
             onChange={(e) => onSubject(e.target.value)}
-            placeholder="e.g. Withdrawal not received"
+            placeholder={t('support.subjectPlaceholder')}
             className="lm-input"
             autoFocus
           />
         </label>
 
         <label className="block mb-2">
-          <div className="text-xs font-bold text-ink-2 mb-1.5">How can we help?</div>
+          <div className="text-xs font-bold text-ink-2 mb-1.5">{t('support.messageLabel')}</div>
           <textarea
             value={message}
             onChange={(e) => onMessage(e.target.value.slice(0, 4000))}
             rows={4}
-            placeholder="Describe your issue in detail…"
+            placeholder={t('support.messagePlaceholder')}
             className="lm-input resize-none no-scrollbar"
           />
         </label>
@@ -216,7 +219,7 @@ function NewTicketSheet({
             canSend ? 'bg-gradient-brand text-white glow-rose' : 'bg-surface-3 text-ink-muted',
           ].join(' ')}
         >
-          {busy ? 'Sending…' : 'Send to support'}
+          {busy ? t('support.sending') : t('support.send')}
         </button>
       </motion.div>
     </motion.div>
@@ -225,15 +228,20 @@ function NewTicketSheet({
 
 // ---------- shared bits ----------
 
-export function StatusPill({ status }: { status: SupportTicket['status'] }) {
+export function StatusPill({ status, t }: { status: SupportTicket['status']; t: TFunction }) {
   const map: Record<SupportTicket['status'], string> = {
     open: 'bg-success/15 text-success',
     resolved: 'bg-coral/15 text-coral',
     closed: 'bg-ink-muted/15 text-ink-muted',
   }
+  const label: Record<SupportTicket['status'], string> = {
+    open: t('support.statusOpen'),
+    resolved: t('support.statusResolved'),
+    closed: t('support.statusClosed'),
+  }
   return (
     <span className={`shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${map[status]}`}>
-      {status}
+      {label[status]}
     </span>
   )
 }
@@ -242,10 +250,10 @@ export function statusDot(status: SupportTicket['status']): string {
   return status === 'open' ? 'bg-success' : status === 'resolved' ? 'bg-coral' : 'bg-ink-muted/50'
 }
 
-export function timeAgo(iso: string | null): string {
+export function timeAgo(iso: string | null, t: TFunction): string {
   if (!iso) return ''
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return 'now'
+  if (s < 60) return t('notif.now')
   if (s < 3600) return `${Math.floor(s / 60)}m`
   if (s < 86400) return `${Math.floor(s / 3600)}h`
   if (s < 86400 * 7) return `${Math.floor(s / 86400)}d`

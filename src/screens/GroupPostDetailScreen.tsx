@@ -1,6 +1,7 @@
 import { useMemo, useState, Fragment } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useGroupPost, type GroupPost } from '../hooks/useGroupPosts'
 import { useGroupComments, useAddGroupComment, useDeleteGroupComment, type GroupComment } from '../hooks/useGroupComments'
 import { useToggleGroupLike } from '../hooks/useGroupPostMutations'
@@ -12,6 +13,7 @@ import { InlineAd } from '../components/FeedAd'
 import AuthorTick from '../components/AuthorTick'
 
 export default function GroupPostDetailScreen() {
+  const { t } = useTranslation()
   const { slug = '', postId = '' } = useParams<{ slug: string; postId: string }>()
   const navigate = useNavigate()
   // Single Sponsored row inserted at a random 3–7 position in the comment list.
@@ -66,8 +68,8 @@ export default function GroupPostDetailScreen() {
         style={{ paddingTop: 'var(--lm-top-inset)' }}
       >
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={() => navigate(`/g/${slug}`)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
-          <div className="flex-1 text-center text-ink font-bold">Thread</div>
+          <button onClick={() => navigate(`/g/${slug}`)} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <div className="flex-1 text-center text-ink font-bold">{t('post.threadTitle')}</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>
@@ -80,7 +82,7 @@ export default function GroupPostDetailScreen() {
 
           {/* Comments */}
           <h2 className="mt-6 text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold px-1 pb-1">
-            {post ? `${post.comment_count} ${post.comment_count === 1 ? 'comment' : 'comments'}` : 'Comments'}
+            {post ? `${post.comment_count} ${post.comment_count === 1 ? t('post.commentSingular') : t('post.commentPlural')}` : t('post.commentsTitle')}
           </h2>
 
           {commentsQ.status === 'pending' && (
@@ -99,7 +101,7 @@ export default function GroupPostDetailScreen() {
 
           {commentsQ.status === 'success' && roots.length === 0 && (
             <p className="py-8 text-center text-sm text-ink-muted">
-              No comments yet. Start the conversation.
+              {t('post.startConversation')}
             </p>
           )}
 
@@ -125,7 +127,7 @@ export default function GroupPostDetailScreen() {
               onClick={() => setRootVisible((v) => v + ROOTS_PAGE)}
               className="mt-3 text-[13px] font-bold text-ink-muted hover:text-rose"
             >
-              View {roots.length - rootVisible} more {roots.length - rootVisible === 1 ? 'comment' : 'comments'}
+              {t('post.view')} {t('post.more', { count: roots.length - rootVisible })} {roots.length - rootVisible === 1 ? t('post.commentSingular') : t('post.commentPlural')}
             </button>
           )}
         </div>
@@ -139,7 +141,7 @@ export default function GroupPostDetailScreen() {
         {replyTo && (
           <div className="mb-2 mx-1 flex items-center gap-2 text-xs text-ink-muted">
             <span className="border-l-2 border-coral pl-2">
-              Replying to <span className="text-coral font-semibold">@{replyTo.author_handle ?? 'user'}</span>
+              {t('post.replyingToPrefix')} <span className="text-coral font-semibold">@{replyTo.author_handle ?? 'user'}</span>
             </span>
             <button onClick={() => setReplyTo(null)} className="ml-auto hover:text-ink">✕</button>
           </div>
@@ -151,7 +153,7 @@ export default function GroupPostDetailScreen() {
             onChange={(e) => setText(e.target.value)}
             rows={1}
             maxLength={500}
-            placeholder={replyTo ? 'Write a reply…' : 'Add a comment…'}
+            placeholder={replyTo ? t('post.writeReply') : t('post.addComment')}
             className="flex-1 bg-surface/60 border border-white/10 rounded-2xl px-3 py-2 outline-none text-ink text-sm placeholder:text-ink-muted resize-none min-h-9 max-h-24 focus:ring-brand no-scrollbar"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() }
@@ -160,7 +162,7 @@ export default function GroupPostDetailScreen() {
           <button
             onClick={send}
             disabled={!text.trim() || add.isPending}
-            aria-label="Send"
+            aria-label={t('post.send')}
             className={[
               'w-9 h-9 rounded-full grid place-items-center text-sm shrink-0 transition-opacity',
               text.trim() && !add.isPending ? 'bg-gradient-brand text-white glow-rose' : 'bg-surface-3 text-ink-muted',
@@ -254,6 +256,7 @@ function CommentNode({
   onReply: (c: GroupComment) => void
   onDelete: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const kids = childrenOf.get(comment.id) ?? []
   const isMine = comment.author_id === myId
   // Replies stay collapsed until the user asks to see them, then they
@@ -281,11 +284,11 @@ function CommentNode({
             <p className="text-ink-2 text-sm mt-0.5 whitespace-pre-wrap break-words">{comment.body}</p>
           </div>
           <div className="mt-1 ml-1 flex items-center gap-4 text-[11px] font-bold text-ink-muted">
-            <button onClick={() => onReply(comment)} className="hover:text-rose">Reply</button>
-            {isMine && <button onClick={() => onDelete(comment.id)} className="hover:text-danger">Delete</button>}
+            <button onClick={() => onReply(comment)} className="hover:text-rose">{t('post.reply')}</button>
+            {isMine && <button onClick={() => onDelete(comment.id)} className="hover:text-danger">{t('post.delete')}</button>}
             {kids.length > 0 && (
               <button onClick={() => setOpen((o) => !o)} className="hover:text-rose">
-                {open ? 'Hide replies' : `View ${kids.length} ${kids.length === 1 ? 'reply' : 'replies'}`}
+                {open ? t('post.hideReplies') : `${t('post.view')} ${kids.length} ${kids.length === 1 ? t('post.replySingular') : t('post.replyPlural')}`}
               </button>
             )}
           </div>
@@ -316,7 +319,7 @@ function CommentNode({
               onClick={() => setVisible((v) => v + THREAD_REPLIES_PAGE)}
               className="mt-2 text-[11px] font-bold text-ink-muted hover:text-rose"
             >
-              View {remainingKids} more {remainingKids === 1 ? 'reply' : 'replies'}
+              {t('post.view')} {t('post.more', { count: remainingKids })} {remainingKids === 1 ? t('post.replySingular') : t('post.replyPlural')}
             </button>
           )}
         </div>

@@ -32,18 +32,6 @@ export async function signInWithTelegram(): Promise<void> {
  * navigates the page and lands back on the SITE_URL with the session set.
  */
 export async function signInWithGoogle(): Promise<void> {
-  // DEV BYPASS: Local Supabase doesn't have Google OAuth credentials configured by default.
-  // When testing locally, we'll just instantly generate a new test user account instead!
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    const { error } = await supabase.auth.signUp({
-      email: `test_${Date.now()}@lovemeet.local`,
-      password: 'password123',
-    })
-    if (error) throw new Error(error.message)
-    // The session is now active.
-    return
-  }
-
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + '/feed' },

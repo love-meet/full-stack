@@ -89,41 +89,8 @@ export type StepProps = {
 
 export type StepDef = { key: string; title: string; subtitle: string }
 
-const PATH_STEP: StepDef = {
-  key: 'path',
-  title: 'What brings you to Love meet?',
-  subtitle: 'Pick what fits — you can always explore more later.',
-}
-const NAME_STEP: StepDef = {
-  key: 'name',
-  title: 'Tell us about you',
-  subtitle: 'What should we call you?',
-}
-const DETAILS_STEP: StepDef = {
-  key: 'details',
-  title: 'A bit more',
-  subtitle: 'This helps us get to know you.',
-}
-const ABOUT_STEP: StepDef = {
-  key: 'about',
-  title: 'What are you into',
-  subtitle: 'And what are you looking for?',
-}
-const PREFERENCES_STEP: StepDef = {
-  key: 'preferences',
-  title: 'Your preferences',
-  subtitle: 'Who would you like to meet?',
-}
-const LOCATION_STEP: StepDef = {
-  key: 'location',
-  title: 'Where are you',
-  subtitle: 'So we can find people near you.',
-}
-const GALLERY_STEP: StepDef = {
-  key: 'gallery',
-  title: 'Add your photos',
-  subtitle: `Add ${GALLERY_SIZE} photos for your feed gallery.`,
-}
+/** Minimal shape of react-i18next's `t` — avoids importing it into this data file. */
+type TFunc = (key: string, opts?: Record<string, unknown>) => string
 
 /**
  * The wizard's step list depends on `intent`. "Just for fun" skips the
@@ -132,7 +99,12 @@ const GALLERY_STEP: StepDef = {
  * intent is picked (on step 0 itself) we show the longer, relationship-path
  * length so the progress bar doesn't jump on the very first step.
  */
-export function stepsForIntent(intent: Intent): StepDef[] {
-  const questionnaire = intent === 'fun' ? [] : [ABOUT_STEP, PREFERENCES_STEP]
-  return [PATH_STEP, NAME_STEP, DETAILS_STEP, ...questionnaire, LOCATION_STEP, GALLERY_STEP]
+export function stepsForIntent(intent: Intent, t: TFunc): StepDef[] {
+  const step = (key: string): StepDef => ({
+    key,
+    title: t(`onboarding.steps.${key}.title`),
+    subtitle: t(`onboarding.steps.${key}.subtitle`, { count: GALLERY_SIZE }),
+  })
+  const questionnaire = intent === 'fun' ? [] : [step('about'), step('preferences')]
+  return [step('path'), step('name'), step('details'), ...questionnaire, step('location'), step('gallery')]
 }

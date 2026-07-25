@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import type { StepProps } from '../types'
 import { checkUsernameAvailable } from '../../../hooks/useProfile'
 import { useUploadAvatar } from '../../../hooks/useUploadAvatar'
@@ -8,6 +9,7 @@ import { defaultAvatar } from '../../../lib/avatar'
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'error'
 
 export default function NameStep({ data, set }: StepProps) {
+  const { t } = useTranslation()
   const [status, setStatus] = useState<UsernameStatus>('idle')
   const timer = useRef<number | null>(null)
 
@@ -51,25 +53,25 @@ export default function NameStep({ data, set }: StepProps) {
 
       <div className="grid sm:grid-cols-2 gap-3">
         <Field
-          label="First name"
+          label={t('onboarding.stepFields.name.firstName')}
           value={data.firstName}
           onChange={(v) => set({ firstName: v })}
-          placeholder="Jane"
+          placeholder={t('onboarding.stepFields.name.firstNamePlaceholder')}
         />
         <Field
-          label="Last name"
+          label={t('onboarding.stepFields.name.lastName')}
           value={data.lastName}
           onChange={(v) => set({ lastName: v })}
-          placeholder="Doe"
+          placeholder={t('onboarding.stepFields.name.lastNamePlaceholder')}
         />
       </div>
       <div className="space-y-1">
         <Field
-          label="Username"
+          label={t('onboarding.stepFields.name.username')}
           prefix="@"
           value={data.username}
           onChange={(v) => set({ username: v.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
-          placeholder="janedoe"
+          placeholder={t('onboarding.stepFields.name.usernamePlaceholder')}
           maxLength={20}
         />
         <UsernameHint status={status} username={data.username} />
@@ -79,6 +81,7 @@ export default function NameStep({ data, set }: StepProps) {
 }
 
 function AvatarPicker({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const { t } = useTranslation()
   const fileRef = useRef<HTMLInputElement | null>(null)
   const upload = useUploadAvatar()
   const [error, setError] = useState<string | null>(null)
@@ -108,7 +111,7 @@ function AvatarPicker({ value, onChange }: { value: string; onChange: (url: stri
         onClick={() => fileRef.current?.click()}
         disabled={upload.isPending}
         className="relative group rounded-full"
-        aria-label="Change profile photo"
+        aria-label={t('onboarding.stepFields.name.changePhotoAria')}
       >
         <span className="absolute inset-0 rounded-full bg-gradient-brand blur-md opacity-70" aria-hidden />
         <img
@@ -132,7 +135,7 @@ function AvatarPicker({ value, onChange }: { value: string; onChange: (url: stri
         disabled={upload.isPending}
         className="text-sm font-semibold text-ink-2 hover:text-rose transition-colors disabled:opacity-60"
       >
-        {value ? 'Change photo' : 'Add photo'}
+        {value ? t('onboarding.stepFields.name.changePhoto') : t('onboarding.stepFields.name.addPhoto')}
       </button>
 
       {error && <p className="text-xs text-danger">{error}</p>}
@@ -149,20 +152,21 @@ function AvatarPicker({ value, onChange }: { value: string; onChange: (url: stri
 }
 
 function UsernameHint({ status, username }: { status: UsernameStatus; username: string }) {
+  const { t } = useTranslation()
   if (!username) {
     return (
       <p className="text-xs text-ink-muted px-1">
-        Lowercase letters, numbers, and underscores. Min 3 chars.
+        {t('onboarding.stepFields.name.usernameHintDefault')}
       </p>
     )
   }
   const map: Record<UsernameStatus, { text: string; color: string }> = {
-    idle:      { text: '',                     color: 'text-ink-muted' },
-    checking:  { text: 'Checking…',            color: 'text-ink-muted' },
-    available: { text: '✓ Available',          color: 'text-success' },
-    taken:     { text: '× Already taken',      color: 'text-danger' },
-    invalid:   { text: '× Min 3 chars, a-z 0-9 _ only', color: 'text-danger' },
-    error:     { text: '× Couldn\'t check, try again',  color: 'text-danger' },
+    idle:      { text: '',                                            color: 'text-ink-muted' },
+    checking:  { text: t('onboarding.stepFields.name.usernameChecking'),  color: 'text-ink-muted' },
+    available: { text: t('onboarding.stepFields.name.usernameAvailable'), color: 'text-success' },
+    taken:     { text: t('onboarding.stepFields.name.usernameTaken'),     color: 'text-danger' },
+    invalid:   { text: t('onboarding.stepFields.name.usernameInvalid'),   color: 'text-danger' },
+    error:     { text: t('onboarding.stepFields.name.usernameError'),     color: 'text-danger' },
   }
   const { text, color } = map[status]
   if (!text) return null

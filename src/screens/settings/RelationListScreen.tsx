@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   useBlockedUsers,
   useMutedUsers,
@@ -10,14 +11,15 @@ import { avatarUrlOr } from '../../lib/avatar'
 
 /** Shared screen for the Blocked-users and Muted-users lists. */
 export function BlockedUsersScreen() {
+  const { t } = useTranslation()
   const list = useBlockedUsers()
   const unblock = useUnblockUser()
   return (
     <RelationList
-      title="Blocked users"
+      title={t('menu.blockedUsers')}
       emptyIcon="🚫"
-      emptyText="You haven't blocked anyone."
-      actionLabel="Unblock"
+      emptyText={t('menu.noBlockedUsers')}
+      actionLabel={t('menu.unblock')}
       busy={unblock.isPending}
       users={list.data}
       pending={list.status === 'pending'}
@@ -27,14 +29,15 @@ export function BlockedUsersScreen() {
 }
 
 export function MutedUsersScreen() {
+  const { t } = useTranslation()
   const list = useMutedUsers()
   const unmute = useUnmuteUser()
   return (
     <RelationList
-      title="Muted users"
+      title={t('menu.mutedUsers')}
       emptyIcon="🔕"
-      emptyText="You haven't muted anyone."
-      actionLabel="Unmute"
+      emptyText={t('menu.noMutedUsers')}
+      actionLabel={t('menu.unmute')}
       busy={unmute.isPending}
       users={list.data}
       pending={list.status === 'pending'}
@@ -55,6 +58,7 @@ function RelationList({
   pending: boolean
   onAction: (userId: string) => void
 }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   return (
     <div className="min-h-screen text-ink pb-24">
@@ -63,7 +67,7 @@ function RelationList({
         style={{ paddingTop: 'var(--lm-top-inset)' }}
       >
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={() => navigate(-1)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <button onClick={() => navigate(-1)} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
           <div className="flex-1 text-center text-ink font-bold">{title}</div>
           <div className="w-10" aria-hidden />
         </div>

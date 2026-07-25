@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useCreateGame } from '../../hooks/usePixelGame'
 import { PopunderAd } from '../../components/FeedAd'
 
@@ -12,6 +13,7 @@ const DEFAULT_IMAGE = '/hero.jpeg'
 type Phase = 'guide' | 'mode' | 'setup' | 'preview' | 'play' | 'won'
 
 export default function PixelRushScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const createGame = useCreateGame()
   const [groupCount, setGroupCount] = useState(4)
@@ -110,8 +112,8 @@ export default function PixelRushScreen() {
       <AnimatePresence mode="wait">
         {phase === 'guide' && (
           <Step key="guide">
-            <h2 className="text-xl font-extrabold text-gradient-warm">🧩 Pixel Rush</h2>
-            <p className="text-sm text-ink-2 mt-1">Race to rebuild a scrambled photo. Fastest to fix it wins.</p>
+            <h2 className="text-xl font-extrabold text-gradient-warm">🧩 {t('games.pixelRushTitle')}</h2>
+            <p className="text-sm text-ink-2 mt-1">{t('games.pixelRushBlurb')}</p>
             <ol className="mt-4 space-y-2 text-sm text-ink-2 list-decimal pl-5">
               <li>A photo is shown for <b>5 seconds</b> — study it.</li>
               <li>It scatters into a grid — easy <b>3×3</b> early rounds, building up to a hard <b>5×5</b>.</li>
@@ -120,18 +122,18 @@ export default function PixelRushScreen() {
               <li>In multiplayer, first to finish takes the round; best of 9 takes the trophy. 🏆</li>
             </ol>
             <button onClick={() => setPhase('mode')} className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose">
-              Got it — continue
+              {t('games.prGotIt')}
             </button>
           </Step>
         )}
 
         {phase === 'mode' && (
           <Step key="mode">
-            <h2 className="text-lg font-extrabold text-ink">Choose a mode</h2>
+            <h2 className="text-lg font-extrabold text-ink">{t('games.prChooseMode')}</h2>
             <div className="mt-4 space-y-3">
               <button onClick={() => setPhase('setup')} className="w-full glass rounded-2xl p-4 text-left hover:ring-1 hover:ring-gold/40">
-                <div className="font-extrabold text-ink">Solo practice</div>
-                <div className="text-sm text-ink-muted">Play now and beat your own best time.</div>
+                <div className="font-extrabold text-ink">{t('games.prSoloPractice')}</div>
+                <div className="text-sm text-ink-muted">{t('games.prSoloPracticeSub')}</div>
               </button>
 
               <button
@@ -139,15 +141,15 @@ export default function PixelRushScreen() {
                 disabled={createGame.isPending}
                 className="w-full glass rounded-2xl p-4 text-left hover:ring-1 hover:ring-gold/40 disabled:opacity-60"
               >
-                <div className="font-extrabold text-ink">1 v 1</div>
-                <div className="text-sm text-ink-muted">Create a match and invite an opponent with a link — no account needed to join.</div>
+                <div className="font-extrabold text-ink">{t('games.prOneVOne')}</div>
+                <div className="text-sm text-ink-muted">{t('games.prOneVOneSub')}</div>
               </button>
 
               <div className="w-full glass rounded-2xl p-4">
-                <div className="font-extrabold text-ink">Group (teams)</div>
-                <div className="text-sm text-ink-muted">Set the player count; joiners are split into two teams at random.</div>
+                <div className="font-extrabold text-ink">{t('games.prGroupTeams')}</div>
+                <div className="text-sm text-ink-muted">{t('games.prGroupTeamsSub')}</div>
                 <div className="mt-3 flex items-center gap-2">
-                  <label className="text-xs text-ink-2">Players</label>
+                  <label className="text-xs text-ink-2">{t('games.prPlayersLabel')}</label>
                   <select
                     value={groupCount}
                     onChange={(e) => setGroupCount(Number(e.target.value))}
@@ -160,32 +162,32 @@ export default function PixelRushScreen() {
                     disabled={createGame.isPending}
                     className="ml-auto rounded-full px-4 py-1.5 bg-gradient-brand text-white text-sm font-bold glow-rose disabled:opacity-60"
                   >
-                    Create
+                    {t('games.prCreate')}
                   </button>
                 </div>
               </div>
             </div>
             {createErr && <p className="mt-3 text-xs text-danger">{createErr}</p>}
             <p className="mt-3 text-[11px] text-ink-muted">
-              The lobby + guest join are live. The round-by-round picture race &amp; feed spectating are rolling out next.
+              {t('games.prLobbyNote')}
             </p>
           </Step>
         )}
 
         {phase === 'setup' && (
           <Step key="setup">
-            <h2 className="text-lg font-extrabold text-ink">Pick your picture</h2>
-            <p className="text-sm text-ink-muted mt-1">Upload a photo to scramble, or play the default.</p>
+            <h2 className="text-lg font-extrabold text-ink">{t('games.prPickPicture')}</h2>
+            <p className="text-sm text-ink-muted mt-1">{t('games.prPickPictureSub')}</p>
             <div className="mt-4 aspect-square w-full max-w-sm mx-auto rounded-2xl overflow-hidden bg-black">
               <img src={image} alt="" className="w-full h-full object-cover" />
             </div>
             <div className="mt-4 flex flex-col gap-2 max-w-sm mx-auto">
               <label className="w-full rounded-full py-3 text-center text-sm font-bold glass text-ink-2 hover:text-ink cursor-pointer">
-                Upload a photo
+                {t('games.prUploadPhoto')}
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => onPickImage(e.target.files?.[0])} />
               </label>
               <button onClick={() => setPhase('preview')} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose">
-                Start round
+                {t('games.prStartRound')}
               </button>
             </div>
           </Step>
@@ -195,9 +197,9 @@ export default function PixelRushScreen() {
           <Step key="board">
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm font-bold text-ink">
-                {phase === 'preview' ? 'Study the photo…' : `⏱ ${(elapsed / 1000).toFixed(1)}s`}
+                {phase === 'preview' ? t('games.prStudyPhoto') : `⏱ ${(elapsed / 1000).toFixed(1)}s`}
               </div>
-              <div className="text-[11px] text-ink-muted">{phase !== 'preview' && `${moves} moves`}</div>
+              <div className="text-[11px] text-ink-muted">{phase !== 'preview' && t('games.prMovesCount', { count: moves })}</div>
             </div>
 
             <div className="relative aspect-square w-full max-w-sm mx-auto select-none">
@@ -260,8 +262,8 @@ export default function PixelRushScreen() {
                       className="text-center"
                     >
                       <div className="text-5xl">🏆</div>
-                      <div className="mt-2 text-2xl font-extrabold text-gradient-warm">Solved!</div>
-                      <div className="mt-1 text-white font-semibold">{(elapsed / 1000).toFixed(1)}s · {moves} moves</div>
+                      <div className="mt-2 text-2xl font-extrabold text-gradient-warm">{t('games.prSolved')}</div>
+                      <div className="mt-1 text-white font-semibold">{t('games.prTimeMoves', { seconds: (elapsed / 1000).toFixed(1), count: moves })}</div>
                     </motion.div>
                     {/* confetti burst */}
                     {['🎉','✨','💖','⭐','🎊','💫'].map((e, i) => (
@@ -279,12 +281,12 @@ export default function PixelRushScreen() {
             </div>
 
             {phase === 'play' && (
-              <p className="mt-3 text-center text-[12px] text-ink-muted">Tap two tiles to swap them.</p>
+              <p className="mt-3 text-center text-[12px] text-ink-muted">{t('games.prTapToSwap')}</p>
             )}
             {phase === 'won' && (
               <div className="mt-4 flex flex-col gap-2 max-w-sm mx-auto">
-                <button onClick={playAgain} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose">Play again</button>
-                <button onClick={() => setPhase('setup')} className="w-full rounded-full py-3 glass text-ink-2 hover:text-ink font-semibold">New picture</button>
+                <button onClick={playAgain} className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose">{t('games.prPlayAgain')}</button>
+                <button onClick={() => setPhase('setup')} className="w-full rounded-full py-3 glass text-ink-2 hover:text-ink font-semibold">{t('games.prNewPicture')}</button>
               </div>
             )}
           </Step>
@@ -297,13 +299,14 @@ export default function PixelRushScreen() {
 // ---------- shell + bits ----------
 
 function Shell({ children, onBack }: { children: React.ReactNode; onBack: () => void }) {
+  const { t } = useTranslation()
   return (
     <div className="min-h-screen text-ink pb-24">
       <PopunderAd />
       <header className="sticky top-0 z-10 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={onBack} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
-          <div className="flex-1 text-center text-ink font-bold">Pixel Rush</div>
+          <button onClick={onBack} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <div className="flex-1 text-center text-ink font-bold">{t('games.pixelRushTitle')}</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>

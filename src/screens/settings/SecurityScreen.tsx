@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useHasPin, useSetPin, useUpdatePassword } from '../../hooks/useSecurity'
 import { useProfile, useUpdateProfile } from '../../hooks/useProfile'
 
 export default function SecurityScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const hasPin = useHasPin()
 
@@ -16,12 +18,12 @@ export default function SecurityScreen() {
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
           <button
             onClick={() => navigate(-1)}
-            aria-label="Back"
+            aria-label={t('post.back')}
             className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2"
           >
             ←
           </button>
-          <div className="flex-1 text-center text-ink font-bold">Security</div>
+          <div className="flex-1 text-center text-ink font-bold">{t('menu.security')}</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>
@@ -36,6 +38,7 @@ export default function SecurityScreen() {
 }
 
 function PinSection({ alreadySet }: { alreadySet: boolean }) {
+  const { t } = useTranslation()
   const setPin = useSetPin()
   const [pin, setPin1] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -45,11 +48,11 @@ function PinSection({ alreadySet }: { alreadySet: boolean }) {
   async function save() {
     setError(null)
     if (!/^\d{4,6}$/.test(pin)) {
-      setError('PIN must be 4 to 6 digits.')
+      setError(t('security.pinMustBe4to6'))
       return
     }
     if (pin !== confirm) {
-      setError('PINs don\'t match.')
+      setError(t('security.pinsDontMatch'))
       return
     }
     try {
@@ -66,18 +69,18 @@ function PinSection({ alreadySet }: { alreadySet: boolean }) {
   return (
     <section>
       <h2 className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold pb-2">
-        PIN
+        {t('security.pinTitle')}
       </h2>
       <div className="glass rounded-2xl p-5">
         <p className="text-sm text-ink-2">
           {alreadySet
-            ? 'You already have a PIN set. Enter a new one below to replace it. PINs gate withdrawals and other sensitive actions.'
-            : 'Add a 4–6 digit PIN. We hash it server-side; we never see the raw digits.'}
+            ? t('security.pinAlreadySet')
+            : t('security.pinAddNew')}
         </p>
 
         <div className="mt-4 space-y-3">
           <label className="block">
-            <div className="text-xs font-bold text-ink-2 mb-1.5">New PIN</div>
+            <div className="text-xs font-bold text-ink-2 mb-1.5">{t('security.newPin')}</div>
             <input
               type="password"
               inputMode="numeric"
@@ -90,7 +93,7 @@ function PinSection({ alreadySet }: { alreadySet: boolean }) {
             />
           </label>
           <label className="block">
-            <div className="text-xs font-bold text-ink-2 mb-1.5">Confirm PIN</div>
+            <div className="text-xs font-bold text-ink-2 mb-1.5">{t('security.confirmPin')}</div>
             <input
               type="password"
               inputMode="numeric"
@@ -117,10 +120,10 @@ function PinSection({ alreadySet }: { alreadySet: boolean }) {
           ].join(' ')}
         >
           {setPin.isPending
-            ? 'Saving…'
+            ? t('editProfile.saving')
             : savedFlash
-              ? 'Saved ✓'
-              : alreadySet ? 'Replace PIN' : 'Set PIN'}
+              ? t('editProfile.saved')
+              : alreadySet ? t('security.replacePin') : t('security.setPin')}
         </button>
       </div>
     </section>
@@ -128,6 +131,7 @@ function PinSection({ alreadySet }: { alreadySet: boolean }) {
 }
 
 function PasswordSection() {
+  const { t } = useTranslation()
   const update = useUpdatePassword()
   const [pw, setPw] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -136,8 +140,8 @@ function PasswordSection() {
 
   async function save() {
     setError(null)
-    if (pw.length < 8) { setError('Password must be at least 8 characters.'); return }
-    if (pw !== confirm) { setError('Passwords don\'t match.'); return }
+    if (pw.length < 8) { setError(t('security.passwordMinLength')); return }
+    if (pw !== confirm) { setError(t('security.passwordsDontMatch')); return }
     try {
       await update.mutateAsync(pw)
       setPw('')
@@ -152,18 +156,16 @@ function PasswordSection() {
   return (
     <section>
       <h2 className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold pb-2">
-        Password
+        {t('security.passwordTitle')}
       </h2>
       <div className="glass rounded-2xl p-5">
         <p className="text-sm text-ink-2">
-          Change the password for your Supabase auth account. Doesn't affect
-          Google or Telegram sign-in — if you sign in with one of those,
-          you can ignore this section.
+          {t('security.passwordDesc')}
         </p>
 
         <div className="mt-4 space-y-3">
           <label className="block">
-            <div className="text-xs font-bold text-ink-2 mb-1.5">New password</div>
+            <div className="text-xs font-bold text-ink-2 mb-1.5">{t('security.newPassword')}</div>
             <input
               type="password"
               autoComplete="new-password"
@@ -174,7 +176,7 @@ function PasswordSection() {
             />
           </label>
           <label className="block">
-            <div className="text-xs font-bold text-ink-2 mb-1.5">Confirm password</div>
+            <div className="text-xs font-bold text-ink-2 mb-1.5">{t('security.confirmPassword')}</div>
             <input
               type="password"
               autoComplete="new-password"
@@ -197,7 +199,7 @@ function PasswordSection() {
               : 'bg-gradient-brand text-white glow-rose',
           ].join(' ')}
         >
-          {update.isPending ? 'Saving…' : savedFlash ? 'Saved ✓' : 'Update password'}
+          {update.isPending ? t('editProfile.saving') : savedFlash ? t('editProfile.saved') : t('security.updatePassword')}
         </button>
       </div>
     </section>
@@ -205,6 +207,7 @@ function PasswordSection() {
 }
 
 function NotificationsSection() {
+  const { t } = useTranslation()
   const profile = useProfile()
   const update = useUpdateProfile()
   const emailOn = profile.data?.email_notifications ?? true
@@ -215,24 +218,24 @@ function NotificationsSection() {
   return (
     <section>
       <h2 className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold pb-2">
-        Notifications
+        {t('notif.title')}
       </h2>
       <p className="text-[11px] text-ink-muted px-1 pb-2">
-        Choose how we reach you. In-app notifications stay on either way.
+        {t('security.notificationsDesc')}
       </p>
       <div className="glass rounded-2xl divide-y divide-white/5">
         <ToggleRow
-          title="Email notifications"
-          subtitle="Likes, comments, gifts, payments, security and more — to your inbox."
+          title={t('security.emailNotifications')}
+          subtitle={t('security.emailNotificationsDesc')}
           on={emailOn}
           disabled={busy}
           onToggle={() => update.mutate({ email_notifications: !emailOn })}
         />
         <ToggleRow
-          title="Telegram notifications"
+          title={t('security.telegramNotifications')}
           subtitle={hasTelegram
-            ? 'Get the same alerts in Telegram from our bot.'
-            : 'Sign in with Telegram to enable Telegram alerts.'}
+            ? t('security.telegramNotificationsOn')
+            : t('security.telegramNotificationsOff')}
           on={tgOn}
           disabled={busy || !hasTelegram}
           onToggle={() => update.mutate({ telegram_notifications: !tgOn })}

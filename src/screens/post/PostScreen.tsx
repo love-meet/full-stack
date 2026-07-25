@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { cloudinaryUpload, cloudinaryUploadLarge, cloudinaryVideoUrl } from '../../lib/cloudinary'
 import { useAuth } from '../../stores/auth'
 import { useCreatePost } from '../../hooks/usePostMutations'
@@ -13,6 +14,7 @@ import type { AspectId, CropArea, Media, Step, Trim } from './types'
 import type { LocationResult } from '../../components/LocationPickerSheet'
 
 export default function PostScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const session = useAuth((s) => s.session)
   const create = useCreatePost()
@@ -196,12 +198,12 @@ export default function PostScreen() {
           <div className="glass rounded-3xl p-8 text-center max-w-xs">
             <div className="lm-spinner mx-auto" role="status" aria-label="Loading" />
             <p className="mt-4 text-ink font-semibold">
-              {phase === 'processing' ? 'Preparing your clip…' : 'Sharing your moment…'}
+              {phase === 'processing' ? t('post.preparingClip') : t('post.sharingMoment')}
             </p>
             <p className="text-xs text-ink-muted mt-1">
               {phase === 'processing'
-                ? 'Trimming & compressing'
-                : uploadPct > 0 ? `Uploading ${uploadPct}%` : 'Uploading'}
+                ? t('post.trimmingCompressing')
+                : uploadPct > 0 ? t('post.uploadingPct', { pct: uploadPct }) : t('post.uploading')}
             </p>
           </div>
         </div>
@@ -223,9 +225,10 @@ type HeaderProps = {
 }
 
 function Header({ step, canNext, submitting, onCancel, onBack, onNext, onShare }: HeaderProps) {
+  const { t } = useTranslation()
   const title =
-    step === 'pick' ? 'New post' :
-    step === 'edit' ? 'Edit'      : 'New post'
+    step === 'pick' ? t('post.newPost') :
+    step === 'edit' ? t('post.editLabel') : t('post.newPost')
 
   return (
     <header
@@ -239,13 +242,13 @@ function Header({ step, canNext, submitting, onCancel, onBack, onNext, onShare }
               onClick={onCancel}
               className="px-3 py-2 text-ink-2 hover:text-ink text-base font-semibold"
             >
-              Cancel
+              {t('post.cancel')}
             </button>
           ) : (
             <button
               onClick={onBack}
               className="px-3 py-2 text-ink-2 hover:text-ink text-2xl leading-none"
-              aria-label="Back"
+              aria-label={t('post.back')}
             >
               ←
             </button>
@@ -264,7 +267,7 @@ function Header({ step, canNext, submitting, onCancel, onBack, onNext, onShare }
                 canNext ? 'text-rose hover:text-rose/80' : 'text-ink-muted cursor-not-allowed',
               ].join(' ')}
             >
-              Next
+              {t('post.next')}
             </button>
           ) : (
             <button
@@ -275,7 +278,7 @@ function Header({ step, canNext, submitting, onCancel, onBack, onNext, onShare }
                 submitting ? 'text-ink-muted cursor-wait' : 'text-rose hover:text-rose/80',
               ].join(' ')}
             >
-              Share
+              {t('post.share')}
             </button>
           )}
         </div>

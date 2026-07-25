@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useProfile } from '../hooks/useProfile'
 import { useMatchPreferences, useSaveMatchPreferences } from '../hooks/useMatchPreferences'
 import { COUNTRIES, STATES } from '../data/geo'
@@ -19,125 +21,50 @@ type Question = {
   options?: string[]
 }
 
-const QUESTIONS: Question[] = [
-  {
-    id: 'country', emoji: '🌍', topic: 'Where from',
-    partnerPrompt: 'Which country would you like {them} to come from?',
-    selfPrompt: 'And which country are you from?',
-    kind: 'country',
-  },
-  {
-    id: 'state', emoji: '📍', topic: 'State / region',
-    partnerPrompt: 'Which state / region would you like {them} to be from?',
-    selfPrompt: 'And what state / region are you from?',
-    kind: 'state',
-  },
-  {
-    id: 'career', emoji: '💼', topic: 'Career',
-    partnerPrompt: 'What kind of work do you find attractive in {them}?',
-    selfPrompt: 'What do you do?',
-    kind: 'choice',
-    options: ['Tech', 'Healthcare', 'Education', 'Business', 'Arts', 'Trades', 'Student', 'Self-employed', 'Civil service', 'Anything'],
-  },
-  {
-    id: 'character', emoji: '😊', topic: 'Character',
-    partnerPrompt: 'One word that describes {them}?',
-    selfPrompt: 'One word that describes you?',
-    kind: 'choice',
-    options: ['Kind', 'Ambitious', 'Playful', 'Calm', 'Bold', 'Romantic', 'Funny', 'Loyal', 'Adventurous'],
-  },
-  {
-    id: 'color', emoji: '🎨', topic: 'Favourite colour',
-    partnerPrompt: "{Their} favourite colour?",
-    selfPrompt: 'And yours?',
-    kind: 'choice',
-    options: ['Red', 'Pink', 'Blue', 'Black', 'White', 'Green', 'Yellow', 'Purple', 'Orange', 'Gold', 'Anything'],
-  },
-  {
-    id: 'religion', emoji: '🙏', topic: 'Faith',
-    partnerPrompt: "{Their} faith or spirituality?",
-    selfPrompt: 'Yours?',
-    kind: 'choice',
-    options: ['Christian', 'Muslim', 'Traditional', 'Spiritual', 'None', 'Prefer not to say', 'Anything'],
-  },
-  {
-    id: 'education', emoji: '🎓', topic: 'Education',
-    partnerPrompt: "{Their} education?",
-    selfPrompt: 'Yours?',
-    kind: 'choice',
-    options: ['High school', 'Diploma', "Bachelor's", "Master's", 'PhD', 'Self-taught', 'Anything'],
-  },
-  {
-    id: 'height', emoji: '📏', topic: 'Height',
-    partnerPrompt: '{Their} height?',
-    selfPrompt: 'Yours?',
-    kind: 'choice',
-    options: ['Short', 'Average', 'Tall', 'Very tall'],
-  },
-  {
-    id: 'body', emoji: '🏃', topic: 'Body type',
-    partnerPrompt: '{Their} body type?',
-    selfPrompt: 'Yours?',
-    kind: 'choice',
-    options: ['Slim', 'Average', 'Athletic', 'Curvy', 'Full-figured'],
-  },
-  {
-    id: 'smoking', emoji: '🚭', topic: 'Smoking',
-    partnerPrompt: 'Do you mind if {they} smoke?',
-    selfPrompt: 'And you?',
-    kind: 'choice',
-    options: ['Never', 'Sometimes', 'Often', "Don't mind"],
-  },
-  {
-    id: 'drinking', emoji: '🥂', topic: 'Drinking',
-    partnerPrompt: '{They} drink?',
-    selfPrompt: 'You?',
-    kind: 'choice',
-    options: ['Never', 'Sometimes', 'Often', "Don't mind"],
-  },
-  {
-    id: 'children', emoji: '👶', topic: 'Children',
-    partnerPrompt: '{They} want children?',
-    selfPrompt: 'You?',
-    kind: 'choice',
-    options: ['Yes', 'No', 'Maybe', 'Already have'],
-  },
-  {
-    id: 'pets', emoji: '🐾', topic: 'Pets',
-    partnerPrompt: '{Their} love for pets?',
-    selfPrompt: 'Yours?',
-    kind: 'choice',
-    options: ['Love them', 'Indifferent', 'Allergic', 'No pets, please'],
-  },
-  {
-    id: 'travel', emoji: '✈️', topic: 'Travel style',
-    partnerPrompt: '{Their} travel style?',
-    selfPrompt: 'Yours?',
-    kind: 'choice',
-    options: ['Adventurous', 'Relaxed', 'Cultural', 'Foodie', 'Homebody'],
-  },
-  {
-    id: 'money', emoji: '💰', topic: 'Money',
-    partnerPrompt: '{Their} money style?',
-    selfPrompt: 'Yours?',
-    kind: 'choice',
-    options: ['Saver', 'Spender', 'Balanced', 'Investor'],
-  },
-  {
-    id: 'love_language', emoji: '💞', topic: 'Love language',
-    partnerPrompt: 'How does {they} like to be loved?',
-    selfPrompt: 'How do you like to be loved?',
-    kind: 'choice',
-    options: ['Words', 'Acts of service', 'Gifts', 'Quality time', 'Touch'],
-  },
-]
+const OPTIONS: Record<string, string[]> = {
+  career: ['Tech', 'Healthcare', 'Education', 'Business', 'Arts', 'Trades', 'Student', 'Self-employed', 'Civil service', 'Anything'],
+  character: ['Kind', 'Ambitious', 'Playful', 'Calm', 'Bold', 'Romantic', 'Funny', 'Loyal', 'Adventurous'],
+  color: ['Red', 'Pink', 'Blue', 'Black', 'White', 'Green', 'Yellow', 'Purple', 'Orange', 'Gold', 'Anything'],
+  religion: ['Christian', 'Muslim', 'Traditional', 'Spiritual', 'None', 'Prefer not to say', 'Anything'],
+  education: ['High school', 'Diploma', "Bachelor's", "Master's", 'PhD', 'Self-taught', 'Anything'],
+  height: ['Short', 'Average', 'Tall', 'Very tall'],
+  body: ['Slim', 'Average', 'Athletic', 'Curvy', 'Full-figured'],
+  smoking: ['Never', 'Sometimes', 'Often', "Don't mind"],
+  drinking: ['Never', 'Sometimes', 'Often', "Don't mind"],
+  children: ['Yes', 'No', 'Maybe', 'Already have'],
+  pets: ['Love them', 'Indifferent', 'Allergic', 'No pets, please'],
+  travel: ['Adventurous', 'Relaxed', 'Cultural', 'Foodie', 'Homebody'],
+  money: ['Saver', 'Spender', 'Balanced', 'Investor'],
+  love_language: ['Words', 'Acts of service', 'Gifts', 'Quality time', 'Touch'],
+}
+
+function getQuestions(t: TFunction): Question[] {
+  return [
+    { id: 'country', emoji: '🌍', topic: t('interview.topics.country'), partnerPrompt: t('interview.partnerPrompts.country'), selfPrompt: t('interview.selfPrompts.country'), kind: 'country' },
+    { id: 'state', emoji: '📍', topic: t('interview.topics.state'), partnerPrompt: t('interview.partnerPrompts.state'), selfPrompt: t('interview.selfPrompts.state'), kind: 'state' },
+    { id: 'career', emoji: '💼', topic: t('interview.topics.career'), partnerPrompt: t('interview.partnerPrompts.career'), selfPrompt: t('interview.selfPrompts.career'), kind: 'choice', options: OPTIONS.career },
+    { id: 'character', emoji: '😊', topic: t('interview.topics.character'), partnerPrompt: t('interview.partnerPrompts.character'), selfPrompt: t('interview.selfPrompts.character'), kind: 'choice', options: OPTIONS.character },
+    { id: 'color', emoji: '🎨', topic: t('interview.topics.color'), partnerPrompt: t('interview.partnerPrompts.color'), selfPrompt: t('interview.selfPrompts.color'), kind: 'choice', options: OPTIONS.color },
+    { id: 'religion', emoji: '🙏', topic: t('interview.topics.religion'), partnerPrompt: t('interview.partnerPrompts.religion'), selfPrompt: t('interview.selfPrompts.religion'), kind: 'choice', options: OPTIONS.religion },
+    { id: 'education', emoji: '🎓', topic: t('interview.topics.education'), partnerPrompt: t('interview.partnerPrompts.education'), selfPrompt: t('interview.selfPrompts.education'), kind: 'choice', options: OPTIONS.education },
+    { id: 'height', emoji: '📏', topic: t('interview.topics.height'), partnerPrompt: t('interview.partnerPrompts.height'), selfPrompt: t('interview.selfPrompts.height'), kind: 'choice', options: OPTIONS.height },
+    { id: 'body', emoji: '🏃', topic: t('interview.topics.body'), partnerPrompt: t('interview.partnerPrompts.body'), selfPrompt: t('interview.selfPrompts.body'), kind: 'choice', options: OPTIONS.body },
+    { id: 'smoking', emoji: '🚭', topic: t('interview.topics.smoking'), partnerPrompt: t('interview.partnerPrompts.smoking'), selfPrompt: t('interview.selfPrompts.smoking'), kind: 'choice', options: OPTIONS.smoking },
+    { id: 'drinking', emoji: '🥂', topic: t('interview.topics.drinking'), partnerPrompt: t('interview.partnerPrompts.drinking'), selfPrompt: t('interview.selfPrompts.drinking'), kind: 'choice', options: OPTIONS.drinking },
+    { id: 'children', emoji: '👶', topic: t('interview.topics.children'), partnerPrompt: t('interview.partnerPrompts.children'), selfPrompt: t('interview.selfPrompts.children'), kind: 'choice', options: OPTIONS.children },
+    { id: 'pets', emoji: '🐾', topic: t('interview.topics.pets'), partnerPrompt: t('interview.partnerPrompts.pets'), selfPrompt: t('interview.selfPrompts.pets'), kind: 'choice', options: OPTIONS.pets },
+    { id: 'travel', emoji: '✈️', topic: t('interview.topics.travel'), partnerPrompt: t('interview.partnerPrompts.travel'), selfPrompt: t('interview.selfPrompts.travel'), kind: 'choice', options: OPTIONS.travel },
+    { id: 'money', emoji: '💰', topic: t('interview.topics.money'), partnerPrompt: t('interview.partnerPrompts.money'), selfPrompt: t('interview.selfPrompts.money'), kind: 'choice', options: OPTIONS.money },
+    { id: 'love_language', emoji: '💞', topic: t('interview.topics.love_language'), partnerPrompt: t('interview.partnerPrompts.love_language'), selfPrompt: t('interview.selfPrompts.love_language'), kind: 'choice', options: OPTIONS.love_language },
+  ]
+}
 
 type Pron = { them: string; they: string; their: string; Their: string; person: string }
 
-function pronounsFor(g: string | null | undefined): Pron {
-  if (g === 'female') return { them: 'him', they: 'he', their: 'his', Their: 'His', person: 'man' }
-  if (g === 'male') return { them: 'her', they: 'she', their: 'her', Their: 'Her', person: 'woman' }
-  return { them: 'them', they: 'they', their: 'their', Their: 'Their', person: 'person' }
+function pronounsFor(g: string | null | undefined, t: TFunction): Pron {
+  if (g === 'female') return { them: t('interview.pron.them'), they: t('interview.pron.they'), their: t('interview.pron.their'), Their: t('interview.pron.Their'), person: t('interview.pron.person') }
+  if (g === 'male') return { them: t('interview.pron.themF'), they: t('interview.pron.theyF'), their: t('interview.pron.theirF'), Their: t('interview.pron.TheirF'), person: t('interview.pron.personF') }
+  return { them: t('interview.pron.themN'), they: t('interview.pron.theyN'), their: t('interview.pron.theirN'), Their: t('interview.pron.TheirN'), person: t('interview.pron.personN') }
 }
 
 function applyPron(text: string, p: Pron): string {
@@ -149,6 +76,7 @@ function applyPron(text: string, p: Pron): string {
 }
 
 export default function InterviewScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const profile = useProfile()
   const existing = useMatchPreferences()
@@ -158,7 +86,8 @@ export default function InterviewScreen() {
   const [self, setSelf] = useState<Record<string, string>>({})
   const [plan, setPlan] = useState<'free' | 'premium' | 'vip' | null>(null)
 
-  const pron = useMemo(() => pronounsFor(profile.data?.gender), [profile.data?.gender])
+  const QUESTIONS = useMemo(() => getQuestions(t), [t])
+  const pron = useMemo(() => pronounsFor(profile.data?.gender, t), [profile.data?.gender, t])
 
   // Pre-fill from any previously-saved answers.
   useMemo(() => {
@@ -193,12 +122,12 @@ export default function InterviewScreen() {
           <button
             onClick={() => step === 0 ? navigate(-1) : setStep((s) => s - 1)}
             className="text-ink-2 hover:text-ink text-xl leading-none px-2"
-            aria-label="Back"
+            aria-label={t('post.back')}
           >
             ←
           </button>
           <div className="text-[11px] font-bold text-ink-muted">
-            {isFinal ? `Last question` : `Question ${step + 1} of ${total}`}
+            {isFinal ? t('interview.lastQuestion') : t('interview.questionOf', { step: step + 1, total })}
           </div>
           <div className="w-8" aria-hidden />
         </div>
@@ -252,6 +181,7 @@ function QuestionStep({
   onSelf: (v: string) => void
   onNext: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -264,17 +194,17 @@ function QuestionStep({
         <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">{q.topic}</div>
       </div>
 
-      <Field label={`About ${pron.them}`} prompt={applyPron(q.partnerPrompt, pron)}>
+      <Field label={t('interview.aboutThem', { them: pron.them })} prompt={applyPron(q.partnerPrompt, pron)}>
         <Picker q={q} value={partner} onChange={onPartner} countryCode={partnerCountry} />
       </Field>
 
       <div className="my-5 flex items-center gap-3 text-[10px] uppercase tracking-wider text-ink-muted">
         <div className="flex-1 h-px bg-white/10" />
-        <span>and you?</span>
+        <span>{t('interview.andYou')}</span>
         <div className="flex-1 h-px bg-white/10" />
       </div>
 
-      <Field label="About you" prompt={q.selfPrompt}>
+      <Field label={t('interview.aboutYou')} prompt={q.selfPrompt}>
         <Picker q={q} value={self} onChange={onSelf} countryCode={selfCountry} />
       </Field>
 
@@ -283,10 +213,10 @@ function QuestionStep({
         disabled={!partner && !self}
         className="mt-7 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-50"
       >
-        Continue
+        {t('onboarding.continueLabel')}
       </button>
       <p className="mt-2 text-center text-[11px] text-ink-muted">
-        You can answer one side now and update later in settings.
+        {t('interview.answerLaterNote')}
       </p>
     </motion.div>
   )
@@ -310,11 +240,12 @@ function Picker({
   onChange: (v: string) => void
   countryCode?: string
 }) {
+  const { t } = useTranslation()
   if (q.kind === 'country') {
     const sorted = [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name))
     return (
       <select value={value} onChange={(e) => onChange(e.target.value)} className="lm-input w-full">
-        <option value="">Select…</option>
+        <option value="">{t('interview.selectPlaceholder')}</option>
         {sorted.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
       </select>
     )
@@ -324,7 +255,7 @@ function Picker({
     if (states && states.length > 0) {
       return (
         <select value={value} onChange={(e) => onChange(e.target.value)} className="lm-input w-full">
-          <option value="">Select state…</option>
+          <option value="">{t('interview.selectStatePlaceholder')}</option>
           {states.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       )
@@ -333,7 +264,7 @@ function Picker({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={countryCode ? 'e.g. Bavaria' : 'Pick a country first'}
+        placeholder={countryCode ? t('interview.stateInputPlaceholder') : t('interview.pickCountryFirst')}
         className="lm-input w-full"
         disabled={!countryCode}
         maxLength={60}
@@ -369,6 +300,7 @@ function FinalStep({
   onPick: (p: 'free' | 'premium' | 'vip') => void
   busy: boolean
 }) {
+  const { t } = useTranslation()
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -376,63 +308,63 @@ function FinalStep({
       className="text-center"
     >
       <div className="text-5xl">🎉</div>
-      <h2 className="mt-2 text-2xl font-extrabold text-gradient-warm">You're good to go!</h2>
-      <p className="mt-1 text-sm text-ink-2">One last question:</p>
-      <p className="mt-1 text-lg font-bold text-ink">What kind of {pron.person} do you want?</p>
+      <h2 className="mt-2 text-2xl font-extrabold text-gradient-warm">{t('interview.finalTitle')}</h2>
+      <p className="mt-1 text-sm text-ink-2">{t('interview.finalSubtitle')}</p>
+      <p className="mt-1 text-lg font-bold text-ink">{t('interview.finalQuestion', { person: pron.person })}</p>
 
       <div className="mt-6 space-y-3 text-left">
         <PlanChoice
           tone="gold"
           icon="💎"
-          title="A rich one"
-          highlight="The rich only meet the rich"
-          tagline="Unlock VIP — you'll be surfaced exclusively to other verified VIP members. Rich-to-rich, premium-to-premium."
+          title={t('interview.vip.title')}
+          highlight={t('interview.vip.highlight')}
+          tagline={t('interview.vip.tagline')}
           benefits={[
-            'Everything in Premium',
-            'Nationality verification',
-            'Face verification',
-            'Surfaced ONLY to other VIP-verified members',
-            'Top priority with the most genuine, verified matches',
+            t('interview.vip.benefit1'),
+            t('interview.vip.benefit2'),
+            t('interview.vip.benefit3'),
+            t('interview.vip.benefit4'),
+            t('interview.vip.benefit5'),
           ]}
-          cta="Unlock VIP"
+          cta={t('interview.vip.cta')}
           onPick={() => onPick('vip')}
           disabled={busy}
         />
         <PlanChoice
           tone="rose"
           icon="🤝"
-          title="A middle-class one"
-          tagline="Premium — be seen, be heard, be unmissable."
+          title={t('interview.premium.title')}
+          tagline={t('interview.premium.tagline')}
           benefits={[
-            'Boosted visibility — recommended to people matching your vibe, location & closeness',
-            'Create & host any game',
-            'Create your own groups',
-            'Start threads inside groups',
-            'Unlimited posts (Free is 3 a week)',
-            'Choose exactly who can message you',
-            '10 chat settings & toggles',
-            '8 privacy settings & toggles',
-            'Get recommended to people who already like you',
-            'No ads',
-            'Blue verified tick on your profile everywhere',
+            t('interview.premium.benefit1'),
+            t('interview.premium.benefit2'),
+            t('interview.premium.benefit3'),
+            t('interview.premium.benefit4'),
+            t('interview.premium.benefit5'),
+            t('interview.premium.benefit6'),
+            t('interview.premium.benefit7'),
+            t('interview.premium.benefit8'),
+            t('interview.premium.benefit9'),
+            t('interview.premium.benefit10'),
+            t('interview.premium.benefit11'),
           ]}
-          cta="Get Premium"
+          cta={t('interview.premium.cta')}
           onPick={() => onPick('premium')}
           disabled={busy}
         />
         <PlanChoice
           tone="muted"
           icon="😌"
-          title="I'm just there for the ride"
-          tagline="Free — limited visibility, but you can still join games and meet people."
+          title={t('interview.free.title')}
+          tagline={t('interview.free.tagline')}
           benefits={[
-            '3 posts a week',
-            'Default chat & privacy settings',
-            'Join groups & games others host',
-            "✖ Can't create or host games (members only)",
-            "✖ Can't message Premium / VIP members",
+            t('interview.free.benefit1'),
+            t('interview.free.benefit2'),
+            t('interview.free.benefit3'),
+            t('interview.free.benefit4'),
+            t('interview.free.benefit5'),
           ]}
-          cta="Stay on Free"
+          cta={t('interview.free.cta')}
           onPick={() => onPick('free')}
           disabled={busy}
         />

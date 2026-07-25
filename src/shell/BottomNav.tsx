@@ -1,14 +1,17 @@
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { NAV_ITEMS } from './navItems'
+import { useTranslation } from 'react-i18next'
+import { getNavItems, type NavItem } from './navItems'
 import { useProfile } from '../hooks/useProfile'
 import { avatarFor } from '../lib/avatar'
 import { useUi } from '../stores/ui'
 
 export default function BottomNav() {
+  const { t } = useTranslation()
   const profile = useProfile()
   const avatarUrl = avatarFor(profile.data)
   const drawerOpen = useUi((s) => s.drawerCount > 0)
+  const navItems = getNavItems(t)
 
   // Hide while a drawer is open so the sheet's bottom composer isn't covered.
   if (drawerOpen) return null
@@ -20,7 +23,7 @@ export default function BottomNav() {
       aria-label="Primary"
     >
       <ul className="flex items-stretch h-16 px-2 gap-1">
-        {NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <li key={item.to} className="flex-1">
             <NavLink
               to={item.to}
@@ -29,7 +32,7 @@ export default function BottomNav() {
             >
               {({ isActive }) => {
                 if (item.kind === 'profile') {
-                  return <ProfileButton active={isActive} avatarUrl={avatarUrl} />
+                  return <ProfileButton active={isActive} avatarUrl={avatarUrl} label={item.label} />
                 }
                 return <TabIcon item={item} active={isActive} />
               }}
@@ -41,7 +44,7 @@ export default function BottomNav() {
   )
 }
 
-function TabIcon({ item, active }: { item: typeof NAV_ITEMS[number]; active: boolean }) {
+function TabIcon({ item, active }: { item: NavItem; active: boolean }) {
   return (
     <motion.span
       animate={{ scale: active ? 1.06 : 1 }}
@@ -63,7 +66,7 @@ function TabIcon({ item, active }: { item: typeof NAV_ITEMS[number]; active: boo
   )
 }
 
-function ProfileButton({ active, avatarUrl }: { active: boolean; avatarUrl: string }) {
+function ProfileButton({ active, avatarUrl, label }: { active: boolean; avatarUrl: string; label: string }) {
   return (
     <motion.span
       animate={{ scale: active ? 1.06 : 1 }}
@@ -84,7 +87,7 @@ function ProfileButton({ active, avatarUrl }: { active: boolean; avatarUrl: stri
           active ? 'text-rose' : 'text-ink-muted',
         ].join(' ')}
       >
-        Profile
+        {label}
       </span>
     </motion.span>
   )

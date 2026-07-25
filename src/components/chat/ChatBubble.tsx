@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import type { Message } from '../../hooks/useMessages'
 import { cloudinaryPlaceholderUrl } from '../../lib/cloudinary'
 import { Linkify } from '../../lib/linkify'
@@ -21,6 +22,7 @@ const LONG_PRESS_MS = 450
 export default function ChatBubble({
   message, isMine, repliedTo, onJumpToReplied, onOpenActions,
 }: Props) {
+  const { t } = useTranslation()
   const pressTimer = useRef<number | null>(null)
   const isLongPressing = useRef(false)
 
@@ -84,14 +86,14 @@ export default function ChatBubble({
             ].join(' ')}
           >
             <div className="text-[11px] font-semibold opacity-90">
-              {repliedTo?.sender_id === message.sender_id ? 'You' : 'Reply'}
+              {repliedTo?.sender_id === message.sender_id ? t('play.you') : t('chat.reply')}
             </div>
             <div className="text-[12px] line-clamp-2 opacity-85">
               {repliedTo
                 ? repliedTo.deleted_at
-                  ? 'Message was deleted'
+                  ? t('chat.messageDeleted')
                   : repliedTo.body ?? ''
-                : 'Original message'}
+                : t('chat.originalMessage')}
             </div>
           </button>
         )}
@@ -99,7 +101,7 @@ export default function ChatBubble({
         {deleted ? (
           <div className="flex items-center gap-2 italic opacity-80">
             <span aria-hidden>⊘</span>
-            <span>This message was deleted</span>
+            <span>{t('chat.thisMessageDeleted')}</span>
           </div>
         ) : (
           <>
@@ -130,7 +132,7 @@ export default function ChatBubble({
             isMine ? 'text-white/75' : 'text-ink-muted',
           ].join(' ')}
         >
-          {edited && <span className="italic">edited</span>}
+          {edited && <span className="italic">{t('chat.edited')}</span>}
           <span>{time}</span>
           {isMine && <StatusTick message={message} />}
         </div>
@@ -148,6 +150,7 @@ function MediaBlock({
   hasCaption: boolean
   pending: boolean
 }) {
+  const { t } = useTranslation()
   // Clamp aspect so a portrait video doesn't take the whole viewport.
   const a = aspect && aspect > 0 ? Math.max(0.5, Math.min(aspect, 2.5)) : 1
   const mediaKind: 'image' | 'video' = kind === 'video' ? 'video' : 'image'
@@ -217,7 +220,7 @@ function MediaBlock({
         <div className="absolute inset-0 grid place-items-center text-white/80 text-xs px-4 text-center pointer-events-none">
           <div>
             <div className="text-2xl mb-1">⚠</div>
-            <div>Couldn't load this {mediaKind}.</div>
+            <div>{mediaKind === 'video' ? t('chat.couldNotLoadVideo') : t('chat.couldNotLoadImage')}</div>
           </div>
         </div>
       )}
@@ -229,6 +232,7 @@ function MediaBlock({
  *  A custom UI (rather than <audio controls>) keeps it on-palette, hides
  *  the native download menu, and fits the chat bubble. */
 function VoiceNote({ url, isMine, pending }: { url: string; isMine: boolean; pending: boolean }) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [dur, setDur] = useState(0)
@@ -260,7 +264,7 @@ function VoiceNote({ url, isMine, pending }: { url: string; isMine: boolean; pen
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); toggle() }}
-        aria-label={playing ? 'Pause voice note' : 'Play voice note'}
+        aria-label={playing ? t('chat.pauseVoiceNote') : t('chat.playVoiceNote')}
         className={[
           'shrink-0 w-9 h-9 rounded-full grid place-items-center text-base',
           isMine ? 'bg-white/20 text-white' : 'bg-rose/20 text-rose',
@@ -277,7 +281,7 @@ function VoiceNote({ url, isMine, pending }: { url: string; isMine: boolean; pen
           value={cur}
           onChange={seek}
           onClick={(e) => e.stopPropagation()}
-          aria-label="Seek"
+          aria-label={t('chat.seek')}
           className={['w-full h-1.5 cursor-pointer', accent].join(' ')}
         />
         <div className={['mt-0.5 flex items-center gap-1.5 text-[10px] tabular-nums', isMine ? 'text-white/75' : 'text-ink-muted'].join(' ')}>
@@ -309,17 +313,18 @@ function fmtClock(secs: number): string {
 }
 
 function StatusTick({ message }: { message: Message }) {
+  const { t } = useTranslation()
   if (message.error) {
-    return <span className="text-danger" aria-label="failed to send">!</span>
+    return <span className="text-danger" aria-label={t('chat.failedToSend')}>!</span>
   }
   if (message.pending) {
-    return <span aria-label="sending">⏱</span>
+    return <span aria-label={t('chat.sending')}>⏱</span>
   }
   const seenByOther = (message.read_by ?? []).some((id) => id !== message.sender_id)
   if (seenByOther) {
-    return <span aria-label="read">✓✓</span>
+    return <span aria-label={t('chat.read')}>✓✓</span>
   }
-  return <span aria-label="sent">✓</span>
+  return <span aria-label={t('chat.sent')}>✓</span>
 }
 
 function formatTime(iso: string): string {

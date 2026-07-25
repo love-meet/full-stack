@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import ScreenHeader from '../shell/ScreenHeader'
 import TopIcons from '../shell/TopIcons'
 import { stagger, itemUp } from '../shell/motion'
@@ -14,7 +15,7 @@ type Game = {
   image?: string
   /** Used by the modal title + the synthetic-banner fallback. */
   emoji: string
-  players: 'Couples' | 'Group' | '1v1' | '1v1 / Group'
+  players: string
   accent: string
   to?: string // present = playable (no padlock)
   /** create_game enum value — drives which gameplay loads on /play/<code>. */
@@ -23,76 +24,82 @@ type Game = {
   rules?: ReactNode[]
 }
 
-const GAMES: Game[] = [
-  {
-    title: 'Pixel Rush',
-    blurb: 'Race to rebuild a scrambled photo. Fastest to fix it wins.',
-    image: '/pixel-rush.png',
-    emoji: '🧩',
-    players: '1v1',
-    accent: 'var(--color-gold)',
-    to: '/games/pixel-rush',
-    gameType: 'pixel_rush',
-    rules: [
-      <>A photo is shown for <b>5 seconds</b> — study it.</>,
-      <>It scatters into a grid — easy <b>3×3</b> early rounds, building up to a hard <b>5×5</b>.</>,
-      <><b>Drag a tile onto another, or tap two tiles, to swap them</b> and rebuild the original.</>,
-      <>Beat the clock — fewest seconds (and moves) wins the round.</>,
-      <>In multiplayer, first to finish takes the round; best of 9 takes the trophy. 🏆</>,
-    ],
-  },
-  {
-    title: 'Number Duel',
-    blurb: "Pick a secret number; race to guess your rival's. Higher or lower!",
-    image: '/number-duel.png',
-    emoji: '🔢',
-    players: '1v1',
-    accent: 'var(--color-magenta)',
-    to: '/games/number-duel',
-    gameType: 'number_duel',
-    rules: [
-      <>You each secretly pick a number from <b>0 to 100</b> (e.g. 17, 42, 90).</>,
-      <>Race to guess your opponent's number on the keypad.</>,
-      <>After each guess an arrow says <b>↑ higher</b> or <b>↓ lower</b>.</>,
-      <>First to guess the <b>exact</b> number takes the round.</>,
-      <>Difficulty ramps up: <b>6 Easy</b> rounds (whole numbers), <b>4 Medium</b> (1 decimal), <b>2 Hard</b> (2 decimals).</>,
-      <>Best of 12 takes the trophy. 🏆 Viewers watch both numbers live.</>,
-    ],
-  },
-  {
-    title: 'Draughts',
-    blurb: 'Classic checkers — jump, capture, crown your king. Best of 3 takes the trophy.',
-    image: '/draughts.png',
-    emoji: '♟',
-    players: '1v1',
-    accent: 'var(--color-gold)',
-    to: '/games/draughts',
-    gameType: 'draughts',
-    rules: [
-      <>You and your opponent get <b>12 pieces each</b> on an 8×8 board.</>,
-      <>Pieces move <b>diagonally forward</b> one square at a time.</>,
-      <><b>Jump</b> an opponent's piece to capture it. Multiple jumps in a row are allowed and <b>captures are forced</b>.</>,
-      <>Reach the far row to become a <b>👑 King</b> — moves diagonally in any direction.</>,
-      <>Win the board when the other side has <b>no pieces left or no legal move</b>.</>,
-      <><b>Best of 3</b> boards takes the trophy. 🏆</>,
-    ],
-  },
-  {
-    title: 'Truth or Dare',
-    blurb: 'Spicy prompts to break the ice — your rules.',
-    emoji: '🎯',
-    players: 'Couples',
-    accent: 'var(--color-rose)',
-  },
-]
+/** Rules text stays English for now — dense instructional copy with inline
+ *  formatting; only the surrounding chrome (titles, blurbs, labels) is translated. */
+function getGames(t: (key: string) => string): Game[] {
+  return [
+    {
+      title: t('games.pixelRushTitle'),
+      blurb: t('games.pixelRushBlurb'),
+      image: '/pixel-rush.png',
+      emoji: '🧩',
+      players: t('games.players1v1'),
+      accent: 'var(--color-gold)',
+      to: '/games/pixel-rush',
+      gameType: 'pixel_rush',
+      rules: [
+        <>A photo is shown for <b>5 seconds</b> — study it.</>,
+        <>It scatters into a grid — easy <b>3×3</b> early rounds, building up to a hard <b>5×5</b>.</>,
+        <><b>Drag a tile onto another, or tap two tiles, to swap them</b> and rebuild the original.</>,
+        <>Beat the clock — fewest seconds (and moves) wins the round.</>,
+        <>In multiplayer, first to finish takes the round; best of 9 takes the trophy. 🏆</>,
+      ],
+    },
+    {
+      title: t('games.numberDuelTitle'),
+      blurb: t('games.numberDuelBlurb'),
+      image: '/number-duel.png',
+      emoji: '🔢',
+      players: t('games.players1v1'),
+      accent: 'var(--color-magenta)',
+      to: '/games/number-duel',
+      gameType: 'number_duel',
+      rules: [
+        <>You each secretly pick a number from <b>0 to 100</b> (e.g. 17, 42, 90).</>,
+        <>Race to guess your opponent's number on the keypad.</>,
+        <>After each guess an arrow says <b>↑ higher</b> or <b>↓ lower</b>.</>,
+        <>First to guess the <b>exact</b> number takes the round.</>,
+        <>Difficulty ramps up: <b>6 Easy</b> rounds (whole numbers), <b>4 Medium</b> (1 decimal), <b>2 Hard</b> (2 decimals).</>,
+        <>Best of 12 takes the trophy. 🏆 Viewers watch both numbers live.</>,
+      ],
+    },
+    {
+      title: t('games.draughtsTitle'),
+      blurb: t('games.draughtsBlurb'),
+      image: '/draughts.png',
+      emoji: '♟',
+      players: t('games.players1v1'),
+      accent: 'var(--color-gold)',
+      to: '/games/draughts',
+      gameType: 'draughts',
+      rules: [
+        <>You and your opponent get <b>12 pieces each</b> on an 8×8 board.</>,
+        <>Pieces move <b>diagonally forward</b> one square at a time.</>,
+        <><b>Jump</b> an opponent's piece to capture it. Multiple jumps in a row are allowed and <b>captures are forced</b>.</>,
+        <>Reach the far row to become a <b>👑 King</b> — moves diagonally in any direction.</>,
+        <>Win the board when the other side has <b>no pieces left or no legal move</b>.</>,
+        <><b>Best of 3</b> boards takes the trophy. 🏆</>,
+      ],
+    },
+    {
+      title: t('games.truthOrDareTitle'),
+      blurb: t('games.truthOrDareBlurb'),
+      emoji: '🎯',
+      players: t('games.playersCouples'),
+      accent: 'var(--color-rose)',
+    },
+  ]
+}
 
 export default function GamesScreen() {
+  const { t } = useTranslation()
   const [openGame, setOpenGame] = useState<Game | null>(null)
+  const GAMES = getGames(t)
 
   return (
     <div className="min-h-full relative">
       <PopunderAd />
-      <ScreenHeader title="Games" right={<TopIcons />} />
+      <ScreenHeader title={t('games.title')} right={<TopIcons />} />
 
       <div className="max-w-xl mx-auto px-5 sm:px-8 pt-5 pb-28">
         <motion.div
@@ -144,6 +151,7 @@ function GameCard({
   index: number
   onOpen: () => void
 }) {
+  const { t } = useTranslation()
   const locked = !game.to
 
   // Stagger the idle shine sweep across cards so they don't all shine in
@@ -203,7 +211,7 @@ function GameCard({
       {locked && (
         <div className="absolute inset-0 bg-surface/55 backdrop-blur-[2px] grid place-items-center">
           <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-2 bg-black/65 rounded-full px-3 py-1.5 ring-1 ring-white/10 shadow-lg">
-            🔒 Coming soon
+            🔒 {t('games.comingSoon')}
           </span>
         </div>
       )}
@@ -217,7 +225,7 @@ function GameCard({
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`${game.title} — how to play`}
+      aria-label={t('games.howToPlay', { title: game.title })}
       className="block w-full text-left appearance-none"
     >
       {banner}

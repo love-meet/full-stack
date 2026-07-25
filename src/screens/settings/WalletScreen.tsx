@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   useLedger,
   useWalletRealtime,
@@ -16,6 +18,7 @@ const EARNING_KINDS: LedgerEntry['kind'][] = ['gift_received', 'tip_received', '
 // No balance card: this page is purely the transaction record.
 // ---------------------------------------------------------------------------
 export default function WalletScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const cur = useUserCurrency()
   const ledger = useLedger({})
@@ -26,12 +29,11 @@ export default function WalletScreen() {
 
   return (
     <div className="min-h-screen text-ink pb-24">
-      <Header title="Transactions" onBack={() => navigate(-1)} />
+      <Header title={t('wallet.transactionsTitle')} onBack={() => navigate(-1)} />
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 py-6">
         <p className="text-sm text-ink-muted mb-4">
-          Every credit and debit on your account — deposits, gifts, tips, referrals and withdrawals.
-          Tap a row for full details.
+          {t('wallet.transactionsDesc')}
         </p>
 
         {ledger.status === 'pending' && (
@@ -44,7 +46,7 @@ export default function WalletScreen() {
 
         {ledger.status === 'success' && entries.length === 0 && (
           <div className="glass rounded-2xl p-8 text-center text-sm text-ink-muted">
-            No transactions yet.
+            {t('wallet.noTransactions')}
           </div>
         )}
 
@@ -52,9 +54,9 @@ export default function WalletScreen() {
           <div className="glass rounded-2xl overflow-hidden">
             {/* Table header */}
             <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1.4fr_1fr_auto] gap-2 px-4 py-2.5 border-b border-white/8 text-[10px] uppercase tracking-[0.16em] text-ink-muted font-bold">
-              <span>Type</span>
-              <span className="hidden sm:block">Date</span>
-              <span className="text-right">Amount</span>
+              <span>{t('wallet.colType')}</span>
+              <span className="hidden sm:block">{t('wallet.colDate')}</span>
+              <span className="text-right">{t('wallet.colAmount')}</span>
             </div>
             <ul className="divide-y divide-white/5">
               {entries.map((e) => (
@@ -67,7 +69,7 @@ export default function WalletScreen() {
                       <span className="text-base shrink-0">{iconFor(e.kind)}</span>
                       <span className="min-w-0">
                         <span className="flex items-center gap-1.5">
-                          <span className="text-sm font-semibold text-ink truncate">{labelFor(e.kind)}</span>
+                          <span className="text-sm font-semibold text-ink truncate">{labelFor(e.kind, t)}</span>
                           {e.gift_status && <GiftStatusBadge status={e.gift_status} />}
                         </span>
                         <span className="block sm:hidden text-[11px] text-ink-muted">{shortDate(e.created_at)}</span>
@@ -95,7 +97,7 @@ export default function WalletScreen() {
             disabled={ledger.isFetchingNextPage}
             className="mt-4 w-full glass rounded-full py-3 text-sm text-ink-2 hover:text-ink font-semibold"
           >
-            {ledger.isFetchingNextPage ? 'Loading…' : 'Show older'}
+            {ledger.isFetchingNextPage ? t('search.loading') : t('wallet.showOlder')}
           </button>
         )}
       </main>
@@ -112,6 +114,7 @@ export default function WalletScreen() {
 // No deposits, no spendable-balance figure. Earnings can be withdrawn.
 // ---------------------------------------------------------------------------
 export function EarningsScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const cur = useUserCurrency()
   const summary = useEarningsSummary()
@@ -174,7 +177,7 @@ export function EarningsScreen() {
                 {iconFor(e.kind)}
               </span>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-ink truncate">{labelFor(e.kind)}</div>
+                <div className="text-sm font-semibold text-ink truncate">{labelFor(e.kind, t)}</div>
                 <div className="text-[11px] text-ink-muted truncate">
                   {e.note ?? new Date(e.created_at).toLocaleString()}
                 </div>
@@ -205,13 +208,14 @@ export function EarningsScreen() {
 // ---------------------------------------------------------------------------
 
 function Header({ title, onBack }: { title: string; onBack: () => void }) {
+  const { t } = useTranslation()
   return (
     <header
       className="sticky top-0 z-10 glass border-b border-white/5"
       style={{ paddingTop: 'var(--lm-top-inset)' }}
     >
       <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-        <button onClick={onBack} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+        <button onClick={onBack} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
         <div className="flex-1 text-center text-ink font-bold">{title}</div>
         <div className="w-10" aria-hidden />
       </div>
@@ -226,6 +230,7 @@ function TxDetailSheet({
   cur: ReturnType<typeof useUserCurrency>
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const credit = entry.direction === 'credit'
   return (
     <motion.div
@@ -241,9 +246,9 @@ function TxDetailSheet({
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-extrabold text-ink flex items-center gap-2">
-            <span className="text-xl">{iconFor(entry.kind)}</span>{labelFor(entry.kind)}
+            <span className="text-xl">{iconFor(entry.kind)}</span>{labelFor(entry.kind, t)}
           </h2>
-          <button onClick={onClose} aria-label="Close" className="text-ink-muted hover:text-ink text-xl px-1">✕</button>
+          <button onClick={onClose} aria-label={t('post.close')} className="text-ink-muted hover:text-ink text-xl px-1">✕</button>
         </div>
 
         <div className={`text-3xl font-extrabold tabular-nums mb-4 ${credit ? 'text-success' : 'text-rose'}`}>
@@ -251,12 +256,12 @@ function TxDetailSheet({
         </div>
 
         <dl className="space-y-2.5 text-sm">
-          <Row label="Direction" value={credit ? 'Credit (in)' : 'Debit (out)'} />
-          <Row label="Date" value={new Date(entry.created_at).toLocaleString()} />
-          <Row label="Reference" value={`LM-${entry.id.slice(0, 8).toUpperCase()}`} mono />
-          {entry.ref_table && <Row label="Linked to" value={`${entry.ref_table}${entry.ref_id ? ` · ${entry.ref_id.slice(0, 8)}` : ''}`} mono />}
-          {entry.gift_status && <Row label="Gift status" value={giftStatusLabel(entry.gift_status)} />}
-          {entry.note && <Row label="Note" value={entry.note} />}
+          <Row label={t('wallet.direction')} value={credit ? t('wallet.creditIn') : t('wallet.debitOut')} />
+          <Row label={t('wallet.colDate')} value={new Date(entry.created_at).toLocaleString()} />
+          <Row label={t('wallet.reference')} value={`LM-${entry.id.slice(0, 8).toUpperCase()}`} mono />
+          {entry.ref_table && <Row label={t('wallet.linkedTo')} value={`${entry.ref_table}${entry.ref_id ? ` · ${entry.ref_id.slice(0, 8)}` : ''}`} mono />}
+          {entry.gift_status && <Row label={t('wallet.giftStatus')} value={giftStatusLabel(entry.gift_status, t)} />}
+          {entry.note && <Row label={t('wallet.note')} value={entry.note} />}
         </dl>
       </motion.div>
     </motion.div>
@@ -272,16 +277,17 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
   )
 }
 
-function giftStatusLabel(s: NonNullable<LedgerEntry['gift_status']>): string {
+function giftStatusLabel(s: NonNullable<LedgerEntry['gift_status']>, t: TFunction): string {
   switch (s) {
-    case 'pending': return 'Pending'
-    case 'accepted': return 'Accepted'
-    case 'rejected': return 'Declined'
-    case 'failed': return 'Failed'
+    case 'pending': return t('profile.giftPending')
+    case 'accepted': return t('profile.giftAccepted')
+    case 'rejected': return t('profile.giftDeclined')
+    case 'failed': return t('profile.giftFailed')
   }
 }
 
 function GiftStatusBadge({ status }: { status: NonNullable<LedgerEntry['gift_status']> }) {
+  const { t } = useTranslation()
   const tone =
     status === 'accepted' ? 'bg-success/15 text-success'
     : status === 'rejected' ? 'bg-rose/15 text-rose'
@@ -289,7 +295,7 @@ function GiftStatusBadge({ status }: { status: NonNullable<LedgerEntry['gift_sta
     : 'bg-gold/15 text-gold'
   return (
     <span className={`shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${tone}`}>
-      {giftStatusLabel(status)}
+      {giftStatusLabel(status, t)}
     </span>
   )
 }
@@ -311,15 +317,15 @@ function iconFor(kind: LedgerEntry['kind']): string {
   }
 }
 
-function labelFor(kind: LedgerEntry['kind']): string {
+function labelFor(kind: LedgerEntry['kind'], t: TFunction): string {
   switch (kind) {
-    case 'gift_received': return 'Gift received'
-    case 'gift_sent': return 'Gift sent'
-    case 'tip_received': return 'Tip received'
-    case 'tip_sent': return 'Tip sent'
-    case 'referral_bonus': return 'Referral bonus'
-    case 'deposit': return 'Deposit'
-    case 'withdrawal': return 'Withdrawal'
-    case 'adjustment': return 'Adjustment'
+    case 'gift_received': return t('wallet.kindGiftReceived')
+    case 'gift_sent': return t('wallet.kindGiftSent')
+    case 'tip_received': return t('wallet.kindTipReceived')
+    case 'tip_sent': return t('wallet.kindTipSent')
+    case 'referral_bonus': return t('wallet.kindReferralBonus')
+    case 'deposit': return t('wallet.kindDeposit')
+    case 'withdrawal': return t('wallet.kindWithdrawal')
+    case 'adjustment': return t('wallet.kindAdjustment')
   }
 }

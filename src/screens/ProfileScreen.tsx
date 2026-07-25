@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../stores/auth'
 import { useProfile, useProfileById } from '../hooks/useProfile'
 import { useMySubscription, useSubscriptionPlans } from '../hooks/usePayments'
@@ -21,6 +22,7 @@ const FINAL_AVATAR = 96
 const HERO_VH_FRACTION = 0.52
 
 export default function ProfileScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const session = useAuth((s) => s.session)
   // /profile/:userId? — when present, we render that user's profile.
@@ -101,7 +103,7 @@ export default function ProfileScreen() {
           <button
             onClick={() => navigate(-1)}
             className="w-10 h-10 grid place-items-center text-ink-2 hover:text-ink text-2xl"
-            aria-label="Back"
+            aria-label={t('post.back')}
           >
             ←
           </button>
@@ -109,10 +111,10 @@ export default function ProfileScreen() {
             <button
               onClick={() => navigate('/profile-menu')}
               className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-white/10 hover:bg-white/20 ring-1 ring-white/10 text-ink text-sm font-bold"
-              aria-label="Open menu"
+              aria-label={t('profile.openMenu')}
             >
               <span aria-hidden className="text-base leading-none">☰</span>
-              <span>Menu</span>
+              <span>{t('profile.menu')}</span>
             </button>
           )}
         </div>
@@ -139,8 +141,8 @@ export default function ProfileScreen() {
           </div>
           {isMe && <PlanChip />}
           <div className="mt-1 flex items-center gap-4 text-sm text-ink-2">
-            <span><b className="text-ink">{social?.followers ?? 0}</b> followers</span>
-            <span><b className="text-ink">{social?.following ?? 0}</b> following</span>
+            <span><b className="text-ink">{social?.followers ?? 0}</b> {t('profile.followers')}</span>
+            <span><b className="text-ink">{social?.following ?? 0}</b> {t('profile.following')}</span>
           </div>
         </div>
       </motion.div>
@@ -183,7 +185,7 @@ export default function ProfileScreen() {
             <button
               onClick={() => navigate(-1)}
               className="w-10 h-10 grid place-items-center text-white text-2xl drop-shadow"
-              aria-label="Back"
+              aria-label={t('post.back')}
             >
               ←
             </button>
@@ -191,10 +193,10 @@ export default function ProfileScreen() {
               <button
                 onClick={() => navigate('/profile-menu')}
                 className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-black/45 backdrop-blur-sm ring-1 ring-white/25 text-white text-sm font-bold shadow"
-                aria-label="Open menu"
+                aria-label={t('profile.openMenu')}
               >
                 <span aria-hidden className="text-base leading-none">☰</span>
-                <span>Menu</span>
+                <span>{t('profile.menu')}</span>
               </button>
             )}
           </div>
@@ -208,8 +210,8 @@ export default function ProfileScreen() {
                 {social?.is_subscriber && <BlueTick />}
               </div>
               <div className="flex items-center gap-4 mt-1.5 text-white drop-shadow">
-                <span className="text-sm"><b className="font-extrabold">{social?.followers ?? 0}</b> <span className="text-white/80">followers</span></span>
-                <span className="text-sm"><b className="font-extrabold">{social?.following ?? 0}</b> <span className="text-white/80">following</span></span>
+                <span className="text-sm"><b className="font-extrabold">{social?.followers ?? 0}</b> <span className="text-white/80">{t('profile.followers')}</span></span>
+                <span className="text-sm"><b className="font-extrabold">{social?.following ?? 0}</b> <span className="text-white/80">{t('profile.following')}</span></span>
               </div>
             </div>
             {!isMe && (
@@ -233,7 +235,7 @@ export default function ProfileScreen() {
         <button
           onClick={() => setImageOpen(false)}
           className="fixed inset-0 z-50 bg-black grid place-items-center"
-          aria-label="Close"
+          aria-label={t('post.close')}
         >
           <img src={avatar} alt="" className="max-w-full max-h-full" />
           <span className="absolute top-6 right-6 text-white text-3xl">×</span>
@@ -245,6 +247,7 @@ export default function ProfileScreen() {
 }
 
 function FollowButton({ targetId, social }: { targetId: string; social?: ProfileSocial }) {
+  const { t } = useTranslation()
   const toggle = useToggleFollow(targetId)
   const following = social?.is_following ?? false
   return (
@@ -256,13 +259,14 @@ function FollowButton({ targetId, social }: { targetId: string; social?: Profile
         following ? 'glass text-ink' : 'bg-gradient-brand text-white glow-rose',
       ].join(' ')}
     >
-      {following ? 'Following' : 'Follow'}
+      {following ? t('profile.followingState') : t('profile.follow')}
     </button>
   )
 }
 
 /** Icon-only "send message" button so it fits next to Follow. */
 function ChatLinkButton({ otherId }: { otherId: string }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const startDM = useStartDM()
 
@@ -278,7 +282,7 @@ function ChatLinkButton({ otherId }: { otherId: string }) {
     <button
       onClick={go}
       disabled={startDM.isPending}
-      aria-label="Send message"
+      aria-label={t('profile.sendMessage')}
       className="w-10 h-10 grid place-items-center rounded-full bg-rose text-white shadow-lg shadow-rose/30 disabled:opacity-70"
     >
       <IconShare size={18} className="text-white" />
@@ -293,12 +297,13 @@ function initialSize() {
 
 /** Small chip under the username showing the viewer's current plan. */
 function PlanChip() {
+  const { t } = useTranslation()
   const sub = useMySubscription()
   const plans = useSubscriptionPlans()
   const active = sub.data
   const name = active
-    ? plans.data?.find((p) => p.id === active.plan_id)?.name ?? 'Active'
-    : 'Free'
+    ? plans.data?.find((p) => p.id === active.plan_id)?.name ?? t('profile.activePlanName')
+    : t('profile.freePlanName')
   const isFree = !active
   return (
     <div
@@ -308,7 +313,7 @@ function PlanChip() {
       ].join(' ')}
     >
       <span aria-hidden>{isFree ? '◌' : '👑'}</span>
-      <span>{name} plan</span>
+      <span>{t('profile.planLabel', { name })}</span>
     </div>
   )
 }

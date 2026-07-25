@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Fragment } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { stagger, itemUp } from '../shell/motion'
 import { useGroup } from '../hooks/useGroups'
 import { useGroupPosts, type GroupPost } from '../hooks/useGroupPosts'
@@ -15,6 +16,7 @@ import { cloudinaryPlaceholderUrl } from '../lib/cloudinary'
 import GroupComposer from '../components/groups/GroupComposer'
 
 export default function GroupScreen() {
+  const { t } = useTranslation()
   const { slug = '' } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const groupQ = useGroup(slug)
@@ -45,13 +47,13 @@ export default function GroupScreen() {
   if (!group) {
     return (
       <div className="min-h-screen flex flex-col">
-        <SimpleHeader title="Group" onBack={() => navigate('/explore')} />
+        <SimpleHeader title={t('groups.title')} onBack={() => navigate('/explore')} />
         <div className="flex-1 grid place-items-center text-center px-6">
           <div>
             <div className="text-4xl mb-2">🫥</div>
-            <p className="text-ink font-semibold">Group not found</p>
+            <p className="text-ink font-semibold">{t('groups.notFound')}</p>
             <Link to="/explore" className="inline-flex mt-5 rounded-full px-6 py-3 bg-gradient-brand text-white font-semibold glow-rose">
-              Back to Explore
+              {t('groups.backToExplore')}
             </Link>
           </div>
         </div>
@@ -62,7 +64,7 @@ export default function GroupScreen() {
   const headerRight = canModerate ? (
     <button
       onClick={() => navigate(`/g/${slug}/manage`)}
-      aria-label="Manage group"
+      aria-label={t('groups.manageGroup')}
       className="text-ink-2 hover:text-ink text-xl leading-none px-2 py-2"
     >
       ⚙
@@ -73,17 +75,17 @@ export default function GroupScreen() {
       disabled={join.isPending}
       className="rounded-full px-3 py-1.5 text-xs font-bold bg-gradient-brand text-white glow-rose disabled:opacity-60"
     >
-      {join.isPending ? '…' : 'Join'}
+      {join.isPending ? '…' : t('groups.join')}
     </button>
   ) : !group.is_default && group.is_member ? (
     <button
       onClick={() => {
-        if (window.confirm(`Leave ${group.name}?`)) leave.mutate(group.id)
+        if (window.confirm(t('groups.leaveConfirm', { name: group.name }))) leave.mutate(group.id)
       }}
       disabled={leave.isPending}
       className="rounded-full px-3 py-1.5 text-xs font-bold glass text-ink-2 hover:text-ink disabled:opacity-60"
     >
-      Joined ✓
+      {t('groups.joined')}
     </button>
   ) : null
 
@@ -99,7 +101,7 @@ export default function GroupScreen() {
             <p className="flex-1 text-sm text-ink-2">{group.welcome_message}</p>
             <button
               onClick={() => setShowWelcome(false)}
-              aria-label="Dismiss"
+              aria-label={t('groups.dismiss')}
               className="text-ink-muted hover:text-ink text-base"
             >
               ✕
@@ -116,14 +118,14 @@ export default function GroupScreen() {
             <span className="text-xl">🛡</span>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-ink">
-                {pendingCount} post{pendingCount === 1 ? '' : 's'} awaiting review
+                {t('groups.postsAwaitingReview', { count: pendingCount })}
               </div>
               <div className="text-[11px] text-ink-muted">
-                {pendingOnly ? 'Showing pending only — tap to show all' : 'Tap to review just the pending ones'}
+                {pendingOnly ? t('groups.showingPendingOnly') : t('groups.tapToReviewPending')}
               </div>
             </div>
             <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gold/15 text-gold">
-              {pendingOnly ? 'Filtered' : 'Review'}
+              {pendingOnly ? t('groups.filtered') : t('groups.review')}
             </span>
           </button>
         )}
@@ -141,8 +143,8 @@ export default function GroupScreen() {
           {posts.status === 'success' && posts.data?.pages.every((p) => p.length === 0) && (
             <div className="glass rounded-3xl p-8 text-center">
               <div className="text-4xl mb-3">💬</div>
-              <p className="text-ink font-semibold mb-1">Nothing here yet</p>
-              <p className="text-sm text-ink-muted">Be the first to post in {group.name}.</p>
+              <p className="text-ink font-semibold mb-1">{t('feed.emptyTitle')}</p>
+              <p className="text-sm text-ink-muted">{t('groups.beFirstToPost', { name: group.name })}</p>
             </div>
           )}
 
@@ -169,7 +171,7 @@ export default function GroupScreen() {
                 disabled={posts.isFetchingNextPage}
                 className="w-full glass rounded-full py-3 text-sm font-semibold text-ink-2 hover:text-rose transition-colors disabled:opacity-60"
               >
-                {posts.isFetchingNextPage ? 'Loading…' : 'Load more'}
+                {posts.isFetchingNextPage ? t('search.loading') : t('search.loadMore')}
               </button>
             )}
           </motion.div>
@@ -180,7 +182,7 @@ export default function GroupScreen() {
       <button
         onClick={() => setComposerOpen(true)}
         className="fixed bottom-24 right-5 lg:bottom-8 lg:right-8 z-20 rounded-full w-14 h-14 bg-gradient-brand text-white text-2xl glow-rose grid place-items-center hover:scale-105 active:scale-95 transition-transform"
-        aria-label="New post"
+        aria-label={t('post.newPost')}
       >
         +
       </button>
@@ -204,6 +206,7 @@ export default function GroupScreen() {
 function GroupPostCard({
   post, slug, canModerate, onOpenComments,
 }: { post: GroupPost; slug: string; canModerate: boolean; onOpenComments: () => void }) {
+  const { t } = useTranslation()
   const myId = useAuth((s) => s.session?.user.id ?? null)
   const toggle = useToggleGroupLike(slug)
   const moderate = useModerateGroupPost(slug)
@@ -217,7 +220,7 @@ function GroupPostCard({
   }
 
   function reject() {
-    const reason = window.prompt('Reason for rejecting (optional, shown to the author):') ?? undefined
+    const reason = window.prompt(t('groups.rejectReasonPrompt')) ?? undefined
     moderate.mutate({ postId: post.id, action: 'reject', reason })
   }
 
@@ -240,7 +243,7 @@ function GroupPostCard({
               post.status === 'pending' ? 'bg-gold/15 text-gold' : 'bg-danger/15 text-danger',
             ].join(' ')}
           >
-            {post.status === 'pending' ? 'Pending review' : 'Rejected'}
+            {post.status === 'pending' ? t('groups.pendingReview') : t('groups.rejected')}
           </span>
         )}
       </div>
@@ -287,14 +290,14 @@ function GroupPostCard({
             disabled={moderate.isPending}
             className="rounded-full px-4 py-1.5 text-xs font-bold glass text-danger hover:bg-danger/10 disabled:opacity-60"
           >
-            Reject
+            {t('groups.reject')}
           </button>
           <button
             onClick={() => moderate.mutate({ postId: post.id, action: 'approve' })}
             disabled={moderate.isPending}
             className="rounded-full px-4 py-1.5 text-xs font-bold bg-success text-white disabled:opacity-60"
           >
-            Approve
+            {t('groups.approve')}
           </button>
         </div>
       )}
@@ -350,13 +353,14 @@ function GroupMedia({
 function SimpleHeader({
   title, onBack, right,
 }: { title: string; onBack: () => void; right?: React.ReactNode }) {
+  const { t } = useTranslation()
   return (
     <header
       className="sticky top-0 z-10 glass border-b border-white/5"
       style={{ paddingTop: 'var(--lm-top-inset)' }}
     >
       <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-        <button onClick={onBack} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+        <button onClick={onBack} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
         <div className="flex-1 text-center text-ink font-bold truncate px-2">{title}</div>
         <div className="min-w-10 flex justify-end">{right}</div>
       </div>

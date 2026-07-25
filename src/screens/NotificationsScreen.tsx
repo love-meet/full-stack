@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   useNotifications,
   useMarkNotificationsRead,
@@ -10,6 +12,7 @@ import {
 import { avatarUrlOr } from '../lib/avatar'
 
 export default function NotificationsScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const list = useNotifications()
   const markRead = useMarkNotificationsRead()
@@ -58,8 +61,8 @@ export default function NotificationsScreen() {
         style={{ paddingTop: 'var(--lm-top-inset)' }}
       >
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={() => navigate(-1)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
-          <div className="flex-1 text-center text-ink font-bold">Notifications</div>
+          <button onClick={() => navigate(-1)} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <div className="flex-1 text-center text-ink font-bold">{t('notif.title')}</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>
@@ -76,8 +79,8 @@ export default function NotificationsScreen() {
         {list.status === 'success' && items.length === 0 && (
           <div className="glass rounded-3xl p-10 text-center mt-6">
             <div className="text-4xl mb-3">🔔</div>
-            <p className="text-ink font-semibold mb-1">No notifications yet</p>
-            <p className="text-sm text-ink-muted">Likes, comments, gifts and more will show up here.</p>
+            <p className="text-ink font-semibold mb-1">{t('notif.emptyTitle')}</p>
+            <p className="text-sm text-ink-muted">{t('notif.emptySubtitle')}</p>
           </div>
         )}
 
@@ -107,10 +110,10 @@ export default function NotificationsScreen() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-ink leading-snug">{message(n)}</p>
-                  <p className="text-[11px] text-ink-muted mt-0.5">{timeAgo(n.created_at)}</p>
+                  <p className="text-sm text-ink leading-snug">{message(n, t)}</p>
+                  <p className="text-[11px] text-ink-muted mt-0.5">{timeAgo(n.created_at, t)}</p>
                 </div>
-                {!n.read_at && <span className="w-2 h-2 rounded-full bg-rose shrink-0" aria-label="Unread" />}
+                {!n.read_at && <span className="w-2 h-2 rounded-full bg-rose shrink-0" aria-label={t('notif.unread')} />}
               </button>
             </motion.li>
           ))}
@@ -120,36 +123,36 @@ export default function NotificationsScreen() {
   )
 }
 
-function actorName(n: AppNotification): string {
+function actorName(n: AppNotification, t: TFunction): string {
   const stripAt = (s: string | null) => (s ? s.replace(/^@+/, '') : null)
   return (
     n.actor_display_name?.trim()
     || stripAt(n.actor_handle)
-    || 'Someone'
+    || t('notif.someone')
   )
 }
 
-function message(n: AppNotification): React.ReactNode {
-  const who = <span className="font-semibold">{actorName(n)}</span>
+function message(n: AppNotification, t: TFunction): React.ReactNode {
+  const who = <span className="font-semibold">{actorName(n, t)}</span>
   switch (n.type) {
-    case 'like': return <>{who} liked your post.</>
-    case 'comment': return <>{who} commented: <span className="text-ink-2">“{n.body}”</span></>
-    case 'reply': return <>{who} replied: <span className="text-ink-2">“{n.body}”</span></>
-    case 'comment_like': return <>{who} liked your comment.</>
-    case 'reply_like': return <>{who} liked your reply.</>
-    case 'gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁 Tap to accept or decline.</>
-    case 'chat_message': return <>{who} sent you a message{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : '.'}</>
-    case 'referral_joined': return <>{who} joined using your invite 🎉 You'll earn 5% of their subscriptions for life.</>
-    case 'follow': return <>{who} started following you.</>
-    case 'gift_accepted': return <>{who} accepted your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎉</>
-    case 'gift_rejected': return <>{who} declined your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''}.</>
-    case 'match_post': return <>{who} — who matches your preferences — just posted. ✨</>
-    case 'new_member_nearby': return <>{who} just joined Love meet near you 💕 Say hello!</>
-    case 'support_user_msg': return <>{who} messaged live support: <span className="text-ink-2">“{n.body}”</span></>
-    case 'support_reply': return <>Support replied{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : ''} 🛟</>
-    case 'game_invite': return <>{who} invited you to play a game 🎮 Tap to join.</>
-    case 'game_join': return <>{who} joined your game 🎮 Tap to open the lobby.</>
-    case 'game_waiting': return <>⏰ It's your turn — your opponent is waiting. Tap to play.</>
+    case 'like': return <>{who} {t('notif.likedPost')}</>
+    case 'comment': return <>{who} {t('notif.commented')} <span className="text-ink-2">“{n.body}”</span></>
+    case 'reply': return <>{who} {t('notif.repliedWith')} <span className="text-ink-2">“{n.body}”</span></>
+    case 'comment_like': return <>{who} {t('notif.commentLiked')}</>
+    case 'reply_like': return <>{who} {t('notif.replyLiked')}</>
+    case 'gift': return <>{who} {t('notif.sentGift')}{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} {t('notif.giftTapHint')}</>
+    case 'chat_message': return <>{who} {t('notif.sentMessage')}{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : '.'}</>
+    case 'referral_joined': return <>{who} {t('notif.referralJoined')}</>
+    case 'follow': return <>{who} {t('notif.startedFollowing')}</>
+    case 'gift_accepted': return <>{who} {t('notif.acceptedGift')}{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎉</>
+    case 'gift_rejected': return <>{who} {t('notif.declinedGift')}{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''}.</>
+    case 'match_post': return <>{who} {t('notif.matchPost')}</>
+    case 'new_member_nearby': return <>{who} {t('notif.joinedNearby')}</>
+    case 'support_user_msg': return <>{who} {t('notif.messagedSupport')} <span className="text-ink-2">“{n.body}”</span></>
+    case 'support_reply': return <>{t('notif.supportReplied')}{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : ''} 🛟</>
+    case 'game_invite': return <>{who} {t('notif.invitedGame')}</>
+    case 'game_join': return <>{who} {t('notif.joinedGame')}</>
+    case 'game_waiting': return <>{t('notif.turnWaiting')}</>
     // Transactional / system notifications carry their full text in body.
     case 'welcome':
     case 'welcome_signup':
@@ -160,7 +163,7 @@ function message(n: AppNotification): React.ReactNode {
     case 'password_changed':
     case 'chat_reminder':
       return <>{n.body}</>
-    default: return <>{n.body ?? 'You have new activity.'}</>
+    default: return <>{n.body ?? t('notif.defaultActivity')}</>
   }
 }
 
@@ -198,9 +201,9 @@ function glyph(type: AppNotification['type']): string {
   }
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: TFunction): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return 'now'
+  if (s < 60) return t('notif.now')
   if (s < 3600) return `${Math.floor(s / 60)}m`
   if (s < 86400) return `${Math.floor(s / 3600)}h`
   if (s < 86400 * 7) return `${Math.floor(s / 86400)}d`

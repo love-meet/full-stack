@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, Fragment, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useFeed, type FeedPost } from '../hooks/useFeed'
 import OnboardingPrompts from '../components/OnboardingPrompts'
 import TopIcons from '../shell/TopIcons'
@@ -48,6 +49,7 @@ function computeAdPositions(count: number, seed: number): Set<number> {
 }
 
 export default function FeedScreen() {
+  const { t } = useTranslation()
   useFeedRealtime()
   const isSubscriber = !!useMySubscription().data
   const showAds = !isSubscriber
@@ -109,7 +111,7 @@ export default function FeedScreen() {
         {feed.status === 'error' && (
           <div className="h-full grid place-items-center px-8">
             <div className="glass rounded-2xl p-5 text-sm text-danger text-center">
-              Couldn't load the feed: {(feed.error as Error).message}
+              {t('feed.loadError', { message: (feed.error as Error).message })}
             </div>
           </div>
         )}
@@ -118,8 +120,8 @@ export default function FeedScreen() {
           <div className="h-full grid place-items-center px-8">
             <div className="text-center">
               <div className="text-5xl mb-3">📭</div>
-              <p className="text-white font-semibold mb-1">Nothing here yet</p>
-              <p className="text-sm text-white/60">Tap the + tab to share your first post.</p>
+              <p className="text-white font-semibold mb-1">{t('feed.emptyTitle')}</p>
+              <p className="text-sm text-white/60">{t('feed.emptySubtitle')}</p>
             </div>
           </div>
         )}
@@ -146,21 +148,22 @@ export default function FeedScreen() {
 // A sponsored slide — same full-screen footprint as a post. Renders nothing
 // if no Adsterra key is configured, so the feed just skips it.
 function AdSlide() {
+  const { t } = useTranslation()
   return (
     <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center px-5">
       <div className="w-full max-w-3xl mx-auto flex flex-col items-center">
         <div className="glass rounded-3xl px-5 pt-4 pb-5 flex flex-col items-center gap-4 w-full max-w-md sm:max-w-3xl">
           <span className="self-start text-[10px] font-bold uppercase tracking-[0.18em] text-ink-muted">
-            Sponsored
+            {t('feed.sponsored')}
           </span>
           <div className="grid place-items-center min-h-[250px] w-full">
             <FeedAd />
           </div>
         </div>
         <p className="mt-4 text-xs text-white/55 text-center">
-          Ads keep Love meet free —{' '}
-          <Link to="/subscription" className="text-rose font-semibold hover:underline">go premium</Link>{' '}
-          to remove them.
+          {t('feed.adDisclaimer')}{' '}
+          <Link to="/subscription" className="text-rose font-semibold hover:underline">{t('feed.goPremium')}</Link>{' '}
+          {t('feed.adDisclaimerEnd')}
         </p>
       </div>
     </section>
@@ -171,6 +174,7 @@ function AdSlide() {
 // games don't flood the feed as 70 separate slides. Width matches the rest
 // of the feed (max-w-xl) so swiping vertically doesn't reveal a layout jump.
 function LiveGamesSlide({ games }: { games: LiveGame[] }) {
+  const { t } = useTranslation()
   // Centre the row when it fits the viewport (≤ 2 cards); flow-start so
   // longer rows scroll naturally from the leading edge.
   return (
@@ -178,10 +182,10 @@ function LiveGamesSlide({ games }: { games: LiveGame[] }) {
       <div className="w-full max-w-xl mx-auto px-4">
         <div className="flex items-center justify-center gap-2 mb-3">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-white bg-rose rounded-full px-3 py-1">
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> {games.length} live now
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> {t('feed.liveNow', { count: games.length })}
           </span>
         </div>
-        <p className="text-center text-xs text-white/60 mb-2">Swipe to peek into any live game</p>
+        <p className="text-center text-xs text-white/60 mb-2">{t('feed.swipeLiveGames')}</p>
         <div className="overflow-x-auto no-scrollbar pb-2 snap-x snap-mandatory">
           <div className={['flex gap-3 min-w-min', games.length <= 2 ? 'justify-center' : ''].join(' ')}>
             {games.map((g) => <LiveGameCard key={g.id} game={g} />)}
@@ -193,6 +197,7 @@ function LiveGamesSlide({ games }: { games: LiveGame[] }) {
 }
 
 function LiveGameCard({ game }: { game: LiveGame }) {
+  const { t } = useTranslation()
   const ps = [...(game.players ?? [])].sort((a, b) => a.joined_at.localeCompare(b.joined_at))
   return (
     <Link
@@ -201,7 +206,7 @@ function LiveGameCard({ game }: { game: LiveGame }) {
       style={{ background: 'radial-gradient(380px 280px at 50% 0%, rgba(53,205,232,0.20), transparent 60%)' }}
     >
       <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-white bg-rose rounded-full px-2 py-0.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Live
+        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> {t('feed.live')}
       </span>
       <div className="mt-3 flex items-center justify-center gap-2">
         <PlayerFace p={ps[0]} />
@@ -210,17 +215,18 @@ function LiveGameCard({ game }: { game: LiveGame }) {
       </div>
       <h3 className="mt-3 text-base font-extrabold text-gradient-warm">Pixel Rush</h3>
       <p className="mt-0.5 text-[11px] text-ink-2">
-        {game.kind === '1v1' ? '1 v 1' : 'Team'} · Round {game.current_round}/{game.rounds_total}
+        {game.kind === '1v1' ? t('feed.oneVOne') : t('feed.team')} · {t('feed.round', { current: game.current_round, total: game.rounds_total })}
       </p>
       <span className="mt-3 inline-block rounded-full px-4 py-1.5 bg-gradient-brand text-white text-xs font-bold glow-rose">
-        ▶ Watch
+        ▶ {t('feed.watch')}
       </span>
     </Link>
   )
 }
 
 function PlayerFace({ p }: { p?: LiveGame['players'][number] }) {
-  const label = p?.profile?.handle ?? p?.profile?.display_name ?? 'Player'
+  const { t } = useTranslation()
+  const label = p?.profile?.handle ?? p?.profile?.display_name ?? t('feed.player')
   return (
     <div className="flex flex-col items-center gap-1.5">
       <span className="relative">
@@ -240,6 +246,7 @@ function PlayerFace({ p }: { p?: LiveGame['players'][number] }) {
 // One full-screen post.
 // ---------------------------------------------------------------------------
 function FeedSlide({ post, relation }: { post: FeedPost; relation?: Relation }) {
+  const { t } = useTranslation()
   const myId = useAuth((s) => s.session?.user.id ?? null)
   const toggleLike = useToggleLike()
   const [popKey, setPopKey] = useState(0)
@@ -347,7 +354,7 @@ function FeedSlide({ post, relation }: { post: FeedPost; relation?: Relation }) 
         <button
           ref={moreBtnRef}
           onClick={() => setMenuOpen((o) => !o)}
-          aria-label="More options"
+          aria-label={t('feed.moreOptions')}
           className="text-white drop-shadow"
         >
           <IconMore size={26} className="text-white" />
@@ -375,6 +382,7 @@ function FeedSlide({ post, relation }: { post: FeedPost; relation?: Relation }) 
 /** Compact "Follow" chip on the feed author line (blurred bg). Disappears
  *  once you're following (initially or after tapping). */
 function FeedFollowButton({ authorId, initialFollowing }: { authorId: string; initialFollowing: boolean }) {
+  const { t } = useTranslation()
   const toggle = useToggleFollow(authorId)
   const [done, setDone] = useState(false)
   if (initialFollowing || done) return null
@@ -383,7 +391,7 @@ function FeedFollowButton({ authorId, initialFollowing }: { authorId: string; in
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDone(true); toggle.mutate(true) }}
       className="ml-1 shrink-0 text-[11px] font-bold text-white bg-white/15 backdrop-blur-sm px-2.5 py-0.5 rounded-full ring-1 ring-white/30"
     >
-      Follow
+      {t('feed.follow')}
     </button>
   )
 }
@@ -414,6 +422,7 @@ function RailButton({
 // speaker toggle for sound. Pauses automatically when scrolled off-screen.
 // ---------------------------------------------------------------------------
 function FeedVideo({ src }: { src: string }) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLVideoElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const barRef = useRef<HTMLDivElement>(null)
@@ -507,7 +516,7 @@ function FeedVideo({ src }: { src: string }) {
           play/pause) shows when paused or buffering and hides while playing. */}
       <button
         onClick={togglePlay}
-        aria-label={playing ? 'Pause' : 'Play'}
+        aria-label={playing ? t('feed.pause') : t('feed.play')}
         className="absolute inset-0 grid place-items-center"
       >
         {(!playing || buffering) && (
@@ -516,7 +525,7 @@ function FeedVideo({ src }: { src: string }) {
                 match it. stopPropagation so it doesn't also play/pause. */}
             <span
               role="button"
-              aria-label={muted ? 'Unmute' : 'Mute'}
+              aria-label={muted ? t('feed.unmute') : t('feed.mute')}
               onClick={(e) => { e.stopPropagation(); setMuted(!muted) }}
               className="w-10 h-10 rounded-full bg-black/45 grid place-items-center text-white"
             >

@@ -1,4 +1,5 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useGroup } from '../hooks/useGroups'
 import { useIsAdmin } from '../hooks/useAdmin'
 import {
@@ -10,6 +11,7 @@ import {
 import { avatarUrlOr } from '../lib/avatar'
 
 export default function GroupManageScreen() {
+  const { t } = useTranslation()
   const { slug = '' } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const groupQ = useGroup(slug)
@@ -39,15 +41,15 @@ export default function GroupManageScreen() {
         style={{ paddingTop: 'var(--lm-top-inset)' }}
       >
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={() => navigate(`/g/${slug}`)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
-          <div className="flex-1 text-center text-ink font-bold truncate px-2">Manage · {group.name}</div>
+          <button onClick={() => navigate(`/g/${slug}`)} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <div className="flex-1 text-center text-ink font-bold truncate px-2">{t('groups.manage', { name: group.name })}</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 py-6">
         <h2 className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold pb-2">
-          Members ({group.member_count})
+          {t('groups.membersCount', { count: group.member_count })}
         </h2>
 
         {members.status === 'pending' && (
@@ -60,7 +62,7 @@ export default function GroupManageScreen() {
 
         {members.status === 'success' && members.data.length === 0 && (
           <div className="glass rounded-2xl p-6 text-center text-sm text-ink-muted">
-            No members yet.
+            {t('groups.noMembersYet')}
           </div>
         )}
 
@@ -72,7 +74,7 @@ export default function GroupManageScreen() {
               iAmOwner={iAmOwner}
               busy={remove.isPending || setRole.isPending}
               onRemove={() => {
-                if (window.confirm(`Remove @${m.handle ?? 'this member'} from the group?`)) {
+                if (window.confirm(t('groups.removeConfirm', { handle: m.handle ?? t('groups.thisMember') }))) {
                   remove.mutate(m.user_id)
                 }
               }}
@@ -96,7 +98,9 @@ function MemberRow({
   onPromote: () => void
   onDemote: () => void
 }) {
+  const { t } = useTranslation()
   const isOwner = m.role === 'owner'
+  const roleLabel = m.role === 'owner' ? t('groups.roleOwner') : m.role === 'admin' ? t('groups.roleAdmin') : m.role
   return (
     <li className="glass rounded-2xl px-4 py-3 flex items-center gap-3">
       <Link to={`/profile/${m.user_id}`} className="shrink-0">
@@ -107,7 +111,7 @@ function MemberRow({
           @{m.handle ?? m.display_name ?? 'unknown'}
           {m.role !== 'member' && (
             <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-magenta/15 text-magenta">
-              {m.role}
+              {roleLabel}
             </span>
           )}
         </div>
@@ -125,7 +129,7 @@ function MemberRow({
                 disabled={busy}
                 className="rounded-full px-3 py-1 text-xs font-bold glass text-ink-2 hover:text-ink disabled:opacity-60"
               >
-                Demote
+                {t('groups.demote')}
               </button>
             ) : (
               <button
@@ -133,7 +137,7 @@ function MemberRow({
                 disabled={busy}
                 className="rounded-full px-3 py-1 text-xs font-bold glass text-ink-2 hover:text-ink disabled:opacity-60"
               >
-                Make admin
+                {t('groups.makeAdmin')}
               </button>
             )
           )}
@@ -142,7 +146,7 @@ function MemberRow({
             disabled={busy}
             className="rounded-full px-3 py-1 text-xs font-bold glass text-danger hover:bg-danger/10 disabled:opacity-60"
           >
-            Remove
+            {t('groups.remove')}
           </button>
         </div>
       )}

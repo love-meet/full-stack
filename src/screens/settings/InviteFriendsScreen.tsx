@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useProfile } from '../../hooks/useProfile'
 import { getSurface } from '../../lib/surface'
 
 export default function InviteFriendsScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const profileQ = useProfile()
   const [flash, setFlash] = useState<string | null>(null)
@@ -11,7 +13,7 @@ export default function InviteFriendsScreen() {
   const id = profileQ.data?.id ?? ''
   const refCode = id ? `LM-${id.slice(0, 6).toUpperCase()}` : '…'
   const inviteUrl = `${window.location.origin}/?ref=${refCode}`
-  const shareText = `Join me on Love meet 💕 Use my code ${refCode}: ${inviteUrl}`
+  const shareText = t('invite.shareText', { code: refCode, url: inviteUrl })
 
   function ping(msg: string) {
     setFlash(msg)
@@ -21,9 +23,9 @@ export default function InviteFriendsScreen() {
   async function copy(text: string, label: string) {
     try {
       await navigator.clipboard.writeText(text)
-      ping(`${label} copied`)
+      ping(t('invite.codeCopied', { label }))
     } catch {
-      ping('Could not copy')
+      ping(t('invite.couldNotCopy'))
     }
   }
 
@@ -52,8 +54,8 @@ export default function InviteFriendsScreen() {
         style={{ paddingTop: 'var(--lm-top-inset)' }}
       >
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={() => navigate(-1)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
-          <div className="flex-1 text-center text-ink font-bold">Invite friends</div>
+          <button onClick={() => navigate(-1)} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <div className="flex-1 text-center text-ink font-bold">{t('menu.inviteFriends')}</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>
@@ -61,19 +63,18 @@ export default function InviteFriendsScreen() {
       <main className="max-w-2xl mx-auto px-5 sm:px-8 py-6 space-y-6">
         <div className="text-center">
           <div className="text-5xl mb-3">🎉</div>
-          <h1 className="text-xl font-extrabold text-ink">Invite friends, earn rewards</h1>
+          <h1 className="text-xl font-extrabold text-ink">{t('invite.headline')}</h1>
           <p className="text-sm text-ink-2 mt-1">
-            Share your code. When someone signs up with it and starts using
-            Love meet, a referral bonus lands in your earnings.
+            {t('invite.subhead')}
           </p>
         </div>
 
         <div className="glass rounded-3xl p-5">
           <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">
-            Your referral code
+            {t('invite.yourReferralCode')}
           </div>
           <button
-            onClick={() => copy(refCode, 'Code')}
+            onClick={() => copy(refCode, t('invite.codeLabel'))}
             className="mt-1 w-full flex items-center justify-between gap-2 group"
           >
             <span className="text-2xl font-extrabold text-gradient-warm tracking-wide">{refCode}</span>
@@ -81,10 +82,10 @@ export default function InviteFriendsScreen() {
           </button>
 
           <div className="mt-4 text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">
-            Invite link
+            {t('play.inviteLinkLabel')}
           </div>
           <button
-            onClick={() => copy(inviteUrl, 'Link')}
+            onClick={() => copy(inviteUrl, t('invite.linkLabel'))}
             className="mt-1 w-full flex items-center justify-between gap-2 group"
           >
             <span className="text-sm font-mono text-ink-2 truncate">{inviteUrl}</span>
@@ -96,7 +97,7 @@ export default function InviteFriendsScreen() {
           onClick={share}
           className="w-full rounded-full py-3.5 bg-gradient-brand text-white font-bold glow-rose"
         >
-          ↗ Share invite
+          {t('invite.shareInvite')}
         </button>
 
         {flash && <p className="text-center text-xs text-success font-semibold">{flash}</p>}

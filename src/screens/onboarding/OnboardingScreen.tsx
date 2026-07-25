@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import StepShell from './StepShell'
 import { stepsForIntent, initialFormData, type FormData, type StepProps } from './types'
 import { useUpdateProfile, useProfile, type ProfileUpdate } from '../../hooks/useProfile'
@@ -26,6 +27,7 @@ const STEP_COMPONENTS: Record<string, React.ComponentType<StepProps>> = {
 }
 
 export default function OnboardingScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const update = useUpdateProfile()
   const session = useAuth((s) => s.session)
@@ -79,7 +81,7 @@ export default function OnboardingScreen() {
     [],
   )
 
-  const steps = stepsForIntent(data.intent)
+  const steps = stepsForIntent(data.intent, t)
   const isLast = step === steps.length - 1
   const { valid: canNext, hint: nextHint } = stepStatus(steps[step].key, data)
   const canBack = step > 0 && !update.isPending

@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { GALLERY_SIZE, type StepProps } from '../types'
 import { useUploadGalleryPhoto } from '../../../hooks/useUploadGalleryPhoto'
 
 export default function GalleryStep({ data, set }: StepProps) {
+  const { t } = useTranslation()
   const upload = useUploadGalleryPhoto()
   const fileRefs = useRef<Array<HTMLInputElement | null>>([])
   const [error, setError] = useState<string | null>(null)
@@ -45,7 +47,7 @@ export default function GalleryStep({ data, set }: StepProps) {
                   <button
                     onClick={() => remove(i)}
                     className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white grid place-items-center text-xs leading-none"
-                    aria-label="Remove photo"
+                    aria-label={t('onboarding.stepFields.gallery.removePhoto')}
                   >
                     ×
                   </button>
@@ -55,7 +57,7 @@ export default function GalleryStep({ data, set }: StepProps) {
                   onClick={() => fileRefs.current[i]?.click()}
                   disabled={isPending}
                   className="w-full h-full grid place-items-center text-2xl text-ink-muted hover:text-ink transition-colors disabled:opacity-60"
-                  aria-label="Add photo"
+                  aria-label={t('onboarding.stepFields.gallery.addPhoto')}
                 >
                   {isPending ? '…' : '+'}
                 </button>
@@ -76,7 +78,7 @@ export default function GalleryStep({ data, set }: StepProps) {
         })}
       </div>
       <p className={`text-xs px-1 ${filled >= GALLERY_SIZE ? 'text-success' : 'text-ink-muted'}`}>
-        {filled}/{GALLERY_SIZE} photos — these become your feed gallery.
+        {t('onboarding.stepFields.gallery.countNote', { filled, total: GALLERY_SIZE })}
       </p>
       {error && <p className="text-sm text-danger px-1">{error}</p>}
     </div>

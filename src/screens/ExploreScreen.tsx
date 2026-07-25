@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { motion, useMotionTemplate, useMotionValue, useSpring, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import ScreenHeader from '../shell/ScreenHeader'
 import TopIcons from '../shell/TopIcons'
 import { stagger, itemUp } from '../shell/motion'
@@ -22,14 +23,14 @@ const KIND_GRADIENT: Record<string, string> = {
   custom:       'linear-gradient(135deg, var(--color-magenta) 0%, var(--color-coral) 100%)',
 }
 
-const KIND_LABEL: Record<string, string> = {
-  pickup_lines: 'Pickup lines',
-  naughty: 'Naughty',
-  advice: 'Advice',
-  custom: 'Community',
-}
-
 export default function ExploreScreen() {
+  const { t } = useTranslation()
+  const KIND_LABEL: Record<string, string> = {
+    pickup_lines: t('explore.pickupLines'),
+    naughty: t('explore.naughty'),
+    advice: t('explore.advice'),
+    custom: t('explore.community'),
+  }
   const groups = useGroups()
   const profile = useProfile()
   const navigate = useNavigate()
@@ -72,7 +73,7 @@ export default function ExploreScreen() {
 
   return (
     <div className="min-h-full relative">
-      <ScreenHeader title="Explore" right={<TopIcons />} />
+      <ScreenHeader title={t('explore.title')} right={<TopIcons />} />
 
       {/* Search + category filters */}
       <div className="px-5 sm:px-8 pt-5 space-y-3">
@@ -82,13 +83,13 @@ export default function ExploreScreen() {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search groups"
+            placeholder={t('explore.searchPlaceholder')}
             className="flex-1 bg-transparent outline-none placeholder:text-ink-muted text-sm"
           />
           {q && (
             <button
               onClick={() => setQ('')}
-              aria-label="Clear search"
+              aria-label={t('explore.clearSearch')}
               className="text-ink-muted hover:text-ink text-base px-1"
             >
               ✕
@@ -98,11 +99,11 @@ export default function ExploreScreen() {
 
         {kinds.length > 1 && (
           <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
-            <Chip active={kind === null} onClick={() => setKind(null)}>All</Chip>
+            <Chip active={kind === null} onClick={() => setKind(null)}>{t('explore.all')}</Chip>
             {kinds.map((k) => (
               <Chip key={k} active={kind === k} onClick={() => setKind(k)}>
                 <span className="mr-1">{KIND_GLYPH[k] ?? KIND_GLYPH.custom}</span>
-                {KIND_LABEL[k] ?? 'Community'}
+                {KIND_LABEL[k] ?? t('explore.community')}
               </Chip>
             ))}
           </div>
@@ -120,16 +121,16 @@ export default function ExploreScreen() {
 
         {groups.status === 'error' && (
           <div className="glass rounded-2xl p-5 text-sm text-danger">
-            Couldn't load rooms: {(groups.error as Error).message}
+            {t('explore.loadError', { message: (groups.error as Error).message })}
           </div>
         )}
 
         {noMatches && (
           <div className="glass rounded-3xl p-8 text-center">
             <div className="text-4xl mb-3">🔍</div>
-            <p className="text-ink font-semibold mb-1">No groups found</p>
+            <p className="text-ink font-semibold mb-1">{t('explore.noGroupsTitle')}</p>
             <p className="text-sm text-ink-muted">
-              Nothing matches “{q.trim()}”. Try a different search.
+              {t('explore.noGroupsSubtitle', { query: q.trim() })}
             </p>
           </div>
         )}
@@ -189,6 +190,7 @@ function Chip({
 function GroupCard({
   group, locked, onOpen,
 }: { group: Group; locked: boolean; onOpen: () => void }) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLButtonElement | null>(null)
   const rx = useSpring(useMotionValue(0), { stiffness: 220, damping: 18 })
   const ry = useSpring(useMotionValue(0), { stiffness: 220, damping: 18 })
@@ -265,7 +267,7 @@ function GroupCard({
             {locked && <span className="text-lg opacity-90">🔒</span>}
             {group.is_default && !locked && (
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/20 backdrop-blur">
-                Official
+                {t('explore.official')}
               </span>
             )}
           </div>
@@ -277,8 +279,8 @@ function GroupCard({
             <div className="text-xs text-white/85 line-clamp-1 mt-0.5">{group.description}</div>
           )}
           <div className="mt-2 text-[11px] font-semibold text-white/80">
-            {group.post_count} {group.post_count === 1 ? 'post' : 'posts'}
-            {group.member_count > 0 && <> · {group.member_count} members</>}
+            {group.post_count} {group.post_count === 1 ? t('explore.post') : t('explore.posts')}
+            {group.member_count > 0 && <> · {group.member_count} {t('explore.members')}</>}
           </div>
         </div>
       </motion.div>

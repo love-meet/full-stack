@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import ScreenHeader from '../shell/ScreenHeader'
 import TopIcons from '../shell/TopIcons'
 import ReturnToGameBanner from '../components/ReturnToGameBanner'
@@ -15,6 +17,7 @@ import { avatarUrlOr } from '../lib/avatar'
 import BlueTick from '../components/BlueTick'
 
 export default function ChatScreen() {
+  const { t } = useTranslation()
   useConversationsRealtime()
   const myId = useAuth((s) => s.session?.user.id ?? null)
   const convs = useConversations()
@@ -36,7 +39,7 @@ export default function ChatScreen() {
 
   return (
     <div className="min-h-full relative">
-      <ScreenHeader title="Chat" right={<TopIcons />} />
+      <ScreenHeader title={t('chat.title')} right={<TopIcons />} />
 
       <ReturnToGameBanner />
 
@@ -47,7 +50,7 @@ export default function ChatScreen() {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search conversations"
+            placeholder={t('chat.searchPlaceholder')}
             className="flex-1 bg-transparent outline-none placeholder:text-ink-muted text-sm"
           />
         </div>
@@ -64,7 +67,7 @@ export default function ChatScreen() {
       {convs.status === 'error' && (
         <div className="px-5 sm:px-8 pt-4">
           <div className="glass rounded-2xl p-5 text-sm text-danger">
-            Couldn't load chats: {(convs.error as Error).message}
+            {t('chat.loadError', { message: (convs.error as Error).message })}
           </div>
         </div>
       )}
@@ -100,11 +103,12 @@ function ConversationRow({
   isTyping: boolean
   verified: boolean
 }) {
+  const { t } = useTranslation()
   const youSent = c.last_sender_id && c.last_sender_id === mySenderId
   const online = useIsOnline(c.other_id)
   const fallbackPreview = c.last_message_preview
-    ? (youSent ? `You: ${c.last_message_preview}` : c.last_message_preview)
-    : 'Say hi.'
+    ? (youSent ? `${t('play.you')}: ${c.last_message_preview}` : c.last_message_preview)
+    : t('chat.sayHi')
 
   return (
     <Link
@@ -120,7 +124,7 @@ function ConversationRow({
         {online && (
           <span
             className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-success ring-2 ring-surface"
-            aria-label="Online"
+            aria-label={t('chat.online')}
           />
         )}
         {c.unread_count > 0 && (
@@ -133,15 +137,15 @@ function ConversationRow({
         <div className="flex items-baseline justify-between gap-2">
           <span className="font-semibold text-ink truncate flex items-center gap-1">
             {c.my_pinned_at && (
-              <span className="text-coral text-xs leading-none shrink-0" aria-label="Pinned">📌</span>
+              <span className="text-coral text-xs leading-none shrink-0" aria-label={t('chat.pinned')}>📌</span>
             )}
             @{c.other_handle ?? c.other_display_name ?? 'unknown'}
             {verified && <BlueTick size={14} />}
           </span>
-          <span className="text-[11px] text-ink-muted shrink-0">{timeAgo(c.last_message_at)}</span>
+          <span className="text-[11px] text-ink-muted shrink-0">{timeAgo(c.last_message_at, t)}</span>
         </div>
         {isTyping ? (
-          <p className="text-sm truncate text-success italic font-semibold">typing…</p>
+          <p className="text-sm truncate text-success italic font-semibold">{t('chat.typing')}</p>
         ) : (
           <p
             className={`text-sm truncate ${
@@ -157,24 +161,25 @@ function ConversationRow({
 }
 
 function EmptyState() {
+  const { t } = useTranslation()
   return (
     <div className="px-5 sm:px-8 pt-4">
       <div className="glass rounded-3xl p-8 text-center">
         <div className="text-4xl mb-3">💬</div>
-        <p className="text-ink font-semibold mb-1">No conversations yet</p>
+        <p className="text-ink font-semibold mb-1">{t('chat.emptyTitle')}</p>
         <p className="text-sm text-ink-muted">
-          Open someone's profile and tap <span className="text-ink-2 font-semibold">Send Message</span> to start a chat.
+          {t('chat.emptySubtitlePrefix')} <span className="text-ink-2 font-semibold">{t('chat.sendMessage')}</span> {t('chat.emptySubtitleSuffix')}
         </p>
       </div>
     </div>
   )
 }
 
-function timeAgo(iso: string | null): string {
+function timeAgo(iso: string | null, t: TFunction): string {
   if (!iso) return ''
-  const t = new Date(iso).getTime()
-  const s = Math.max(0, (Date.now() - t) / 1000)
-  if (s < 60) return 'now'
+  const time = new Date(iso).getTime()
+  const s = Math.max(0, (Date.now() - time) / 1000)
+  if (s < 60) return t('notif.now')
   if (s < 3600) return `${Math.floor(s / 60)}m`
   if (s < 86400) return `${Math.floor(s / 3600)}h`
   if (s < 86400 * 7) return `${Math.floor(s / 86400)}d`

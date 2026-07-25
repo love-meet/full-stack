@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import type { StepProps } from '../types'
 import { COUNTRIES, STATES } from '../../../data/geo'
 
 type Status = 'idle' | 'asking' | 'error'
 
 export default function LocationStep({ data, set }: StepProps) {
+  const { t } = useTranslation()
   // Detected = we have coords AND a country name from the GPS lookup.
   // Entered manually = no coords, but a country has been chosen.
   const detected = data.lat !== null && data.lon !== null && data.countryName.length > 0
@@ -17,7 +20,7 @@ export default function LocationStep({ data, set }: StepProps) {
   function detect() {
     if (!('geolocation' in navigator)) {
       setStatus('error')
-      setError('Geolocation is not supported on this device.')
+      setError(t('onboarding.stepFields.location.geoNotSupported'))
       return
     }
     setStatus('asking')
@@ -28,7 +31,7 @@ export default function LocationStep({ data, set }: StepProps) {
           const { latitude, longitude } = pos.coords
           const detail = await reverseGeocode(latitude, longitude)
           if (!detail.country_name) {
-            throw new Error("Couldn't determine your country from that location.")
+            throw new Error(t('onboarding.stepFields.location.couldNotDetermineCountry'))
           }
           set({
             lat: latitude,
@@ -41,12 +44,12 @@ export default function LocationStep({ data, set }: StepProps) {
           setStatus('idle')
         } catch (e) {
           setStatus('error')
-          setError((e as Error).message || 'Could not look up that location.')
+          setError((e as Error).message || t('onboarding.stepFields.location.couldNotLookup'))
         }
       },
       (err) => {
         setStatus('error')
-        setError(geolocationErrorMessage(err))
+        setError(geolocationErrorMessage(err, t))
       },
       { enableHighAccuracy: false, timeout: 8000 },
     )
@@ -72,10 +75,10 @@ export default function LocationStep({ data, set }: StepProps) {
               <span className="w-10 h-10 rounded-full bg-gradient-brand grid place-items-center text-lg glow-rose shrink-0">📍</span>
               <span className="flex-1 min-w-0">
                 <span className="block font-semibold text-ink">
-                  {status === 'asking' ? 'Detecting your location…' : 'Add location'}
+                  {status === 'asking' ? t('onboarding.stepFields.location.detecting') : t('onboarding.stepFields.location.addLocation')}
                 </span>
                 <span className="block text-xs text-ink-muted">
-                  Powers distance &amp; nearby matches.
+                  {t('onboarding.stepFields.location.powersMatches')}
                 </span>
               </span>
             </button>
@@ -86,7 +89,7 @@ export default function LocationStep({ data, set }: StepProps) {
                   onClick={() => setManualOpen(true)}
                   className="w-full rounded-full py-2.5 text-sm font-bold bg-gradient-brand text-white glow-rose"
                 >
-                  Continue manually
+                  {t('onboarding.stepFields.location.continueManually')}
                 </button>
               </div>
             )}
@@ -109,15 +112,15 @@ export default function LocationStep({ data, set }: StepProps) {
             transition={{ duration: 0.25 }}
             className="space-y-2"
           >
-            {data.address && <DisplayField label="City" value={data.address} />}
-            {data.region && <DisplayField label="Region" value={data.region} />}
-            <DisplayField label="Country" value={data.countryName} />
+            {data.address && <DisplayField label={t('onboarding.stepFields.location.cityLabel')} value={data.address} />}
+            {data.region && <DisplayField label={t('onboarding.stepFields.location.regionLabel')} value={data.region} />}
+            <DisplayField label={t('onboarding.stepFields.location.countryLabel')} value={data.countryName} />
             <button
               onClick={detect}
               disabled={status === 'asking'}
               className="text-xs text-ink-muted hover:text-rose transition-colors pl-1"
             >
-              {status === 'asking' ? 'Detecting…' : '↻ Re-detect'}
+              {status === 'asking' ? t('onboarding.stepFields.location.detectingShort') : t('onboarding.stepFields.location.redetect')}
             </button>
             {status === 'error' && error && (
               <p className="text-xs text-danger px-1">{error}</p>
@@ -127,7 +130,7 @@ export default function LocationStep({ data, set }: StepProps) {
       </AnimatePresence>
 
       <p className="text-[11px] text-ink-muted px-1">
-        We use your location to show you relevant people. You can update this anytime in your profile.
+        {t('onboarding.stepFields.location.usageNote')}
       </p>
     </div>
   )
@@ -140,6 +143,7 @@ export default function LocationStep({ data, set }: StepProps) {
 function ManualForm({
   data, set, onCancel,
 }: { data: StepProps['data']; set: StepProps['set']; onCancel: () => void }) {
+  const { t } = useTranslation()
   const country = data.countryCode
   const states = STATES[country]
   // Sort once per render with locale-aware comparison so accented names land
@@ -166,20 +170,20 @@ function ManualForm({
       transition={{ duration: 0.2 }}
       className="space-y-3"
     >
-      <p className="text-xs text-ink-muted px-1">Enter your location manually.</p>
+      <p className="text-xs text-ink-muted px-1">{t('onboarding.stepFields.location.enterManually')}</p>
 
-      <Field label="Country">
+      <Field label={t('onboarding.stepFields.location.countryLabel')}>
         <select
           value={country}
           onChange={(e) => pickCountry(e.target.value)}
           className="lm-input w-full"
         >
-          <option value="">Select country…</option>
+          <option value="">{t('onboarding.stepFields.location.selectCountry')}</option>
           {sortedCountries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
         </select>
       </Field>
 
-      <Field label="State / region">
+      <Field label={t('onboarding.stepFields.location.stateRegionLabel')}>
         {states ? (
           <select
             value={data.region}
@@ -187,14 +191,14 @@ function ManualForm({
             className="lm-input w-full"
             disabled={!country}
           >
-            <option value="">Select state…</option>
+            <option value="">{t('onboarding.stepFields.location.selectState')}</option>
             {states.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         ) : (
           <input
             value={data.region}
             onChange={(e) => set({ region: e.target.value })}
-            placeholder="e.g. Bavaria"
+            placeholder={t('onboarding.stepFields.location.regionPlaceholder')}
             className="lm-input w-full"
             disabled={!country}
             maxLength={60}
@@ -202,11 +206,11 @@ function ManualForm({
         )}
       </Field>
 
-      <Field label="City">
+      <Field label={t('onboarding.stepFields.location.cityLabel')}>
         <input
           value={data.address}
           onChange={(e) => set({ address: e.target.value })}
-          placeholder="e.g. Lagos"
+          placeholder={t('onboarding.stepFields.location.cityPlaceholder')}
           className="lm-input w-full"
           disabled={!country}
           maxLength={60}
@@ -217,7 +221,7 @@ function ManualForm({
         onClick={onCancel}
         className="text-xs text-ink-muted hover:text-rose transition-colors pl-1"
       >
-        ↻ Try detection instead
+        {t('onboarding.stepFields.location.tryDetectionInstead')}
       </button>
     </motion.div>
   )
@@ -243,12 +247,12 @@ function DisplayField({ label, value }: { label: string; value: string }) {
   )
 }
 
-function geolocationErrorMessage(err: GeolocationPositionError): string {
+function geolocationErrorMessage(err: GeolocationPositionError, t: TFunction): string {
   switch (err.code) {
-    case 1: return 'Location permission was denied. Enable it in your browser settings and try again.'
-    case 2: return 'Could not get your position right now. Try again in a moment.'
-    case 3: return 'Location lookup timed out. Try again.'
-    default: return err.message || 'Unknown geolocation error.'
+    case 1: return t('onboarding.stepFields.location.permissionDenied')
+    case 2: return t('onboarding.stepFields.location.positionUnavailable')
+    case 3: return t('onboarding.stepFields.location.timeout')
+    default: return err.message || t('onboarding.stepFields.location.unknownError')
   }
 }
 

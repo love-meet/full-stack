@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../stores/auth'
 import {
@@ -48,6 +50,7 @@ import ShareSheet from '../../components/ShareSheet'
  * join, and the host start. Match play builds on this next.
  */
 export default function PlayGameScreen() {
+  const { t } = useTranslation()
   const { code } = useParams<{ code: string }>()
   const session = useAuth((s) => s.session)
   const ready = useAuth((s) => s.ready)
@@ -62,20 +65,18 @@ export default function PlayGameScreen() {
     if (!ready || session) return
     let cancelled = false
     const timeout = window.setTimeout(() => {
-      if (!cancelled) setAnonError(
-        "Couldn't start a guest session. Refresh the page and try again, or sign in to join the game.",
-      )
+      if (!cancelled) setAnonError(t('play.guestSessionTimeout'))
     }, 10000)
     supabase.auth.signInAnonymously()
       .then(({ error }) => {
         if (cancelled) return
         window.clearTimeout(timeout)
-        if (error) setAnonError(error.message || 'Could not start a guest session.')
+        if (error) setAnonError(error.message || t('play.guestSessionFailed'))
       })
       .catch((e) => {
         if (cancelled) return
         window.clearTimeout(timeout)
-        setAnonError((e as Error).message || 'Could not start a guest session.')
+        setAnonError((e as Error).message || t('play.guestSessionFailed'))
       })
     return () => { cancelled = true; window.clearTimeout(timeout) }
   }, [ready, session])
@@ -117,7 +118,7 @@ export default function PlayGameScreen() {
     if (prevPlayersCount.current > 0 && list.length > prevPlayersCount.current) {
       const newPlayer = list.find((p) => p.user_id !== myId && p.joined_at > g.created_at) // Approximate new player
       if (newPlayer) {
-        setNewMemberToast(`👋 ${playerLabel(newPlayer)} joined the lobby!`)
+        setNewMemberToast(t('play.joinedLobbyToast', { name: playerLabel(newPlayer) }))
         setTimeout(() => setNewMemberToast(null), 3500)
       }
     }
@@ -157,14 +158,14 @@ export default function PlayGameScreen() {
 
   async function doClose() {
     if (!g) return
-    if (!(await confirmPrompt('Close this game for everyone?'))) return
+    if (!(await confirmPrompt(t('play.confirmCloseGame')))) return
     try { await closeGame.mutateAsync(g.id); navigate('/games') }
     catch (e) { alert((e as Error).message) }
   }
 
   async function doLeave() {
     if (!g) return
-    if (!(await confirmPrompt('Leave this game?'))) return
+    if (!(await confirmPrompt(t('play.confirmLeaveGame')))) return
     try {
       await leaveGame.mutateAsync(g.id)
       // Optimistically drop ourselves from the players cache so the host's
@@ -175,7 +176,7 @@ export default function PlayGameScreen() {
       // Surface the failure instead of silently swallowing — without this,
       // the leaver navigates away thinking they've left while their row is
       // still alive server-side and the host still sees them.
-      alert(`Could not leave: ${(e as Error).message}`)
+      alert(t('play.couldNotLeave', { message: (e as Error).message }))
       return
     }
     navigate('/')
@@ -193,9 +194,9 @@ export default function PlayGameScreen() {
 
   // ----- loading / error states -----
   if (!ready || (!session && !anonError)) return <Frame><Spinner /></Frame>
-  if (anonError) return <Frame><Center icon="🚪" title="Couldn't join as guest" sub={anonError} /></Frame>
+  if (anonError) return <Frame><Center icon="🚪" title={t('play.joinAsGuestFailedTitle')} sub={anonError} /></Frame>
   if (game.isPending) return <Frame><Spinner /></Frame>
-  if (!g) return <Frame><Center icon="🔍" title="Game not found" sub="This invite link is invalid or the game was removed." /></Frame>
+  if (!g) return <Frame><Center icon="🔍" title={t('play.gameNotFoundTitle')} sub={t('play.gameNotFoundSub')} /></Frame>
   // Someone clicked the invite AFTER the match was over and they were never
   // a player → show a clean "ended Xh ago" message instead of the winner
   // scoreboard a participant would see.
@@ -205,8 +206,8 @@ export default function PlayGameScreen() {
       <Frame>
         <Center
           icon="🏁"
-          title={`This game ${endedPhrase(when)}`}
-          sub="Ask the host for a fresh invite link to their next match."
+          title={t('play.gameEndedTitle', { phrase: endedPhrase(when, t) })}
+          sub={t('play.gameEndedSub')}
         />
       </Frame>
     )
@@ -217,15 +218,15 @@ export default function PlayGameScreen() {
     return (
       <Frame>
         <Card>
-          <h1 className="text-xl font-extrabold text-gradient-warm">🧩 Pixel Rush</h1>
-          <p className="text-sm text-ink-2 mt-1">You've been invited to a {g.kind === '1v1' ? '1 v 1' : 'group'} match.</p>
+          <h1 className="text-xl font-extrabold text-gradient-warm">🧩 {t('games.pixelRushTitle')}</h1>
+          <p className="text-sm text-ink-2 mt-1">{t('play.invitedTo', { kind: g.kind === '1v1' ? t('play.kind1v1') : t('play.kindGroup') })}</p>
           {isAnon && (
             <label className="block mt-4">
-              <div className="text-xs font-bold text-ink-2 mb-1.5">What should we call you?</div>
+              <div className="text-xs font-bold text-ink-2 mb-1.5">{t('play.whatCallYou')}</div>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
+                placeholder={t('play.yourNamePlaceholder')}
                 maxLength={24}
                 className="lm-input"
                 autoFocus
@@ -238,11 +239,11 @@ export default function PlayGameScreen() {
             disabled={join.isPending || (isAnon && name.trim().length < 2)}
             className="mt-4 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60"
           >
-            {join.isPending ? 'Joining…' : 'Join game'}
+            {join.isPending ? t('play.joining') : t('play.joinGame')}
           </button>
           {isAnon && (
             <p className="mt-3 text-[11px] text-ink-muted text-center">
-              Playing as a guest. <Link to="/" className="text-rose font-semibold">Create an account</Link> to save your wins.
+              {t('play.playingAsGuest')} <Link to="/" className="text-rose font-semibold">{t('play.createAccount')}</Link> {t('play.toSaveWins')}
             </p>
           )}
         </Card>
@@ -273,11 +274,11 @@ export default function PlayGameScreen() {
     <Frame>
       <Card>
         <div className="flex items-start justify-between gap-2">
-          <h1 className="text-xl font-extrabold text-gradient-warm">🧩 Pixel Rush lobby</h1>
+          <h1 className="text-xl font-extrabold text-gradient-warm">🧩 {t('play.lobbyTitle')}</h1>
           <div className="-mr-2 -mt-1"><TopIcons /></div>
         </div>
         <p className="text-sm text-ink-2 mt-1">
-          {g.kind === '1v1' ? '1 v 1 match' : `Group match · up to ${g.max_players} players`}
+          {g.kind === '1v1' ? t('play.oneVOneMatch') : t('play.groupMatch', { max: g.max_players })}
         </p>
 
         {/* Opponent walked away mid-game and we're back in the lobby. */}
@@ -286,9 +287,9 @@ export default function PlayGameScreen() {
             <div className="flex items-start gap-2">
               <span aria-hidden>🚪</span>
               <div className="min-w-0">
-                <div className="font-bold text-ink">Your opponent left.</div>
+                <div className="font-bold text-ink">{t('play.opponentLeft')}</div>
                 <p className="text-[12px] text-ink-muted mt-0.5">
-                  We've reset the match — invite someone new and pick up where you left off.
+                  {t('play.matchReset')}
                 </p>
               </div>
             </div>
@@ -301,11 +302,11 @@ export default function PlayGameScreen() {
             <div className="flex items-start gap-2">
               <span aria-hidden>⏰</span>
               <div className="min-w-0">
-                <div className="font-bold text-ink">Still waiting — share the link!</div>
+                <div className="font-bold text-ink">{t('play.stillWaiting')}</div>
                 <p className="text-[12px] text-ink-muted mt-0.5">
                   {elapsedSec >= 150
-                    ? `Auto-closing in ${180 - elapsedSec}s if no one joins.`
-                    : `${elapsedSec}s with no joiners. Closes automatically at 3 min.`}
+                    ? t('play.autoClosingIn', { s: 180 - elapsedSec })
+                    : t('play.noJoinersYet', { s: elapsedSec })}
                 </p>
               </div>
             </div>
@@ -320,13 +321,13 @@ export default function PlayGameScreen() {
               <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-success ring-2 ring-surface-2 grid place-items-center text-[9px] text-white">✓</span>
             </span>
             <div className="min-w-0">
-              <div className="text-sm font-bold text-ink truncate">{opponent ? `${playerLabel(opponent)} joined!` : 'Opponent joined!'}</div>
-              <div className="text-[12px] text-ink-2">{isHost ? 'Both players are in — start when ready.' : 'Waiting for the host to start…'}</div>
+              <div className="text-sm font-bold text-ink truncate">{opponent ? t('play.playerJoined', { name: playerLabel(opponent) }) : t('play.opponentJoined')}</div>
+              <div className="text-[12px] text-ink-2">{isHost ? t('play.bothPlayersIn') : t('play.waitingHostStart')}</div>
             </div>
           </div>
         ) : (
           <div className="mt-4">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">Invite link</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">{t('play.inviteLinkLabel')}</div>
             <button
               onClick={() => navigator.clipboard?.writeText(inviteUrl)}
               className="w-full glass rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 text-left"
@@ -338,14 +339,14 @@ export default function PlayGameScreen() {
               onClick={() => setShareOpen(true)}
               className="mt-2 w-full rounded-full py-2.5 text-sm font-bold bg-gradient-brand text-white glow-rose"
             >
-              ↗ Share invite (chat &amp; Telegram)
+              {t('play.shareInvite')}
             </button>
-            <p className="text-[11px] text-ink-muted mt-1">Anyone with the link can join — no account needed.</p>
+            <p className="text-[11px] text-ink-muted mt-1">{t('play.anyoneWithLink')}</p>
           </div>
         )}
 
         <PlayerList players={list} kind={g.kind} online={online} />
-        {viewers > 0 && <p className="mt-2 text-[11px] text-ink-muted">👁 {viewers} watching</p>}
+        {viewers > 0 && <p className="mt-2 text-[11px] text-ink-muted">👁 {t('play.watchingCount', { count: viewers })}</p>}
 
         {isHost ? (
           <>
@@ -354,19 +355,19 @@ export default function PlayGameScreen() {
               disabled={!canStart || start.isPending}
               className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60"
             >
-              {start.isPending ? 'Starting…' : canStart ? 'Start game' : 'Waiting for players…'}
+              {start.isPending ? t('play.starting') : canStart ? t('play.startGame') : t('play.waitingForPlayers')}
             </button>
             <button onClick={doClose} disabled={closeGame.isPending} className="mt-2 w-full rounded-full py-2.5 text-sm font-semibold glass text-ink-2 hover:text-danger">
-              Close game
+              {t('play.closeGame')}
             </button>
           </>
         ) : (
-          <p className="mt-5 text-center text-sm text-ink-muted">Waiting for the host to start…</p>
+          <p className="mt-5 text-center text-sm text-ink-muted">{t('play.waitingHostStart')}</p>
         )}
         {start.error && <p className="text-xs text-danger mt-2 text-center">{(start.error as Error).message}</p>}
       </Card>
 
-      {shareOpen && <ShareSheet url={inviteUrl} text={shareText} title="Invite to Pixel Rush" onClose={() => setShareOpen(false)} />}
+      {shareOpen && <ShareSheet url={inviteUrl} text={shareText} title={t('play.shareInviteTitle')} onClose={() => setShareOpen(false)} />}
       {newMemberToast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-ink text-surface px-4 py-2 rounded-full shadow-lg text-sm font-bold z-50 whitespace-nowrap pointer-events-none animate-in fade-in slide-in-from-bottom-4">
           {newMemberToast}
@@ -377,17 +378,18 @@ export default function PlayGameScreen() {
 }
 
 function PlayerList({ players, kind, online }: { players: GamePlayer[]; kind: string; online: Set<string> }) {
+  const { t } = useTranslation()
   const teamA = players.filter((p) => p.team === 'A')
   const teamB = players.filter((p) => p.team === 'B')
   return (
     <div className="mt-5">
       <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-2">
-        Players ({players.length})
+        {t('play.playersCount', { count: players.length })}
       </div>
       {kind === 'group' ? (
         <div className="grid grid-cols-2 gap-3">
-          <TeamCol label="Team A" players={teamA} online={online} />
-          <TeamCol label="Team B" players={teamB} online={online} />
+          <TeamCol label={t('play.teamA')} players={teamA} online={online} />
+          <TeamCol label={t('play.teamB')} players={teamB} online={online} />
         </div>
       ) : (
         <ul className="space-y-2">{players.map((p) => <PlayerRow key={p.id} p={p} online={online.has(p.user_id)} />)}</ul>
@@ -407,18 +409,19 @@ function TeamCol({ label, players, online }: { label: string; players: GamePlaye
 }
 
 function PlayerRow({ p, online }: { p: GamePlayer; online: boolean }) {
+  const { t } = useTranslation()
   return (
     <li className="flex items-center gap-2">
       <span className="relative shrink-0">
         <img src={avatarUrlOr(p.profile?.avatar_url)} alt="" className="w-7 h-7 rounded-full object-cover" />
         <span
           className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-surface-2 ${online ? 'bg-success' : 'bg-ink-muted'}`}
-          aria-label={online ? 'online' : 'offline'}
+          aria-label={online ? t('play.online') : t('play.offline')}
         />
       </span>
       <span className="text-sm text-ink truncate">{playerLabel(p)}</span>
-      {p.is_host && <span className="text-[9px] font-bold uppercase tracking-wider text-gold">host</span>}
-      {!online && <span className="text-[10px] text-ink-muted">left</span>}
+      {p.is_host && <span className="text-[9px] font-bold uppercase tracking-wider text-gold">{t('play.host')}</span>}
+      {!online && <span className="text-[10px] text-ink-muted">{t('play.left')}</span>}
     </li>
   )
 }
@@ -427,6 +430,7 @@ function PlayerRow({ p, online }: { p: GamePlayer; online: boolean }) {
 function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   g: Game; players: GamePlayer[]; myId: string | null; online: Set<string>; viewers: number; onClose: () => void; onLeave: () => void
 }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const round = useGameRound(g.id, g.current_round)
   const setImg = useSetRoundImage()
@@ -451,7 +455,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
   // Name shown on this person's live comments: their player name if playing,
   // else their profile handle/name, else a friendly fallback.
   const senderName = (me ? playerLabel(me)
-    : myProfile.data?.display_name || myProfile.data?.handle) || 'Viewer'
+    : myProfile.data?.display_name || myProfile.data?.handle) || t('play.viewer')
 
   // Clear any stale solve/upload error on every round or status transition, so
   // a transient "Load failed" doesn't linger on screen until a manual refresh.
@@ -487,16 +491,16 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
     const iWon = hasWinner && (g.kind === '1v1' ? g.winner_player === myId : !!me?.team && g.winner_team === me.team)
     const iLost = amPlayer && hasWinner && !iWon
 
-    const headline = !hasWinner ? 'Game over'
-      : iWon ? 'You win!'
-      : iLost ? 'You lose'
-      : g.kind === '1v1' ? `${champ ? playerLabel(champ) : 'Someone'} wins!`
-      : `Team ${g.winner_team} wins!`
+    const headline = !hasWinner ? t('play.gameOver')
+      : iWon ? t('play.youWin')
+      : iLost ? t('play.youLose')
+      : g.kind === '1v1' ? t('play.nameWins', { name: champ ? playerLabel(champ) : t('notif.someone') })
+      : t('play.teamWins', { team: g.winner_team })
     const icon = !hasWinner ? '🏁' : iWon ? '🏆' : iLost ? '💔' : '🏆'
-    const sub = !hasWinner ? 'The game has ended.'
-      : iWon ? 'Champion of the picture race! 🎉'
-      : iLost ? 'So close — run it back?'
-      : 'Final scores below.'
+    const sub = !hasWinner ? t('play.gameEnded')
+      : iWon ? t('play.champion')
+      : iLost ? t('play.soClose')
+      : t('play.finalScores')
 
     return (
       <Frame>
@@ -543,22 +547,22 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
                 return (
                   <div className="w-full rounded-full py-3 text-center font-bold glass text-ink-2 flex items-center justify-center gap-2">
                     <span className="w-3.5 h-3.5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
-                    Waiting for opponent… ({voted}/{players.length})
+                    {t('play.waitingOpponentVotes', { voted, total: players.length })}
                   </div>
                 )
               }
               return (
                 <>
-                  {oppWants && <p className="text-sm text-success text-center font-semibold">🔁 Opponent wants a rematch!</p>}
+                  {oppWants && <p className="text-sm text-success text-center font-semibold">{t('play.opponentWantsRematch')}</p>}
                   <button onClick={() => rematchVote.mutate(g.id)} disabled={rematchVote.isPending}
                     className="w-full rounded-full py-3 bg-gradient-brand text-white font-bold glow-rose disabled:opacity-60">
-                    {rematchVote.isPending ? '…' : oppWants ? '✅ Accept rematch' : '🔁 Rematch'}
+                    {rematchVote.isPending ? '…' : oppWants ? t('play.acceptRematch') : t('play.rematch')}
                   </button>
                 </>
               )
             })()}
             <button onClick={() => navigate('/games')} className="w-full rounded-full py-3 glass text-ink-2 hover:text-ink font-semibold">
-              Back to games
+              {t('play.backToGames')}
             </button>
           </div>
         </Card>
@@ -608,24 +612,24 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
       <div className="fixed top-0 left-0 right-0 z-20 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
         <div className="max-w-md mx-auto px-3 py-2">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-bold text-ink-2">Round {g.current_round}/{g.rounds_total}</span>
+            <span className="text-[11px] font-bold text-ink-2">{t('play.roundOf', { current: g.current_round, total: g.rounds_total })}</span>
             <div className="flex items-center gap-3">
               {viewers > 0 && <span className="text-[11px] text-ink-muted">👁 {viewers}</span>}
               <MessagesPill />
               {isHost ? (
-                <button onClick={onClose} aria-label="Close game"
+                <button onClick={onClose} aria-label={t('play.closeGame')}
                   className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold bg-danger/15 text-danger ring-1 ring-danger/40 active:scale-95 transition">
-                  <span aria-hidden className="text-sm leading-none">⏻</span> Close
+                  <span aria-hidden className="text-sm leading-none">⏻</span> {t('play.close')}
                 </button>
               ) : amPlayer ? (
-                <button onClick={onLeave} aria-label="Leave game"
+                <button onClick={onLeave} aria-label={t('play.confirmLeaveGame')}
                   className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold bg-danger/15 text-danger ring-1 ring-danger/40 active:scale-95 transition">
-                  <span aria-hidden className="text-sm leading-none">⏻</span> Leave
+                  <span aria-hidden className="text-sm leading-none">⏻</span> {t('play.leave')}
                 </button>
               ) : (
-                <button onClick={() => navigate('/feed')} aria-label="Exit"
+                <button onClick={() => navigate('/feed')} aria-label={t('play.exit')}
                   className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold glass text-ink-2 ring-1 ring-white/10 active:scale-95 transition">
-                  <span aria-hidden className="text-sm leading-none">✕</span> Exit
+                  <span aria-hidden className="text-sm leading-none">✕</span> {t('play.exit')}
                 </button>
               )}
             </div>
@@ -645,22 +649,22 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
         ) : r.status === 'awaiting_image' ? (
           r.turn_user_id === myId ? (
             <div className="text-center py-8">
-              <p className="text-sm text-ink-2 mb-3">Your turn — pick a picture for everyone to race.</p>
+              <p className="text-sm text-ink-2 mb-3">{t('play.yourTurnPick')}</p>
               <label className="inline-block rounded-full px-6 py-3 bg-gradient-brand text-white font-bold glow-rose cursor-pointer">
-                {upload.isPending || setImg.isPending ? 'Uploading…' : 'Upload picture'}
+                {upload.isPending || setImg.isPending ? t('play.uploading') : t('play.uploadPicture')}
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => pickRoundImage(e.target.files?.[0])} />
               </label>
             </div>
           ) : (
             <div className="text-center py-8">
               <p className="text-sm text-ink-muted">
-                Waiting for <b className="text-ink">{turnPlayer ? playerLabel(turnPlayer) : 'the next player'}</b> to pick a picture…
-                {turnPlayer && !online.has(turnPlayer.user_id) && <span className="block text-danger mt-1">They seem to have left — skip them.</span>}
+                {t('play.waitingForPick', { name: turnPlayer ? playerLabel(turnPlayer) : t('play.nextPlayer') })}
+                {turnPlayer && !online.has(turnPlayer.user_id) && <span className="block text-danger mt-1">{t('play.seemsLeft')}</span>}
               </p>
               {isHost && (
                 <button onClick={() => reassign.mutate({ gameId: g.id, round: r.round_no })} disabled={reassign.isPending}
                   className="mt-3 text-xs font-bold rounded-full px-4 py-1.5 glass text-ink-2 hover:text-ink disabled:opacity-60">
-                  Skip player →
+                  {t('play.skipPlayer')}
                 </button>
               )}
               <InlineAd />
@@ -671,7 +675,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
             <div>
               {/* Target picture */}
               <div className="text-center mb-3">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">Rebuild this picture</div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">{t('play.rebuildPicture')}</div>
                 <img src={r.image_url!} alt="" className="mx-auto w-24 aspect-square object-cover rounded-xl ring-1 ring-white/10" />
                 <div className="mt-1.5 inline-flex items-center gap-1.5 text-[10px] font-bold">
                   <span className="rounded-full px-2 py-0.5 glass text-gradient-warm">{difficultyLabel(gridForRound(r.round_no))}</span>
@@ -680,7 +684,7 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
               </div>
               {/* Drag a tile onto another to swap them. */}
               <div>
-                <div className="text-center text-[10px] text-ink-muted mb-1">✥ drag a tile onto another, or tap two tiles, to swap</div>
+                <div className="text-center text-[10px] text-ink-muted mb-1">{t('play.dragHint')}</div>
                 <PixelBoard
                   image={r.image_url!}
                   seed={seedFor(g.id, r.round_no)}
@@ -700,12 +704,12 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
           <div className="text-center py-8">
             <div className="text-4xl">🎉</div>
             <p className="mt-2 font-extrabold text-ink">
-              {winner ? (winner.user_id === myId ? 'You won the round!' : `${playerLabel(winner)} won the round`) : 'Round over'}
+              {winner ? (winner.user_id === myId ? t('play.youWonRound') : t('play.nameWonRound', { name: playerLabel(winner) })) : t('play.roundOver')}
             </p>
             {r.winner_time_ms != null && <p className="text-sm text-ink-muted">{(r.winner_time_ms / 1000).toFixed(1)}s</p>}
             <div className="mt-4 flex items-center justify-center gap-2 text-sm text-ink-muted">
               <span className="w-3.5 h-3.5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
-              <span>{g.current_round >= g.rounds_total ? 'Tallying final results…' : 'Next round starting…'}</span>
+              <span>{g.current_round >= g.rounds_total ? t('play.tallyingResults') : t('play.nextRoundStarting')}</span>
             </div>
             <InlineAd />
           </div>
@@ -716,14 +720,14 @@ function Match({ g, players, myId, online, viewers, onClose, onLeave }: {
         {(!isOnline || submit.isPending) && (
           <div className="mt-4 flex items-center justify-center gap-2 text-xs text-ink-muted">
             <span className="w-3.5 h-3.5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
-            <span>{isOnline ? 'Saving your result…' : 'Offline — your moves are safe, syncing when you reconnect'}</span>
+            <span>{isOnline ? t('play.savingResult') : t('play.offlineSyncing')}</span>
           </div>
         )}
         {/* Only surface a real (non-network) error; network blips self-heal. */}
         {(submit.error || setImg.error) && !submit.isPending && (
           <p className="mt-3 text-xs text-danger text-center">
             {isNetworkError(submit.error || setImg.error)
-              ? 'Connection problem — retrying automatically.'
+              ? t('play.connectionProblem')
               : ((submit.error || setImg.error) as Error).message}
           </p>
         )}
@@ -751,25 +755,26 @@ function VSHeader({ players, kind, online, pctById, myId }: {
   players: GamePlayer[]; kind: string; online: Set<string>
   pctById: Map<string, number>; myId: string | null
 }) {
+  const { t } = useTranslation()
   if (kind === 'group') {
     const teamA = players.filter((p) => p.team === 'A')
     const teamB = players.filter((p) => p.team === 'B')
     const a = teamA.reduce((s, p) => s + p.score, 0)
     const b = teamB.reduce((s, p) => s + p.score, 0)
-    const avg = (t: GamePlayer[]) => t.length && pctById.size
-      ? Math.round(t.reduce((s, p) => s + (pctById.get(p.user_id) ?? 0), 0) / t.length)
+    const avg = (arr: GamePlayer[]) => arr.length && pctById.size
+      ? Math.round(arr.reduce((s, p) => s + (pctById.get(p.user_id) ?? 0), 0) / arr.length)
       : null
     const pa = avg(teamA), pb = avg(teamB)
     const ta = teamA.reduce((m, p) => Math.max(m, p.trophies), 0)
     const tb = teamB.reduce((m, p) => Math.max(m, p.trophies), 0)
     return (
       <div className="flex items-center justify-between">
-        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team A</div><div className="text-2xl font-extrabold text-ink">{a}</div>{pa != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pa}%</div>}</div>
+        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">{t('play.teamA')}</div><div className="text-2xl font-extrabold text-ink">{a}</div>{pa != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pa}%</div>}</div>
         <div className="flex flex-col items-center px-2">
           {ta + tb > 0 && <span className="text-sm font-extrabold text-gold tabular-nums leading-none">🏆 {ta} : {tb}</span>}
           <span className="text-sm font-extrabold text-gradient-warm">VS</span>
         </div>
-        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">Team B</div><div className="text-2xl font-extrabold text-ink">{b}</div>{pb != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pb}%</div>}</div>
+        <div className="flex-1 text-center"><div className="text-[11px] text-rose font-bold">{t('play.teamB')}</div><div className="text-2xl font-extrabold text-ink">{b}</div>{pb != null && <div className="text-[11px] font-bold text-gradient-warm tabular-nums">{pb}%</div>}</div>
       </div>
     )
   }
@@ -794,7 +799,8 @@ function VSHeader({ players, kind, online, pctById, myId }: {
 function PlayerChip({ p, online, align, pct, isMe }: {
   p?: GamePlayer; online: boolean; align: 'left' | 'right'; pct?: number; isMe?: boolean
 }) {
-  if (!p) return <div className="flex-1 text-center text-[11px] text-ink-muted">waiting…</div>
+  const { t } = useTranslation()
+  if (!p) return <div className="flex-1 text-center text-[11px] text-ink-muted">{t('play.waitingEllipsis')}</div>
   return (
     <div className={`flex-1 flex items-center gap-2 min-w-0 ${align === 'right' ? 'flex-row-reverse text-right' : ''}`}>
       <span className="relative shrink-0">
@@ -803,7 +809,7 @@ function PlayerChip({ p, online, align, pct, isMe }: {
       </span>
       <div className="min-w-0">
         <div className={`flex items-center gap-1.5 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
-          <span className="text-xs font-bold text-ink truncate">{isMe ? 'You' : playerLabel(p)}</span>
+          <span className="text-xs font-bold text-ink truncate">{isMe ? t('play.you') : playerLabel(p)}</span>
           {pct != null && <span className="text-[11px] font-bold text-gradient-warm tabular-nums shrink-0">{pct}%</span>}
         </div>
         <div className="text-lg font-extrabold text-gradient-warm leading-none">{p.score}</div>
@@ -823,12 +829,13 @@ function SpectatorBoards({
   players: GamePlayer[]
   progress: Map<string, { order: number[]; done: boolean }>
 }) {
+  const { t } = useTranslation()
   const grid = gridForRound(round)
   const start = scrambleFor(gameId, round, grid)
   return (
     <div>
       <div className="text-center mb-4">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">Rebuild this picture</div>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold mb-1">{t('play.rebuildPicture')}</div>
         <img src={image} alt="" className="mx-auto w-28 aspect-square object-cover rounded-xl ring-1 ring-white/10" />
         <div className="mt-1.5 inline-flex items-center gap-1.5 text-[10px] font-bold">
           <span className="rounded-full px-2 py-0.5 glass text-gradient-warm">{difficultyLabel(grid)}</span>
@@ -850,7 +857,7 @@ function SpectatorBoards({
           )
         })}
       </div>
-      <p className="mt-3 text-center text-[11px] text-ink-muted">🍿 You're watching — only players can play.</p>
+      <p className="mt-3 text-center text-[11px] text-ink-muted">{t('play.spectatorNote')}</p>
     </div>
   )
 }
@@ -859,12 +866,13 @@ function Scoreboard({ players, kind, online, winnerPlayer, winnerTeam }: {
   players: GamePlayer[]; kind: string; online: Set<string>
   winnerPlayer?: string | null; winnerTeam?: string | null
 }) {
+  const { t } = useTranslation()
   if (kind === 'group') {
     const a = players.filter((p) => p.team === 'A').reduce((s, p) => s + p.score, 0)
     const b = players.filter((p) => p.team === 'B').reduce((s, p) => s + p.score, 0)
     const box = (team: string, total: number) => (
       <div className={`glass rounded-2xl p-3 text-center ${winnerTeam === team ? 'ring-2 ring-gold' : ''}`}>
-        <div className="text-[11px] text-rose font-bold">{winnerTeam === team && '👑 '}Team {team}</div>
+        <div className="text-[11px] text-rose font-bold">{winnerTeam === team && '👑 '}{t(team === 'A' ? 'play.teamA' : 'play.teamB')}</div>
         <div className="text-2xl font-extrabold text-ink">{total}</div>
       </div>
     )
@@ -943,34 +951,26 @@ function Spinner() {
   return <div className="w-10 h-10 rounded-full border-2 border-white/20 border-t-white animate-spin mx-auto" />
 }
 function Center({ icon, title, sub }: { icon: string; title: string; sub: string }) {
+  const { t } = useTranslation()
   return (
     <div className="text-center">
       <div className="text-5xl mb-2">{icon}</div>
       <h1 className="text-lg font-extrabold text-ink">{title}</h1>
       <p className="text-sm text-ink-muted mt-1">{sub}</p>
-      <Link to="/" className="mt-4 inline-block text-rose font-semibold">← Go to Love meet</Link>
+      <Link to="/" className="mt-4 inline-block text-rose font-semibold">{t('play.goToLoveMeet')}</Link>
     </div>
   )
 }
 
 /** Natural relative phrase for the ended-game message: "just ended",
  *  "ended 7 minutes ago", "ended 2 hours ago", "ended 3 days ago", etc. */
-function endedPhrase(iso: string): string {
+function endedPhrase(iso: string, t: TFunction): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return 'just ended'
-  if (s < 3600) {
-    const m = Math.floor(s / 60)
-    return `ended ${m} minute${m === 1 ? '' : 's'} ago`
-  }
-  if (s < 86400) {
-    const h = Math.floor(s / 3600)
-    return `ended ${h} hour${h === 1 ? '' : 's'} ago`
-  }
-  if (s < 86400 * 7) {
-    const d = Math.floor(s / 86400)
-    return `ended ${d} day${d === 1 ? '' : 's'} ago`
-  }
-  return `ended on ${new Date(iso).toLocaleDateString()}`
+  if (s < 60) return t('play.justEnded')
+  if (s < 3600) return t('play.endedMinutesAgo', { count: Math.floor(s / 60) })
+  if (s < 86400) return t('play.endedHoursAgo', { count: Math.floor(s / 3600) })
+  if (s < 86400 * 7) return t('play.endedDaysAgo', { count: Math.floor(s / 86400) })
+  return t('play.endedOnDate', { date: new Date(iso).toLocaleDateString() })
 }
 
 /** Draughts content area — fetches the current board via realtime, decides
@@ -980,6 +980,7 @@ function endedPhrase(iso: string): string {
 function DraughtsArena({
   g, players, myId, amPlayer,
 }: { g: Game; players: GamePlayer[]; myId: string | null; amPlayer: boolean }) {
+  const { t } = useTranslation()
   const rq = useDraughtsRound(g.id, g.current_round)
   const advance = useAdvanceDraughts()
   const status = rq.data?.status
@@ -994,7 +995,7 @@ function DraughtsArena({
   }, [amPlayer, g.status, g.id, status, roundNo])
 
   if (rq.isPending || !rq.data) {
-    return <div className="py-10 text-center text-ink-muted text-sm">Setting up the board…</div>
+    return <div className="py-10 text-center text-ink-muted text-sm">{t('play.settingUpBoard')}</div>
   }
   const round = rq.data
   const myColor = amPlayer ? (myId === g.host_id ? 'r' : 'b') : null
@@ -1021,9 +1022,9 @@ function DraughtsArena({
         />
         <div className="text-center">
           <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">
-            Round {g.current_round}/{g.rounds_total}
+            {t('play.roundOf', { current: g.current_round, total: g.rounds_total })}
           </div>
-          <div className="text-[10px] text-ink-2 font-bold mt-0.5">First to {targetWins}</div>
+          <div className="text-[10px] text-ink-2 font-bold mt-0.5">{t('play.firstTo', { count: targetWins })}</div>
         </div>
         <ChipStack
           align="right"
@@ -1043,7 +1044,7 @@ function DraughtsArena({
       {round.status === 'done' && (
         <div className="mt-4 text-center text-sm text-ink-2 flex items-center justify-center gap-2">
           <span className="w-3.5 h-3.5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
-          <span>{g.current_round >= g.rounds_total ? 'Tallying final results…' : 'Next board starting…'}</span>
+          <span>{g.current_round >= g.rounds_total ? t('play.tallyingResults') : t('play.nextBoardStarting')}</span>
         </div>
       )}
     </div>
@@ -1093,11 +1094,12 @@ function ChipStack({
 
 /** Chat icon in the in-game header — same icon as the feed top bar. */
 function MessagesPill() {
+  const { t } = useTranslation()
   const unread = (useConversations().data ?? []).filter((c) => c.unread_count > 0).length
   return (
     <Link
       to="/chat"
-      aria-label="Messages"
+      aria-label={t('play.messages')}
       className="relative w-10 h-10 grid place-items-center text-ink-2 hover:text-ink transition-colors"
     >
       <IconMail size={22} />

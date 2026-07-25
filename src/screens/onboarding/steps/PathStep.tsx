@@ -1,21 +1,27 @@
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import type { Intent, StepProps } from '../types'
 
-const OPTIONS: { value: Intent; emoji: string; label: string; sub: string }[] = [
-  {
-    value: 'relationship',
-    emoji: '💞',
-    label: 'A relationship',
-    sub: "Looking for something real. We'll ask a few more questions to find your match.",
-  },
-  {
-    value: 'fun',
-    emoji: '🎉',
-    label: 'Just for fun',
-    sub: 'Here to play games, send gifts, and meet people — skip the deep questions.',
-  },
-]
+function getOptions(t: TFunction): { value: Intent; emoji: string; label: string; sub: string }[] {
+  return [
+    {
+      value: 'relationship',
+      emoji: '💞',
+      label: t('onboarding.stepFields.path.relationshipLabel'),
+      sub: t('onboarding.stepFields.path.relationshipSub'),
+    },
+    {
+      value: 'fun',
+      emoji: '🎉',
+      label: t('onboarding.stepFields.path.funLabel'),
+      sub: t('onboarding.stepFields.path.funSub'),
+    },
+  ]
+}
 
 export default function PathStep({ data, set }: StepProps) {
+  const { t } = useTranslation()
+  const OPTIONS = getOptions(t)
   return (
     <div className="grid sm:grid-cols-2 gap-3">
       {OPTIONS.map((opt) => {

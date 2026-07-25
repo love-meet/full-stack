@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useCreateGroup } from '../../hooks/useGroupMembership'
 import { useUploadAvatar } from '../../hooks/useUploadAvatar'
 
@@ -12,6 +13,7 @@ function renumber(bodies: string[]): string {
 }
 
 export default function CreateGroupScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const create = useCreateGroup()
   const uploadAvatar = useUploadAvatar()
@@ -96,7 +98,7 @@ export default function CreateGroupScreen() {
   async function submit() {
     if (!canCreate) return
     if (instructions.trim() && !instructionsValid(instructions)) {
-      setError(`Each rule needs at least ${MIN_RULE_CHARS} characters.`)
+      setError(t('groups.ruleMinChars', { count: MIN_RULE_CHARS }))
       return
     }
     setError(null)
@@ -121,8 +123,8 @@ export default function CreateGroupScreen() {
         style={{ paddingTop: 'var(--lm-top-inset)' }}
       >
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={() => navigate(-1)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
-          <div className="flex-1 text-center text-ink font-bold">Create a group</div>
+          <button onClick={() => navigate(-1)} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <div className="flex-1 text-center text-ink font-bold">{t('groups.createTitle')}</div>
           <button
             onClick={submit}
             disabled={!canCreate}
@@ -131,7 +133,7 @@ export default function CreateGroupScreen() {
               canCreate ? 'bg-gradient-brand text-white glow-rose' : 'bg-surface-3 text-ink-muted',
             ].join(' ')}
           >
-            {create.isPending ? 'Creating…' : 'Create'}
+            {create.isPending ? t('groups.creating') : t('groups.create')}
           </button>
         </div>
       </header>
@@ -160,9 +162,9 @@ export default function CreateGroupScreen() {
                 uploadAvatar.isPending ? 'bg-surface-3 text-ink-muted' : 'bg-gradient-brand text-white glow-rose',
               ].join(' ')}
             >
-              {uploadAvatar.isPending ? 'Uploading…' : 'Group photo'}
+              {uploadAvatar.isPending ? t('play.uploading') : t('groups.groupPhoto')}
             </button>
-            <p className="text-[11px] text-ink-muted mt-1.5">Optional · max 4 MB</p>
+            <p className="text-[11px] text-ink-muted mt-1.5">{t('groups.optionalMax4mb')}</p>
             <input
               ref={fileRef}
               type="file"
@@ -173,39 +175,39 @@ export default function CreateGroupScreen() {
           </div>
         </div>
 
-        <Field label="Group name" hint={`${name.length}/60 · at least 3 characters`}>
+        <Field label={t('groups.groupName')} hint={t('groups.groupNameHint', { length: name.length })}>
           <input
             type="text"
             maxLength={60}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Lagos Singles"
+            placeholder={t('groups.groupNamePlaceholder')}
             className="lm-input"
           />
         </Field>
 
-        <Field label="Description" hint="One line shown on the group card">
+        <Field label={t('groups.description')} hint={t('groups.descriptionHint')}>
           <input
             type="text"
             maxLength={140}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="What's this group about?"
+            placeholder={t('groups.descriptionPlaceholder')}
             className="lm-input"
           />
         </Field>
 
-        <Field label="Welcome message" hint="Shown to members when they open the group">
+        <Field label={t('groups.welcomeMessage')} hint={t('groups.welcomeMessageHint')}>
           <textarea
             value={welcome}
             onChange={(e) => setWelcome(e.target.value.slice(0, 300))}
             rows={2}
-            placeholder="Say hi to new members…"
+            placeholder={t('groups.welcomeMessagePlaceholder')}
             className="lm-input resize-none no-scrollbar"
           />
         </Field>
 
-        <Field label="Rules / instructions" hint={`Press Enter for the next rule · at least ${MIN_RULE_CHARS} characters each`}>
+        <Field label={t('groups.rulesInstructions')} hint={t('groups.rulesHint', { count: MIN_RULE_CHARS })}>
           <textarea
             ref={instructionsRef}
             value={instructions}
@@ -213,14 +215,13 @@ export default function CreateGroupScreen() {
             onFocus={seedInstructions}
             onKeyDown={onInstructionsKeyDown}
             rows={3}
-            placeholder="1. Be kind.  2. No spam.  3. …"
+            placeholder={t('groups.rulesPlaceholder')}
             className="lm-input resize-none no-scrollbar"
           />
         </Field>
 
         <p className="text-[11px] text-ink-muted">
-          You'll be the owner. Posts in your group are reviewed by you (and
-          any admins you appoint) before they appear.
+          {t('groups.ownerNote')}
         </p>
       </main>
     </div>

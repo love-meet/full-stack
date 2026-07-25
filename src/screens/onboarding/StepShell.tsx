@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 
 type Props = {
   step: number      // 0-indexed
@@ -33,6 +34,7 @@ export default function StepShell({
   onBack,
   onNext,
 }: Props) {
+  const { t } = useTranslation()
   return (
     <div className="min-h-screen flex">
       <BrandPanel step={step} total={total} />
@@ -57,7 +59,7 @@ export default function StepShell({
             })}
           </div>
           <div className="mt-2 text-[11px] uppercase tracking-[0.18em] text-ink-muted">
-            Step {step + 1} of {total}
+            {t('onboarding.stepOf', { step: step + 1, total })}
           </div>
         </div>
 
@@ -96,7 +98,7 @@ export default function StepShell({
               disabled={!canBack}
               className="rounded-full px-5 py-3 text-sm font-semibold text-ink-2 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              ← Back
+              ← {t('onboarding.back')}
             </button>
             {/* Inline reason the user can't proceed yet. */}
             <AnimatePresence mode="wait">
@@ -124,7 +126,7 @@ export default function StepShell({
                   : 'bg-surface-3 text-ink-muted',
               ].join(' ')}
             >
-              {submitting ? 'Saving…' : isLast ? 'Enter Love meet' : 'Continue →'}
+              {submitting ? t('onboarding.saving') : isLast ? t('onboarding.enter') : `${t('onboarding.continueLabel')} →`}
             </button>
           </div>
         </div>
@@ -134,6 +136,7 @@ export default function StepShell({
 }
 
 function BrandPanel({ step, total }: { step: number; total: number }) {
+  const { t } = useTranslation()
   return (
     <aside className="hidden lg:flex relative overflow-hidden w-[42%] max-w-[560px]">
       {/* Hero photo */}
@@ -160,14 +163,13 @@ function BrandPanel({ step, total }: { step: number; total: number }) {
       <div className="relative z-10 flex flex-col justify-end p-10 w-full">
         <div className="space-y-3 max-w-xs">
           <div className="text-[10px] uppercase tracking-[0.2em] text-ink-muted">
-            Step {step + 1} · of {total}
+            {t('onboarding.stepOf', { step: step + 1, total })}
           </div>
           <h2 className="text-3xl font-extrabold leading-tight text-gradient-warm">
-            Let's set you up.
+            {t('onboarding.brandTitle')}
           </h2>
           <p className="text-sm text-ink-2 leading-relaxed">
-            A few quick questions so the right people can find you. You can
-            change any of this later from your profile.
+            {t('onboarding.brandSubtitle')}
           </p>
         </div>
       </div>

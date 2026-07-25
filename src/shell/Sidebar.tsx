@@ -1,12 +1,15 @@
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { NAV_ITEMS } from './navItems'
+import { useTranslation } from 'react-i18next'
+import { getNavItems } from './navItems'
 import { useProfile } from '../hooks/useProfile'
 import { useMySubscription } from '../hooks/usePayments'
 import { avatarFor } from '../lib/avatar'
 import { SidebarAd } from '../components/FeedAd'
 
 export default function Sidebar() {
+  const { t } = useTranslation()
+  const navItems = getNavItems(t)
   const profile = useProfile()
   const avatarUrl = avatarFor(profile.data)
   const isSubscriber = !!useMySubscription().data
@@ -27,7 +30,7 @@ export default function Sidebar() {
 
       <nav>
         <ul className="space-y-1">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <li key={item.to}>
               <NavLink
                 to={item.to}

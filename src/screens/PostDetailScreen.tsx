@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, Fragment } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../stores/auth'
 import { usePost } from '../hooks/usePost'
 import { useToggleLike } from '../hooks/usePostMutations'
@@ -24,6 +25,7 @@ import { IconBack, IconComment, IconShare, IconMore } from '../components/icons'
 import type { FeedPost } from '../hooks/useFeed'
 
 export default function PostDetailScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { postId = '' } = useParams<{ postId: string }>()
   const postQ = usePost(postId)
@@ -53,12 +55,12 @@ export default function PostDetailScreen() {
         <div className="flex-1 grid place-items-center text-center px-6">
           <div>
             <div className="text-4xl mb-2">😶</div>
-            <p className="text-ink font-semibold">Post not found</p>
+            <p className="text-ink font-semibold">{t('post.notFoundTitle')}</p>
             <p className="text-sm text-ink-muted mt-1">
-              It may have been deleted, or you don't have permission to see it.
+              {t('post.notFoundSubtitle')}
             </p>
             <Link to="/feed" className="inline-flex mt-5 rounded-full px-6 py-3 bg-gradient-brand text-white font-semibold glow-rose">
-              Back to feed
+              {t('post.backToFeed')}
             </Link>
           </div>
         </div>
@@ -113,7 +115,7 @@ export default function PostDetailScreen() {
             <button
               ref={moreBtnRef}
               onClick={() => setMenuOpen((o) => !o)}
-              aria-label="More options"
+              aria-label={t('feed.moreOptions')}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               className="text-ink-muted hover:text-ink leading-none p-2 -mr-1 rounded-full hover:bg-white/[0.06] transition-colors"
@@ -155,7 +157,7 @@ export default function PostDetailScreen() {
         <button
           type="button"
           onClick={() => setViewerOpen(true)}
-          aria-label="View full size"
+          aria-label={t('post.viewFullSize')}
           className="mt-3 block w-full rounded-2xl overflow-hidden bg-black cursor-zoom-in"
           style={{ aspectRatio: String(post.media_aspect ?? 0.8) }}
         >
@@ -204,7 +206,7 @@ export default function PostDetailScreen() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-ink-muted hover:text-coral transition-colors"
           >
             <IconShare />
-            <span className="hidden sm:inline">Share</span>
+            <span className="hidden sm:inline">{t('post.share')}</span>
           </button>
 
           {!isMine && (
@@ -214,7 +216,7 @@ export default function PostDetailScreen() {
             >
               <span className="text-base leading-none">🎁</span>
               <span className="hidden sm:inline">
-                Gift{post.gift_count > 0 ? ` ${formatCount(post.gift_count)}` : ''}
+                {t('post.gift')}{post.gift_count > 0 ? ` ${formatCount(post.gift_count)}` : ''}
               </span>
             </button>
           )}
@@ -223,12 +225,12 @@ export default function PostDetailScreen() {
         {/* Comments inline */}
         <section className="mt-4">
           <h2 className="text-[10px] uppercase tracking-[0.18em] text-ink-muted mb-1 px-1">
-            Comments
+            {t('post.commentsTitle')}
           </h2>
           {!post.comments_disabled ? (
             <Comments postId={post.id} />
           ) : (
-            <p className="px-1 py-3 text-sm text-ink-muted">Comments are turned off for this post.</p>
+            <p className="px-1 py-3 text-sm text-ink-muted">{t('post.commentsOff')}</p>
           )}
         </section>
       </div>
@@ -246,7 +248,7 @@ export default function PostDetailScreen() {
               onChange={(e) => setText(e.target.value)}
               rows={1}
               maxLength={500}
-              placeholder="Write a comment…"
+              placeholder={t('post.writeComment')}
               className="flex-1 bg-surface/60 border border-white/10 rounded-2xl px-3 py-2 outline-none text-ink text-sm placeholder:text-ink-muted resize-none min-h-9 max-h-24 focus:ring-brand"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -258,7 +260,7 @@ export default function PostDetailScreen() {
             <button
               onClick={send}
               disabled={!text.trim() || addComment.isPending}
-              aria-label="Send"
+              aria-label={t('post.send')}
               className={[
                 'w-9 h-9 rounded-full grid place-items-center text-sm shrink-0 transition-opacity',
                 text.trim() && !addComment.isPending
@@ -333,6 +335,7 @@ const COMMENTS_PAGE = 8
 const REPLIES_PAGE = 5
 
 function Comments({ postId }: { postId: string }) {
+  const { t } = useTranslation()
   const commentsQ = useComments(postId)
   const [visible, setVisible] = useState(COMMENTS_PAGE)
   // Drop a single Sponsored row somewhere between the 3rd and 7th comment —
@@ -356,7 +359,7 @@ function Comments({ postId }: { postId: string }) {
   }
 
   if (commentsQ.status === 'success' && commentsQ.data.length === 0) {
-    return <p className="px-1 py-4 text-sm text-ink-muted">No comments yet. Be the first to comment!</p>
+    return <p className="px-1 py-4 text-sm text-ink-muted">{t('post.noCommentsYet')}</p>
   }
 
   const all = commentsQ.data ?? []
@@ -376,7 +379,7 @@ function Comments({ postId }: { postId: string }) {
           onClick={() => setVisible((v) => v + COMMENTS_PAGE)}
           className="mt-2 mb-1 text-[13px] font-bold text-ink-muted hover:text-rose"
         >
-          View {remaining} more {remaining === 1 ? 'comment' : 'comments'}
+          {t('post.view')} {t('post.more', { count: remaining })} {remaining === 1 ? t('post.commentSingular') : t('post.commentPlural')}
         </button>
       )}
     </ul>
@@ -384,6 +387,7 @@ function Comments({ postId }: { postId: string }) {
 }
 
 function CommentRow({ postId, comment }: { postId: string; comment: PostCommentRow }) {
+  const { t } = useTranslation()
   const myId = useAuth((s) => s.session?.user.id ?? null)
   const toggleLike = useToggleCommentLike(postId)
   const updateComment = useUpdateComment(postId)
@@ -425,7 +429,7 @@ function CommentRow({ postId, comment }: { postId: string; comment: PostCommentR
             <span className="text-ink-muted text-[11px] ml-1">{timeAgo(comment.created_at)}</span>
             <button
               onClick={() => setActionsOpen(true)}
-              aria-label="Comment options"
+              aria-label={t('post.commentOptions')}
               className="ml-auto text-ink-muted hover:text-ink text-base leading-none px-2 -mr-2 py-1"
             >
               ⋯
@@ -447,14 +451,14 @@ function CommentRow({ postId, comment }: { postId: string; comment: PostCommentR
                   onClick={() => { setEditing(false); setDraft(comment.body) }}
                   className="rounded-full px-3 py-1 text-[11px] font-semibold glass text-ink-2 hover:text-ink"
                 >
-                  Cancel
+                  {t('post.cancel')}
                 </button>
                 <button
                   onClick={saveEdit}
                   disabled={!draft.trim() || updateComment.isPending}
                   className="rounded-full px-3 py-1 text-[11px] font-semibold bg-gradient-brand text-white glow-rose disabled:opacity-60"
                 >
-                  {updateComment.isPending ? '…' : 'Save'}
+                  {updateComment.isPending ? '…' : t('post.save')}
                 </button>
               </div>
             </div>
@@ -463,11 +467,11 @@ function CommentRow({ postId, comment }: { postId: string; comment: PostCommentR
           )}
 
           <div className="mt-1.5 flex items-center gap-4 text-[11px] font-bold text-ink-muted">
-            <button onClick={() => setShowReply((s) => !s)} className="hover:text-rose">Reply</button>
+            <button onClick={() => setShowReply((s) => !s)} className="hover:text-rose">{t('post.reply')}</button>
             {comment.reply_count > 0 && (
               <button onClick={() => setShowReplies((s) => !s)} className="hover:text-rose">
-                {showReplies ? 'Hide' : 'View'} {comment.reply_count}{' '}
-                {comment.reply_count > 1 ? 'replies' : 'reply'}
+                {showReplies ? t('post.hide') : t('post.view')} {comment.reply_count}{' '}
+                {comment.reply_count > 1 ? t('post.replyPlural') : t('post.replySingular')}
               </button>
             )}
           </div>
@@ -479,7 +483,7 @@ function CommentRow({ postId, comment }: { postId: string; comment: PostCommentR
             nextLiked: !comment.liked_by_me,
           })}
           className="shrink-0 px-2 py-1 grid place-items-center"
-          aria-label="Like comment"
+          aria-label={t('post.likeComment')}
         >
           <span className={comment.liked_by_me ? 'text-rose text-base' : 'text-ink-muted text-base'}>
             {comment.liked_by_me ? '❤' : '♡'}
@@ -522,6 +526,7 @@ function CommentRow({ postId, comment }: { postId: string; comment: PostCommentR
 function ReplyComposer({
   postId, parentId, recipientLabel, onDone,
 }: { postId: string; parentId: string; recipientLabel: string; onDone: () => void }) {
+  const { t } = useTranslation()
   const profile = useProfile()
   const reply = useReplyComment(postId, parentId)
   const [text, setText] = useState('')
@@ -541,7 +546,7 @@ function ReplyComposer({
           onChange={(e) => setText(e.target.value)}
           rows={1}
           maxLength={500}
-          placeholder={`Replying to ${recipientLabel}…`}
+          placeholder={t('post.replyingTo', { name: recipientLabel })}
           className="flex-1 bg-surface/60 border border-white/10 rounded-2xl px-3 py-1.5 outline-none text-ink text-sm placeholder:text-ink-muted resize-none focus:ring-brand"
           onKeyDown={async (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -564,7 +569,7 @@ function ReplyComposer({
             catch (err) { alert((err as Error).message); setText(body) }
           }}
           disabled={!canSend}
-          aria-label="Send reply"
+          aria-label={t('post.sendReply')}
           className={[
             'w-8 h-8 rounded-full grid place-items-center text-xs shrink-0 transition-opacity',
             canSend ? 'bg-gradient-brand text-white glow-rose' : 'bg-surface-3 text-ink-muted',
@@ -578,6 +583,7 @@ function ReplyComposer({
 }
 
 function Replies({ postId, parentId }: { postId: string; parentId: string }) {
+  const { t } = useTranslation()
   const repliesQ = useReplies(parentId, true)
   const [visible, setVisible] = useState(REPLIES_PAGE)
   if (repliesQ.status === 'pending') {
@@ -600,7 +606,7 @@ function Replies({ postId, parentId }: { postId: string; parentId: string }) {
           onClick={() => setVisible((v) => v + REPLIES_PAGE)}
           className="mt-2 mb-2 text-[12px] font-bold text-ink-muted hover:text-rose"
         >
-          View {remaining} more {remaining === 1 ? 'reply' : 'replies'}
+          {t('post.view')} {t('post.more', { count: remaining })} {remaining === 1 ? t('post.replySingular') : t('post.replyPlural')}
         </button>
       )}
     </ul>
@@ -610,6 +616,7 @@ function Replies({ postId, parentId }: { postId: string; parentId: string }) {
 // ---------- header / helpers ----------
 
 function Header({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation()
   return (
     <header
       className="sticky top-0 z-20 glass border-b border-white/5"
@@ -618,12 +625,12 @@ function Header({ onBack }: { onBack: () => void }) {
       <div className="max-w-xl mx-auto h-14 px-3 flex items-center">
         <button
           onClick={onBack}
-          aria-label="Back"
+          aria-label={t('post.back')}
           className="text-ink-2 hover:text-ink p-2 rounded-full hover:bg-white/[0.06] transition-colors"
         >
           <IconBack />
         </button>
-        <div className="flex-1 text-center text-ink font-bold">Post</div>
+        <div className="flex-1 text-center text-ink font-bold">{t('post.headerTitle')}</div>
         <div className="w-10" aria-hidden />
       </div>
     </header>

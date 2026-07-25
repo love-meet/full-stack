@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   useProfile,
   useUpdateProfile,
@@ -77,6 +79,7 @@ function toPatch(form: Form, original: Profile): ProfileUpdate {
 }
 
 export default function EditProfileScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const profileQ = useProfile()
   const update = useUpdateProfile()
@@ -148,21 +151,21 @@ export default function EditProfileScreen() {
 
     // Light validation
     const handle = form.handle.trim()
-    if (!handle) { setError('Handle can\'t be empty.'); return }
+    if (!handle) { setError(t('editProfile.handleEmpty')); return }
     if (!/^[a-z0-9_]{3,24}$/i.test(handle)) {
-      setError('Handle must be 3–24 chars, letters/numbers/underscore.')
+      setError(t('editProfile.handleFormat'))
       return
     }
     if (handle !== (profile.handle ?? '') && handleStatus === 'taken') {
-      setError('That handle is already taken.')
+      setError(t('editProfile.handleTaken'))
       return
     }
     const ageMin = form.age_min === '' ? null : Number(form.age_min)
     const ageMax = form.age_max === '' ? null : Number(form.age_max)
-    if (ageMin != null && (ageMin < 18 || ageMin > 99)) { setError('Min age must be 18–99.'); return }
-    if (ageMax != null && (ageMax < 18 || ageMax > 99)) { setError('Max age must be 18–99.'); return }
+    if (ageMin != null && (ageMin < 18 || ageMin > 99)) { setError(t('editProfile.minAgeRange')); return }
+    if (ageMax != null && (ageMax < 18 || ageMax > 99)) { setError(t('editProfile.maxAgeRange')); return }
     if (ageMin != null && ageMax != null && ageMin > ageMax) {
-      setError('Min age can\'t be greater than max age.')
+      setError(t('editProfile.minGreaterMax'))
       return
     }
 
@@ -191,12 +194,12 @@ export default function EditProfileScreen() {
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
           <button
             onClick={() => navigate(-1)}
-            aria-label="Back"
+            aria-label={t('post.back')}
             className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2"
           >
             ←
           </button>
-          <div className="flex-1 text-center text-ink font-bold">Edit profile</div>
+          <div className="flex-1 text-center text-ink font-bold">{t('editProfile.title')}</div>
           <button
             onClick={save}
             disabled={!canSave}
@@ -207,7 +210,7 @@ export default function EditProfileScreen() {
                 : 'bg-gradient-brand text-white glow-rose',
             ].join(' ')}
           >
-            {update.isPending ? 'Saving…' : savedFlash ? 'Saved ✓' : 'Save'}
+            {update.isPending ? t('editProfile.saving') : savedFlash ? t('editProfile.saved') : t('editProfile.save')}
           </button>
         </div>
       </header>
@@ -220,34 +223,34 @@ export default function EditProfileScreen() {
         )}
 
         {/* --- Avatar + basics --- */}
-        <Section title="Photo &amp; basics">
+        <Section title={t('editProfile.photoBasics')}>
           <AvatarPicker
             url={form.avatar_url || avatarFor(profile)}
             busy={uploadAvatar.isPending}
             onPick={onPickAvatar}
           />
 
-          <Field label="Display name">
+          <Field label={t('editProfile.displayName')}>
             <input
               type="text"
               maxLength={60}
               value={form.display_name}
               onChange={(e) => set('display_name', e.target.value)}
               className="lm-input"
-              placeholder="Your name"
+              placeholder={t('editProfile.yourName')}
             />
           </Field>
 
           <Field
-            label="Handle"
+            label={t('editProfile.handle')}
             hint={
               handleStatus === 'checking'
-                ? 'Checking…'
+                ? t('editProfile.checking')
                 : handleStatus === 'available'
-                ? <span className="text-success">available ✓</span>
+                ? <span className="text-success">{t('editProfile.available')}</span>
                 : handleStatus === 'taken'
-                ? <span className="text-danger">taken</span>
-                : '3–24 chars · letters, numbers, underscore'
+                ? <span className="text-danger">{t('editProfile.taken')}</span>
+                : t('editProfile.handleHint')
             }
           >
             <div className="lm-input flex items-center gap-1">
@@ -258,25 +261,25 @@ export default function EditProfileScreen() {
                 value={form.handle}
                 onChange={(e) => set('handle', e.target.value.replace(/\s+/g, ''))}
                 className="flex-1 bg-transparent outline-none text-ink"
-                placeholder="yourhandle"
+                placeholder={t('editProfile.yourHandle')}
               />
             </div>
           </Field>
 
-          <Field label="Bio" hint={`${form.bio.length}/240`}>
+          <Field label={t('profile.bio')} hint={`${form.bio.length}/240`}>
             <textarea
               value={form.bio}
               onChange={(e) => set('bio', e.target.value.slice(0, 240))}
               rows={3}
               className="lm-input resize-none leading-snug no-scrollbar"
-              placeholder="A line about you"
+              placeholder={t('editProfile.bioPlaceholder')}
             />
           </Field>
         </Section>
 
         {/* --- Identity --- */}
-        <Section title="Identity">
-          <Field label="Gender">
+        <Section title={t('editProfile.identity')}>
+          <Field label={t('editProfile.gender')}>
             <div className="flex flex-wrap gap-2">
               {GENDERS.map((g) => (
                 <Chip
@@ -284,13 +287,13 @@ export default function EditProfileScreen() {
                   active={form.gender === g}
                   onClick={() => set('gender', g)}
                 >
-                  {labelGender(g)}
+                  {labelGender(g, t)}
                 </Chip>
               ))}
             </div>
           </Field>
 
-          <Field label="Date of birth" hint="Used for age — only your age is shown to others">
+          <Field label={t('editProfile.dob')} hint={t('editProfile.dobHint')}>
             <input
               type="date"
               value={form.dob}
@@ -302,8 +305,8 @@ export default function EditProfileScreen() {
         </Section>
 
         {/* --- Preferences --- */}
-        <Section title="Preferences">
-          <Field label="Looking for">
+        <Section title={t('editProfile.preferences')}>
+          <Field label={t('editProfile.lookingFor')}>
             <div className="flex flex-wrap gap-2">
               {LOOKING.map((l) => (
                 <Chip
@@ -311,13 +314,13 @@ export default function EditProfileScreen() {
                   active={form.looking_for === l}
                   onClick={() => set('looking_for', l)}
                 >
-                  {l}
+                  {t(`editProfile.${l}`)}
                 </Chip>
               ))}
             </div>
           </Field>
 
-          <Field label="Age range">
+          <Field label={t('editProfile.ageRange')}>
             <div className="flex items-center gap-3">
               <input
                 type="number"
@@ -329,7 +332,7 @@ export default function EditProfileScreen() {
                 className="lm-input w-24"
                 placeholder="18"
               />
-              <span className="text-ink-muted">to</span>
+              <span className="text-ink-muted">{t('editProfile.to')}</span>
               <input
                 type="number"
                 inputMode="numeric"
@@ -343,20 +346,20 @@ export default function EditProfileScreen() {
             </div>
           </Field>
 
-          <Field label="Interests" hint="Comma-separated · e.g. travel, music, gym">
+          <Field label={t('editProfile.interests')} hint={t('editProfile.interestsHint')}>
             <textarea
               value={form.interests}
               onChange={(e) => set('interests', e.target.value)}
               rows={2}
               className="lm-input resize-none no-scrollbar"
-              placeholder="travel, music, gym"
+              placeholder={t('editProfile.interestsPlaceholder')}
             />
           </Field>
         </Section>
 
         {/* --- Location --- */}
-        <Section title="Location">
-          <Field label="Country">
+        <Section title={t('editProfile.location')}>
+          <Field label={t('editProfile.country')}>
             <input
               type="text"
               value={form.country_name}
@@ -365,7 +368,7 @@ export default function EditProfileScreen() {
               placeholder="Nigeria"
             />
           </Field>
-          <Field label="City">
+          <Field label={t('editProfile.city')}>
             <input
               type="text"
               value={form.city}
@@ -377,16 +380,16 @@ export default function EditProfileScreen() {
         </Section>
 
         {/* --- Privacy --- */}
-        <Section title="Privacy">
+        <Section title={t('editProfile.privacy')}>
           <Toggle
-            label="Show online status"
-            hint="Other users see the green dot when you're connected."
+            label={t('editProfile.showOnlineStatus')}
+            hint={t('editProfile.showOnlineStatusHint')}
             checked={form.show_online_status}
             onChange={(v) => set('show_online_status', v)}
           />
           <Toggle
-            label="Show distance"
-            hint="Show how far away you are on your profile and in cards."
+            label={t('editProfile.showDistance')}
+            hint={t('editProfile.showDistanceHint')}
             checked={form.show_distance}
             onChange={(v) => set('show_distance', v)}
           />
@@ -478,6 +481,7 @@ function Toggle({
 function AvatarPicker({
   url, busy, onPick,
 }: { url: string; busy: boolean; onPick: (f: File | undefined) => void }) {
+  const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
   return (
     <div className="flex items-center gap-4">
@@ -496,9 +500,9 @@ function AvatarPicker({
             busy ? 'bg-surface-3 text-ink-muted' : 'bg-gradient-brand text-white glow-rose',
           ].join(' ')}
         >
-          {busy ? 'Uploading…' : 'Change photo'}
+          {busy ? t('play.uploading') : t('editProfile.changePhoto')}
         </button>
-        <p className="text-[11px] text-ink-muted mt-1.5">Max 4 MB · JPG / PNG / GIF</p>
+        <p className="text-[11px] text-ink-muted mt-1.5">{t('editProfile.maxFileSize')}</p>
         <input
           ref={inputRef}
           type="file"
@@ -515,13 +519,13 @@ function AvatarPicker({
   )
 }
 
-function labelGender(g: Profile['gender']): string {
+function labelGender(g: Profile['gender'], t: TFunction): string {
   switch (g) {
-    case 'female': return 'Female'
-    case 'male': return 'Male'
-    case 'nonbinary': return 'Nonbinary'
-    case 'other': return 'Other'
-    case 'prefer_not_to_say': return 'Rather not say'
-    default: return 'Unspecified'
+    case 'female': return t('editProfile.genderFemale')
+    case 'male': return t('editProfile.genderMale')
+    case 'nonbinary': return t('editProfile.genderNonbinary')
+    case 'other': return t('editProfile.genderOther')
+    case 'prefer_not_to_say': return t('editProfile.genderPreferNot')
+    default: return t('editProfile.genderUnspecified')
   }
 }

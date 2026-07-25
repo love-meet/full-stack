@@ -1,27 +1,29 @@
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import type { Gender, StepProps } from '../types'
 
-const GENDERS: { value: Gender; label: string }[] = [
-  { value: 'female', label: 'Woman' },
-  { value: 'male', label: 'Man' },
-  { value: 'nonbinary', label: 'Nonbinary' },
-  { value: 'other', label: 'Other' },
-  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
-]
-
-const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-]
+function getGenders(t: TFunction): { value: Gender; label: string }[] {
+  return [
+    { value: 'female', label: t('onboarding.stepFields.details.genderWoman') },
+    { value: 'male', label: t('onboarding.stepFields.details.genderMan') },
+    { value: 'nonbinary', label: t('onboarding.stepFields.details.genderNonbinary') },
+    { value: 'other', label: t('onboarding.stepFields.details.genderOther') },
+    { value: 'prefer_not_to_say', label: t('onboarding.stepFields.details.genderPreferNot') },
+  ]
+}
 
 const currentYear = new Date().getFullYear()
 const YEARS = Array.from({ length: 83 }, (_, i) => currentYear - 18 - i)
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 
 export default function DetailsStep({ data, set }: StepProps) {
+  const { t } = useTranslation()
+  const GENDERS = getGenders(t)
+  const MONTHS = t('onboarding.stepFields.details.months', { returnObjects: true }) as string[]
   return (
     <div className="space-y-6">
       <section className="space-y-3">
-        <Label>I am</Label>
+        <Label>{t('onboarding.stepFields.details.iAm')}</Label>
         <div className="flex flex-wrap gap-2">
           {GENDERS.map((g) => {
             const active = data.gender === g.value
@@ -44,29 +46,29 @@ export default function DetailsStep({ data, set }: StepProps) {
       </section>
 
       <section className="space-y-3">
-        <Label>Date of birth</Label>
+        <Label>{t('onboarding.stepFields.details.dob')}</Label>
         <div className="grid grid-cols-3 gap-2">
           <Select
             value={data.dobDay}
             onChange={(v) => set({ dobDay: v })}
-            placeholder="Day"
+            placeholder={t('onboarding.stepFields.details.day')}
             options={DAYS.map((d) => ({ value: String(d), label: String(d) }))}
           />
           <Select
             value={data.dobMonth}
             onChange={(v) => set({ dobMonth: v })}
-            placeholder="Month"
+            placeholder={t('onboarding.stepFields.details.month')}
             options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
           />
           <Select
             value={data.dobYear}
             onChange={(v) => set({ dobYear: v })}
-            placeholder="Year"
+            placeholder={t('onboarding.stepFields.details.year')}
             options={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
           />
         </div>
         <p className="text-xs text-ink-muted px-1">
-          You must be 18 or older to use Love meet.
+          {t('onboarding.stepFields.details.ageGateNote')}
         </p>
       </section>
     </div>

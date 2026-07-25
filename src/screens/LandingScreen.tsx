@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, type Variants } from 'framer-motion'
 import { Navigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../stores/auth'
 import { getSurface } from '../lib/surface'
 import { signInWithGoogle, signInWithTelegram } from '../lib/signIn'
@@ -35,6 +36,7 @@ const rise: Variants = {
 }
 
 export default function LandingScreen() {
+  const { t } = useTranslation()
   const session = useAuth((s) => s.session)
   const ready = useAuth((s) => s.ready)
   const [surface] = useState(getSurface())
@@ -130,17 +132,15 @@ export default function LandingScreen() {
             variants={rise}
             className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight text-ink"
           >
-            Find your{' '}
-            <span className="text-gradient-warm">person</span>.
+            {t('landing.headline')}{' '}
+            <span className="text-gradient-warm">{t('landing.headlineHighlight')}</span>.
           </motion.h1>
 
           <motion.p
             variants={rise}
             className="mt-4 text-base sm:text-lg text-ink-2 max-w-md mx-auto lg:mx-0 leading-relaxed"
           >
-            Love meet is the free dating app to meet new people, find your love
-            match, chat in real time, play love games and get relationship
-            advice — on the web or inside Telegram.
+            {t('landing.subhead')}
           </motion.p>
 
           {/* Glass auth card */}
@@ -156,7 +156,7 @@ export default function LandingScreen() {
               onTelegram={onTelegramClick}
             />
             <p className="mt-3 text-center text-[11px] uppercase tracking-[0.2em] text-ink-muted">
-              18+ · No spam · Free to join
+              {t('landing.disclaimer')}
             </p>
           </motion.div>
         </div>
@@ -186,8 +186,8 @@ export default function LandingScreen() {
               transition={{ delay: 0.7, duration: 0.5 }}
               className="absolute -left-3 top-8 glass rounded-2xl px-3 py-2 shadow-xl"
             >
-              <div className="text-[10px] uppercase tracking-wider text-ink-muted font-bold">Today</div>
-              <div className="text-sm font-extrabold text-ink">2,418 new chats</div>
+              <div className="text-[10px] uppercase tracking-wider text-ink-muted font-bold">{t('landing.todayLabel')}</div>
+              <div className="text-sm font-extrabold text-ink">{t('landing.todayChats')}</div>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -197,8 +197,8 @@ export default function LandingScreen() {
             >
               <span className="text-lg">❤</span>
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-ink-muted font-bold">Matches</div>
-                <div className="text-sm font-extrabold text-gradient-brand">12k+ and counting</div>
+                <div className="text-[10px] uppercase tracking-wider text-ink-muted font-bold">{t('landing.matchesLabel')}</div>
+                <div className="text-sm font-extrabold text-gradient-brand">{t('landing.matchesCount')}</div>
               </div>
             </motion.div>
           </div>
@@ -217,6 +217,7 @@ type CtaProps = {
 }
 
 function CtaStack({ surface, busy, error, onGoogle, onTelegram }: CtaProps) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col gap-3 w-full">
       {surface === 'telegram' ? (
@@ -226,7 +227,7 @@ function CtaStack({ surface, busy, error, onGoogle, onTelegram }: CtaProps) {
           className="w-full rounded-full px-9 py-3.5 bg-gradient-brand text-white font-bold tracking-wide glow-rose transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
         >
           <span className="text-lg leading-none">✈</span>
-          {busy ? 'Opening…' : 'Continue with Telegram'}
+          {busy ? t('landing.ctaOpening') : t('landing.ctaTelegram')}
         </button>
       ) : (
         <button
@@ -235,14 +236,14 @@ function CtaStack({ surface, busy, error, onGoogle, onTelegram }: CtaProps) {
           className="w-full rounded-full px-9 py-3.5 bg-gradient-brand text-white font-bold tracking-wide glow-rose transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
         >
           <span className="text-lg leading-none">◉</span>
-          {busy ? 'Opening…' : 'Continue with Google'}
+          {busy ? t('landing.ctaOpening') : t('landing.ctaGoogle')}
         </button>
       )}
       {error && <p className="text-sm text-danger text-center">{error}</p>}
       <p className="text-center text-[11px] text-ink-muted">
-        New here?{' '}
+        {t('landing.newHere')}{' '}
         <Link to="/blog" className="text-rose hover:underline font-semibold">
-          Read love games, dating tips &amp; relationship advice
+          {t('landing.blogLink')}
         </Link>
       </p>
     </div>

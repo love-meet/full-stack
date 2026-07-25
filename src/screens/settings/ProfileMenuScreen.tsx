@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../stores/auth'
+import { SUPPORTED_LANGUAGES } from '../../i18n/languages'
 import { useProfile } from '../../hooks/useProfile'
 import { useWallet } from '../../hooks/useWallet'
 import { useEarningsSummary } from '../../hooks/useWallet'
@@ -24,6 +26,7 @@ type Item = {
  * Below: the reorganized menu.
  */
 export default function ProfileMenuScreen() {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const signOut = useAuth((s) => s.signOut)
   const profileQ = useProfile()
@@ -56,53 +59,59 @@ export default function ProfileMenuScreen() {
 
   const sections: { title: string; items: Item[] }[] = [
     {
-      title: 'Account',
+      title: t('menu.account'),
       items: [
-        { icon: '✎', label: 'Edit profile', hint: 'Photo, handle, bio, interests', onClick: () => navigate('/profile/edit') },
-        { icon: '🛡', label: 'Security', hint: 'PIN, password', onClick: () => navigate('/security') },
+        { icon: '✎', label: t('menu.editProfile'), hint: t('menu.editProfileHint'), onClick: () => navigate('/profile/edit') },
+        { icon: '🛡', label: t('menu.security'), hint: t('menu.securityHint'), onClick: () => navigate('/security') },
+        {
+          icon: '🌐',
+          label: t('settings.language'),
+          hint: SUPPORTED_LANGUAGES.find((l) => l.code === i18n.language)?.nativeName,
+          onClick: () => navigate('/language'),
+        },
       ],
     },
     {
-      title: 'Money',
+      title: t('menu.money'),
       items: [
-        { icon: '⬇', label: 'Add funds', hint: 'Card, transfer, USSD via ALATPay', onClick: () => navigate('/wallet/deposit') },
-        { icon: '🧾', label: 'Transaction history', hint: 'Every credit & debit', onClick: () => navigate('/wallet') },
-        { icon: '💰', label: 'Earnings history', hint: 'Tips, gifts, referrals received', onClick: () => navigate('/earnings') },
-        { icon: '⭐', label: 'Subscription', hint: 'Premium plans', onClick: () => navigate('/subscription') },
-        { icon: '💸', label: 'Affiliate', hint: 'Earn 5% for life on referrals', onClick: () => navigate('/affiliate') },
+        { icon: '⬇', label: t('menu.addFunds'), hint: t('menu.addFundsHint'), onClick: () => navigate('/wallet/deposit') },
+        { icon: '🧾', label: t('menu.transactionHistory'), hint: t('menu.transactionHistoryHint'), onClick: () => navigate('/wallet') },
+        { icon: '💰', label: t('menu.earningsHistory'), hint: t('menu.earningsHistoryHint'), onClick: () => navigate('/earnings') },
+        { icon: '⭐', label: t('menu.subscription'), hint: t('menu.subscriptionHint'), onClick: () => navigate('/subscription') },
+        { icon: '💸', label: t('menu.affiliate'), hint: t('menu.affiliateHint'), onClick: () => navigate('/affiliate') },
       ],
     },
     {
-      title: 'Activity',
+      title: t('menu.activity'),
       items: [
-        { icon: '👥', label: 'Create a group', hint: 'Start your own community', onClick: () => navigate('/groups/new') },
-        { icon: '🔖', label: 'Saved posts', hint: 'Your bookmarks', onClick: () => navigate('/saved') },
-        { icon: '🎉', label: 'Invite friends', hint: 'Share your referral code', onClick: () => navigate('/invite') },
-        { icon: '🚫', label: 'Blocked users', hint: 'Manage who you blocked', onClick: () => navigate('/blocked') },
-        { icon: '🔕', label: 'Muted users', hint: 'Manage who you muted', onClick: () => navigate('/muted') },
+        { icon: '👥', label: t('menu.createGroup'), hint: t('menu.createGroupHint'), onClick: () => navigate('/groups/new') },
+        { icon: '🔖', label: t('menu.savedPosts'), hint: t('menu.savedPostsHint'), onClick: () => navigate('/saved') },
+        { icon: '🎉', label: t('menu.inviteFriends'), hint: t('menu.inviteFriendsHint'), onClick: () => navigate('/invite') },
+        { icon: '🚫', label: t('menu.blockedUsers'), hint: t('menu.blockedUsersHint'), onClick: () => navigate('/blocked') },
+        { icon: '🔕', label: t('menu.mutedUsers'), hint: t('menu.mutedUsersHint'), onClick: () => navigate('/muted') },
       ],
     },
     ...(isAdmin ? [{
-      title: 'Admin',
+      title: t('menu.admin'),
       items: [
-        { icon: '🛠', label: 'Admin console', hint: 'Moderation, users, payouts', onClick: () => navigate('/admin') },
+        { icon: '🛠', label: t('menu.adminConsole'), hint: t('menu.adminConsoleHint'), onClick: () => navigate('/admin') },
       ] as Item[],
     }] : []),
     {
-      title: 'Support',
+      title: t('menu.support'),
       items: [
-        { icon: '💬', label: 'Live support', hint: 'Chat with our team — open a ticket', onClick: () => navigate('/support') },
-        { icon: '❓', label: 'Help & support', onClick: () => navigate('/legal/help') },
-        { icon: '🔒', label: 'Privacy policy', onClick: () => navigate('/legal/privacy') },
-        { icon: '📜', label: 'Terms of service', onClick: () => navigate('/legal/terms') },
-        { icon: 'ℹ', label: 'About Love meet', onClick: () => navigate('/legal/about') },
+        { icon: '💬', label: t('menu.liveSupport'), hint: t('menu.liveSupportHint'), onClick: () => navigate('/support') },
+        { icon: '❓', label: t('menu.helpSupport'), onClick: () => navigate('/legal/help') },
+        { icon: '🔒', label: t('menu.privacyPolicy'), onClick: () => navigate('/legal/privacy') },
+        { icon: '📜', label: t('menu.termsOfService'), onClick: () => navigate('/legal/terms') },
+        { icon: 'ℹ', label: t('menu.aboutLoveMeet'), onClick: () => navigate('/legal/about') },
       ],
     },
     {
-      title: 'Danger zone',
+      title: t('menu.dangerZone'),
       items: [
-        { icon: '🗑', label: 'Close account', hint: 'Permanent', destructive: true, onClick: () => navigate('/close-account') },
-        { icon: '⎋', label: 'Log out', destructive: true, onClick: () => setConfirmLogout(true) },
+        { icon: '🗑', label: t('menu.closeAccount'), hint: t('menu.closeAccountHint'), destructive: true, onClick: () => navigate('/close-account') },
+        { icon: '⎋', label: t('menu.logOut'), destructive: true, onClick: () => setConfirmLogout(true) },
       ],
     },
   ]
@@ -116,12 +125,12 @@ export default function ProfileMenuScreen() {
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
           <button
             onClick={() => navigate(-1)}
-            aria-label="Back"
+            aria-label={t('post.back')}
             className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2"
           >
             ←
           </button>
-          <div className="flex-1 text-center text-ink font-bold">Menu</div>
+          <div className="flex-1 text-center text-ink font-bold">{t('profile.menu')}</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>
@@ -181,9 +190,9 @@ export default function ProfileMenuScreen() {
 
       <ConfirmDialog
         open={confirmLogout}
-        title="Log out?"
-        message="You'll need to sign in again to use the app."
-        confirmLabel="Log out"
+        title={t('menu.logoutConfirmTitle')}
+        message={t('menu.logoutConfirmMessage')}
+        confirmLabel={t('menu.logOut')}
         destructive
         busy={busy}
         onCancel={() => setConfirmLogout(false)}

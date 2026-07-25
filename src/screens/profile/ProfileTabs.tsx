@@ -1,6 +1,7 @@
 import { useState, Fragment } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useUserPosts } from '../../hooks/useUserPosts'
 import { useReceivedGifts } from '../../hooks/useGift'
 import { useUserCurrency } from '../../hooks/useFx'
@@ -8,16 +9,20 @@ import { IconImages, IconVideo, IconPlay } from '../../components/icons'
 
 type TabKey = 'posts' | 'gifts' | 'videos' | 'career'
 
-const TABS: { key: TabKey; label: string; disabled?: (isMe: boolean) => boolean }[] = [
-  { key: 'posts',   label: 'Posts' },
-  { key: 'gifts',   label: 'Gifts',   disabled: (isMe) => !isMe },
-  { key: 'videos',  label: 'Videos',  disabled: () => true },
-  { key: 'career',  label: 'Career',  disabled: () => true },
-]
+function getTabs(t: (key: string) => string): { key: TabKey; label: string; disabled?: (isMe: boolean) => boolean }[] {
+  return [
+    { key: 'posts',   label: t('profile.tabPosts') },
+    { key: 'gifts',   label: t('profile.tabGifts'),  disabled: (isMe) => !isMe },
+    { key: 'videos',  label: t('profile.tabVideos'), disabled: () => true },
+    { key: 'career',  label: t('profile.tabCareer'), disabled: () => true },
+  ]
+}
 
 type Props = { userId: string; isMe: boolean }
 
 export default function ProfileTabs({ userId, isMe }: Props) {
+  const { t } = useTranslation()
+  const TABS = getTabs(t)
   const [active, setActive] = useState<TabKey>('posts')
 
   return (
@@ -62,6 +67,7 @@ export default function ProfileTabs({ userId, isMe }: Props) {
 }
 
 function PostsGrid({ userId }: { userId: string }) {
+  const { t } = useTranslation()
   const q = useUserPosts(userId)
 
   if (q.status === 'pending') {
@@ -80,7 +86,7 @@ function PostsGrid({ userId }: { userId: string }) {
 
   const pages = q.data?.pages ?? []
   const total = pages.reduce((n, p) => n + p.length, 0)
-  if (total === 0) return <Empty icon="◫" label="No posts yet." />
+  if (total === 0) return <Empty icon="◫" label={t('profile.noPostsYet')} />
 
   return (
     <>
@@ -126,7 +132,7 @@ function PostsGrid({ userId }: { userId: string }) {
             disabled={q.isFetchingNextPage}
             className="w-full glass rounded-full py-3 text-sm font-semibold text-ink-2 hover:text-rose transition-colors disabled:opacity-60"
           >
-            {q.isFetchingNextPage ? 'Loading…' : 'Load more'}
+            {q.isFetchingNextPage ? t('search.loading') : t('search.loadMore')}
           </button>
         </div>
       )}
@@ -135,6 +141,7 @@ function PostsGrid({ userId }: { userId: string }) {
 }
 
 function GiftsList({ userId }: { userId: string }) {
+  const { t } = useTranslation()
   const q = useReceivedGifts(userId)
   const cur = useUserCurrency()
 
@@ -152,14 +159,14 @@ function GiftsList({ userId }: { userId: string }) {
   }
 
   const gifts = q.data ?? []
-  if (gifts.length === 0) return <Empty icon="🎁" label="No gifts received yet." />
+  if (gifts.length === 0) return <Empty icon="🎁" label={t('profile.noGiftsYet')} />
 
   return (
     <ul className="px-5 pt-4 space-y-2">
       {gifts.map((g) => {
         const amountUsd = g.amount_cents / 100
         const price = cur.ready || cur.code === 'USD' ? cur.format(amountUsd) : `$${amountUsd}`
-        const from = g.sender?.handle ? `@${g.sender.handle}` : g.sender?.display_name ?? 'Someone'
+        const from = g.sender?.handle ? `@${g.sender.handle}` : g.sender?.display_name ?? t('notif.someone')
         return (
           <li key={g.id}>
             <Link to={`/gift/${g.id}`} className="glass rounded-2xl p-3 flex items-center gap-3 hover:bg-white/[0.04] transition-colors">
@@ -168,7 +175,7 @@ function GiftsList({ userId }: { userId: string }) {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-ink truncate">{g.gift_name}</div>
-                <div className="text-[11px] text-ink-muted truncate">from {from} · {price}</div>
+                <div className="text-[11px] text-ink-muted truncate">{t('profile.fromUser', { name: from })} · {price}</div>
               </div>
               <GiftStatusTag status={g.status} />
             </Link>
@@ -180,11 +187,12 @@ function GiftsList({ userId }: { userId: string }) {
 }
 
 function GiftStatusTag({ status }: { status: 'pending' | 'accepted' | 'rejected' | 'failed' }) {
+  const { t } = useTranslation()
   const map = {
-    pending:  { label: 'Pending',  cls: 'bg-gold/15 text-gold' },
-    accepted: { label: 'Accepted', cls: 'bg-success/15 text-success' },
-    rejected: { label: 'Declined', cls: 'bg-rose/15 text-rose' },
-    failed:   { label: 'Failed',   cls: 'bg-rose/15 text-rose' },
+    pending:  { label: t('profile.giftPending'),  cls: 'bg-gold/15 text-gold' },
+    accepted: { label: t('profile.giftAccepted'), cls: 'bg-success/15 text-success' },
+    rejected: { label: t('profile.giftDeclined'), cls: 'bg-rose/15 text-rose' },
+    failed:   { label: t('profile.giftFailed'),   cls: 'bg-rose/15 text-rose' },
   } as const
   const m = map[status]
   return (
@@ -206,5 +214,6 @@ function Empty({ icon, label }: { icon: string; label: string }) {
 }
 
 function ComingSoon() {
-  return <p className="text-ink-muted text-center py-10 text-base">Coming soon!</p>
+  const { t } = useTranslation()
+  return <p className="text-ink-muted text-center py-10 text-base">{t('profile.comingSoon')}</p>
 }

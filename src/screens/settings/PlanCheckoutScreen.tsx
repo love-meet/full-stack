@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import UseALATPay from 'react-alatpay'
+import { useTranslation } from 'react-i18next'
 import {
   useMySubscription, useRecordAlatpayDeposit, useSubscribe, useSubscriptionPlans,
   type SubscriptionPlan,
@@ -21,6 +22,7 @@ const MONTH_OPTIONS = [1, 3, 6, 12] as const
  * call subscribe(), so the plan is active by the time we navigate away.
  */
 export default function PlanCheckoutScreen() {
+  const { t } = useTranslation()
   const { planId = '' } = useParams<{ planId: string }>()
   const navigate = useNavigate()
   const plansQ = useSubscriptionPlans()
@@ -67,7 +69,7 @@ export default function PlanCheckoutScreen() {
       onTransaction: async (response: unknown) => {
         const tx = parseAlatpay(response)
         if (!tx.completed && !tx.transactionId) {
-          setStatus('idle'); setError('Payment was not completed.'); return
+          setStatus('idle'); setError(t('planCheckout.paymentNotCompleted')); return
         }
         const ref = tx.transactionId ?? `alatpay-${session.user.id}-${Date.now()}`
         setStatus('verifying')
@@ -82,7 +84,7 @@ export default function PlanCheckoutScreen() {
           })
           if (dep.status !== 'paid') {
             setStatus('idle')
-            setError('Payment is processing — your plan will activate once it clears. Contact support if it doesn’t.')
+            setError(t('planCheckout.paymentProcessing'))
             return
           }
           // Activate the plan immediately on the same screen.
@@ -112,8 +114,8 @@ export default function PlanCheckoutScreen() {
     <div className="min-h-screen text-ink pb-24">
       <header className="sticky top-0 z-10 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={backOut} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
-          <div className="flex-1 text-center text-ink font-bold">{plan?.name ?? 'Checkout'}</div>
+          <button onClick={backOut} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <div className="flex-1 text-center text-ink font-bold">{plan?.name ?? t('planCheckout.fallbackTitle')}</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>
@@ -121,7 +123,7 @@ export default function PlanCheckoutScreen() {
       <main className="max-w-md mx-auto px-5 py-6 space-y-5">
         {plansQ.status === 'pending' && <div className="glass rounded-3xl h-72 animate-pulse" />}
         {plansQ.status === 'success' && !plan && (
-          <div className="glass rounded-2xl p-4 text-center text-ink-2">Plan not found.</div>
+          <div className="glass rounded-2xl p-4 text-center text-ink-2">{t('planCheckout.planNotFound')}</div>
         )}
         {plan && (
           <>
@@ -130,7 +132,7 @@ export default function PlanCheckoutScreen() {
                 <h1 className="text-2xl font-extrabold text-gradient-warm">{plan.name}</h1>
                 <div className="text-right">
                   <div className="text-2xl font-extrabold text-ink">{fmt(plan.price_usdt)}</div>
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">/ month</div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">{t('planCheckout.perMonth')}</div>
                 </div>
               </div>
               {plan.description && <p className="mt-2 text-sm text-ink-2">{plan.description}</p>}
@@ -147,15 +149,15 @@ export default function PlanCheckoutScreen() {
 
             {alreadyActive ? (
               <div className="glass rounded-2xl p-4 text-center">
-                <p className="text-sm text-success font-bold">✓ You're already on {plan.name}.</p>
+                <p className="text-sm text-success font-bold">{t('planCheckout.alreadyActive', { plan: plan.name })}</p>
                 <button onClick={() => navigate('/feed')} className="mt-3 w-full rounded-full py-2.5 text-sm font-bold bg-gradient-brand text-white glow-rose">
-                  Back to feed
+                  {t('planCheckout.backToFeed')}
                 </button>
               </div>
             ) : (
               <>
                 <section>
-                  <h2 className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold pb-2">Pay for how long</h2>
+                  <h2 className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold pb-2">{t('planCheckout.payForHowLong')}</h2>
                   <div className="flex gap-2">
                     {MONTH_OPTIONS.map((m) => (
                       <button
@@ -166,7 +168,7 @@ export default function PlanCheckoutScreen() {
                           months === m ? 'bg-rose/20 text-rose ring-1 ring-rose/40' : 'bg-surface-3 text-ink-muted',
                         ].join(' ')}
                       >
-                        {m} mo
+                        {t('planCheckout.months', { count: m })}
                       </button>
                     ))}
                   </div>
@@ -174,20 +176,20 @@ export default function PlanCheckoutScreen() {
 
                 <section className="glass rounded-2xl p-4">
                   <div className="flex items-baseline justify-between">
-                    <span className="text-sm text-ink-2">Total</span>
+                    <span className="text-sm text-ink-2">{t('planCheckout.total')}</span>
                     <span className="text-2xl font-extrabold text-ink">{fmt(totalUsd)}{months > 1 && <span className="text-[11px] text-ink-muted ml-1">({months} mo)</span>}</span>
                   </div>
                   <p className="mt-2 text-[12px] text-ink-muted">
-                    Pay securely via <span className="font-semibold text-ink">ALATPay</span> — card, bank transfer or USSD.
-                    {cur.isNgn ? ' Charged in ₦.' : ' Charged in USD.'} Plan unlocks as soon as payment confirms.
+                    {t('planCheckout.payVia', { provider: 'ALATPay' })}
+                    {cur.isNgn ? t('planCheckout.chargedNgn') : t('planCheckout.chargedUsd')}{t('planCheckout.unlocksNote')}
                   </p>
                 </section>
 
                 {!configured && (
-                  <p className="text-xs text-danger">Payments aren't configured. Set VITE_ALATPAY_BUSINESS_ID and VITE_ALATPAY_API_KEY.</p>
+                  <p className="text-xs text-danger">{t('planCheckout.notConfigured')}</p>
                 )}
                 {error && <p className="text-sm text-danger">{error}</p>}
-                {status === 'done' && <p className="text-sm text-success">✓ Plan activated — taking you to the feed…</p>}
+                {status === 'done' && <p className="text-sm text-success">{t('planCheckout.activated')}</p>}
 
                 <button
                   onClick={pay}
@@ -197,9 +199,9 @@ export default function PlanCheckoutScreen() {
                     canPay ? 'bg-gradient-brand text-white glow-rose' : 'bg-surface-3 text-ink-muted',
                   ].join(' ')}
                 >
-                  {status === 'opening' ? 'Opening checkout…'
-                    : status === 'verifying' ? 'Activating your plan…'
-                    : `Pay ${cur.isNgn ? cur.formatLocal(localAmount) : fmt(totalUsd)} & unlock ${plan.name}`}
+                  {status === 'opening' ? t('planCheckout.opening')
+                    : status === 'verifying' ? t('planCheckout.activating')
+                    : t('planCheckout.payAndUnlock', { amount: cur.isNgn ? cur.formatLocal(localAmount) : fmt(totalUsd), plan: plan.name })}
                 </button>
               </>
             )}

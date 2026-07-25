@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useGift, useRespondGift } from '../hooks/useGift'
 import { useUserCurrency } from '../hooks/useFx'
 import { useAuth } from '../stores/auth'
 
 export default function GiftDetailScreen() {
+  const { t } = useTranslation()
   const { giftId } = useParams<{ giftId: string }>()
   const navigate = useNavigate()
   const myId = useAuth((s) => s.session?.user.id ?? null)
@@ -19,8 +22,8 @@ export default function GiftDetailScreen() {
   const price = cur.ready || cur.code === 'USD' ? cur.format(amountUsd) : `$${amountUsd}`
   const iAmRecipient = !!g && g.recipient_id === myId
   const iAmSender = !!g && g.sender_id === myId
-  const senderLabel = g?.sender?.handle ? `@${g.sender.handle}` : g?.sender?.display_name ?? 'Someone'
-  const recipientLabel = g?.recipient?.handle ? `@${g.recipient.handle}` : g?.recipient?.display_name ?? 'them'
+  const senderLabel = g?.sender?.handle ? `@${g.sender.handle}` : g?.sender?.display_name ?? t('giftDetail.someone')
+  const recipientLabel = g?.recipient?.handle ? `@${g.recipient.handle}` : g?.recipient?.display_name ?? t('giftDetail.them')
 
   async function act(accept: boolean) {
     if (!giftId) return
@@ -39,8 +42,8 @@ export default function GiftDetailScreen() {
         style={{ paddingTop: 'var(--lm-top-inset)' }}
       >
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={() => navigate(-1)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
-          <div className="flex-1 text-center text-ink font-bold">Gift</div>
+          <button onClick={() => navigate(-1)} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <div className="flex-1 text-center text-ink font-bold">{t('giftDetail.headerTitle')}</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>
@@ -51,7 +54,7 @@ export default function GiftDetailScreen() {
         {gift.status === 'success' && !g && (
           <div className="glass rounded-3xl p-10 text-center">
             <div className="text-4xl mb-3">🎁</div>
-            <p className="text-ink font-semibold">Gift not found</p>
+            <p className="text-ink font-semibold">{t('giftDetail.notFound')}</p>
           </div>
         )}
 
@@ -69,15 +72,15 @@ export default function GiftDetailScreen() {
 
             <p className="mt-3 text-sm text-ink-2">
               {iAmRecipient ? (
-                <>{senderLabel} sent you this gift.</>
+                <>{t('giftDetail.sentToYou', { sender: senderLabel })}</>
               ) : iAmSender ? (
-                <>You sent this to {recipientLabel}.</>
+                <>{t('giftDetail.sentByYou', { recipient: recipientLabel })}</>
               ) : (
-                <>{senderLabel} → {recipientLabel}</>
+                <>{t('giftDetail.senderToRecipient', { sender: senderLabel, recipient: recipientLabel })}</>
               )}
             </p>
 
-            <StatusPill status={g.status} />
+            <StatusPill status={g.status} t={t} />
 
             {error && <p className="mt-3 text-sm text-danger">{error}</p>}
 
@@ -89,30 +92,30 @@ export default function GiftDetailScreen() {
                   disabled={respond.isPending}
                   className="w-full rounded-full py-3 text-sm font-bold bg-gradient-brand text-white glow-rose disabled:opacity-60"
                 >
-                  {respond.isPending ? 'Working…' : `Accept gift (${price})`}
+                  {respond.isPending ? t('giftDetail.working') : t('giftDetail.acceptGift', { price })}
                 </button>
                 <button
                   onClick={() => act(false)}
                   disabled={respond.isPending}
                   className="w-full rounded-full py-3 text-sm font-semibold glass text-ink-2 hover:text-ink disabled:opacity-60"
                 >
-                  Decline
+                  {t('giftDetail.decline')}
                 </button>
                 <p className="text-[11px] text-ink-muted">
-                  Accept and it's added to your earnings. Decline and {senderLabel} is refunded.
+                  {t('giftDetail.acceptDeclineNote', { sender: senderLabel })}
                 </p>
               </div>
             )}
 
             {iAmRecipient && g.status === 'accepted' && (
               <Link to="/earnings" className="mt-6 inline-flex rounded-full px-6 py-3 bg-gradient-brand text-white text-sm font-bold glow-rose">
-                View in earnings
+                {t('giftDetail.viewInEarnings')}
               </Link>
             )}
 
             {iAmSender && (
               <Link to="/wallet" className="mt-6 inline-flex rounded-full px-6 py-3 glass text-ink-2 hover:text-ink text-sm font-semibold">
-                View transaction
+                {t('giftDetail.viewTransaction')}
               </Link>
             )}
           </motion.div>
@@ -122,12 +125,12 @@ export default function GiftDetailScreen() {
   )
 }
 
-function StatusPill({ status }: { status: GiftDetailStatus }) {
+function StatusPill({ status, t }: { status: GiftDetailStatus; t: TFunction }) {
   const map = {
-    pending:  { label: 'Pending',  cls: 'bg-gold/15 text-gold' },
-    accepted: { label: 'Accepted 🎉', cls: 'bg-success/15 text-success' },
-    rejected: { label: 'Declined', cls: 'bg-rose/15 text-rose' },
-    failed:   { label: 'Failed',   cls: 'bg-rose/15 text-rose' },
+    pending:  { label: t('giftDetail.statusPending'),  cls: 'bg-gold/15 text-gold' },
+    accepted: { label: t('giftDetail.statusAccepted'), cls: 'bg-success/15 text-success' },
+    rejected: { label: t('giftDetail.statusDeclined'), cls: 'bg-rose/15 text-rose' },
+    failed:   { label: t('giftDetail.statusFailed'),   cls: 'bg-rose/15 text-rose' },
   } as const
   const m = map[status]
   return (

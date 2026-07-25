@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useFeed, type FeedPost } from '../hooks/useFeed'
 import { useSearchProfiles, type SearchableProfile } from '../hooks/useSearchProfiles'
 import { avatarUrlOr } from '../lib/avatar'
@@ -14,6 +15,7 @@ import { IconPlay, IconVideo } from '../components/icons'
  * Tap a post → post detail; tap a user → their profile.
  */
 export default function SearchScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [text, setText] = useState('')
   const [debounced, setDebounced] = useState('')
@@ -33,7 +35,7 @@ export default function SearchScreen() {
         style={{ paddingTop: 'var(--lm-top-inset)' }}
       >
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center gap-2">
-          <button onClick={() => navigate(-1)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-1">←</button>
+          <button onClick={() => navigate(-1)} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-1">←</button>
           <div className="flex-1 glass rounded-full px-4 py-2 flex items-center gap-2.5 focus-within:ring-brand transition-shadow">
             <span className="text-ink-muted text-lg">⌕</span>
             <input
@@ -41,11 +43,11 @@ export default function SearchScreen() {
               autoFocus
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Search"
+              placeholder={t('search.placeholder')}
               className="flex-1 bg-transparent outline-none text-sm placeholder:text-ink-muted"
             />
             {text && (
-              <button onClick={() => setText('')} aria-label="Clear" className="text-ink-muted hover:text-ink">✕</button>
+              <button onClick={() => setText('')} aria-label={t('search.clear')} className="text-ink-muted hover:text-ink">✕</button>
             )}
           </div>
         </div>
@@ -59,6 +61,7 @@ export default function SearchScreen() {
 // ---------- Users list (while typing) ----------
 
 function UserResults({ q }: { q: string }) {
+  const { t } = useTranslation()
   const results = useSearchProfiles({ q })
   const users = results.data?.pages.flat() ?? []
 
@@ -71,7 +74,7 @@ function UserResults({ q }: { q: string }) {
   }
 
   if (users.length === 0) {
-    return <p className="text-center text-ink-muted text-sm py-10">No users found.</p>
+    return <p className="text-center text-ink-muted text-sm py-10">{t('search.noUsers')}</p>
   }
 
   return (
@@ -89,7 +92,7 @@ function UserResults({ q }: { q: string }) {
             disabled={results.isFetchingNextPage}
             className="w-full glass rounded-full py-2.5 text-sm text-ink-2 hover:text-ink font-semibold"
           >
-            {results.isFetchingNextPage ? 'Loading…' : 'Show more'}
+            {results.isFetchingNextPage ? t('search.loading') : t('search.showMore')}
           </button>
         </li>
       )}
@@ -131,6 +134,7 @@ function UserRow({ u }: { u: SearchableProfile }) {
 // ---------- Explore grid (empty query) ----------
 
 function ExploreGrid() {
+  const { t } = useTranslation()
   const feed = useFeed()
   const posts = feed.data?.pages.flat() ?? []
 
@@ -156,7 +160,7 @@ function ExploreGrid() {
   }
 
   if (shuffled.length === 0) {
-    return <p className="text-center text-ink-muted text-sm py-10">Nothing to explore yet.</p>
+    return <p className="text-center text-ink-muted text-sm py-10">{t('search.nothingToExplore')}</p>
   }
 
   return (
@@ -178,7 +182,7 @@ function ExploreGrid() {
             disabled={feed.isFetchingNextPage}
             className="w-full glass rounded-full py-3 text-sm text-ink-2 hover:text-ink font-semibold"
           >
-            {feed.isFetchingNextPage ? 'Loading…' : 'Load more'}
+            {feed.isFetchingNextPage ? t('search.loading') : t('search.loadMore')}
           </button>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useIsAdmin } from '../../hooks/useAdmin'
 import {
   useTicket,
@@ -20,6 +21,7 @@ import { StatusPill } from './SupportScreen'
  * the right. Admins get status controls in the header.
  */
 export default function SupportTicketScreen() {
+  const { t } = useTranslation()
   const { ticketId } = useParams<{ ticketId: string }>()
   const navigate = useNavigate()
   const isAdmin = useIsAdmin()
@@ -87,7 +89,7 @@ export default function SupportTicketScreen() {
       >
         <button
           onClick={() => navigate(-1)}
-          aria-label="Back"
+          aria-label={t('post.back')}
           className="text-ink-2 hover:text-ink text-2xl leading-none px-1"
         >
           ←
@@ -95,10 +97,10 @@ export default function SupportTicketScreen() {
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-ink truncate flex items-center gap-2">
             <span className="truncate">{headerTitle}</span>
-            {ticket && <StatusPill status={ticket.status} />}
+            {ticket && <StatusPill status={ticket.status} t={t} />}
           </div>
           <div className="text-[11px] text-ink-muted truncate">
-            {isAdmin ? ticket?.subject : 'Support team'}
+            {isAdmin ? ticket?.subject : t('support.teamLabel')}
           </div>
         </div>
       </header>
@@ -133,7 +135,7 @@ export default function SupportTicketScreen() {
       >
         {ticket?.status === 'closed' && !isAdmin && (
           <p className="text-[11px] text-ink-muted px-2 pb-2">
-            This ticket was closed — replying will reopen it.
+            {t('support.closedNotice')}
           </p>
         )}
         <div className="flex items-end gap-2">
@@ -144,7 +146,7 @@ export default function SupportTicketScreen() {
               onChange={(e) => setText(e.target.value.slice(0, 4000))}
               onKeyDown={onKeyDown}
               rows={1}
-              placeholder={isAdmin ? 'Reply to this user…' : 'Message support…'}
+              placeholder={isAdmin ? 'Reply to this user…' : t('support.replyPlaceholder')}
               className="w-full bg-transparent outline-none text-ink placeholder:text-ink-muted text-base resize-none leading-snug no-scrollbar"
             />
           </div>
@@ -155,7 +157,7 @@ export default function SupportTicketScreen() {
               'rounded-full w-11 h-11 grid place-items-center text-lg shrink-0 transition-opacity',
               canSend ? 'bg-gradient-brand text-white glow-rose' : 'bg-surface-3 text-ink-muted',
             ].join(' ')}
-            aria-label="Send"
+            aria-label={t('post.send')}
           >
             ➤
           </button>
@@ -168,6 +170,7 @@ export default function SupportTicketScreen() {
 function MessagesList({
   messages, viewerIsAdmin, loading,
 }: { messages: SupportMessage[]; viewerIsAdmin: boolean; loading: boolean }) {
+  const { t } = useTranslation()
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   useLayoutEffect(() => {
@@ -210,7 +213,7 @@ function MessagesList({
                 {/* Tag the support side so the user knows who's talking. */}
                 {m.is_admin && !viewerIsAdmin && (
                   <div className="text-[10px] font-bold uppercase tracking-wider text-coral mb-0.5">
-                    Support
+                    {t('support.supportTag')}
                   </div>
                 )}
                 <span>{m.body}</span>

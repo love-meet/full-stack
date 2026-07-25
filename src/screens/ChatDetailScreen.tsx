@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useConversation } from '../hooks/useConversations'
 import ReturnToGameBanner from '../components/ReturnToGameBanner'
 import { useMessages, type Message } from '../hooks/useMessages'
@@ -45,6 +46,7 @@ export function ChatPane({
   onBack: () => void
   className?: string
 }) {
+  const { t } = useTranslation()
   const myId = useAuth((s) => s.session?.user.id ?? null)
 
   const conv = useConversation(conversationId)
@@ -116,7 +118,7 @@ export function ChatPane({
         <button
           onClick={onBack}
           className="text-ink-2 hover:text-ink text-2xl leading-none px-1"
-          aria-label="Back"
+          aria-label={t('post.back')}
         >
           ←
         </button>
@@ -126,7 +128,7 @@ export function ChatPane({
           <Link
             to={`/profile/${conv.data.other_id}`}
             className="flex items-center gap-3 flex-1 min-w-0 -my-1 active:opacity-70"
-            aria-label="Open profile"
+            aria-label={t('chat.openProfile')}
           >
             <ProfileHeaderBlock
               avatarUrl={conv.data.other_avatar_url}
@@ -150,7 +152,7 @@ export function ChatPane({
         {conv.data?.other_id && (
           <button
             onClick={() => setChatMenuOpen(true)}
-            aria-label="Chat options"
+            aria-label={t('chat.chatOptions')}
             className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2"
           >
             ⋯
@@ -166,12 +168,12 @@ export function ChatPane({
             autoFocus
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search in this chat"
+            placeholder={t('chat.searchInChat')}
             className="flex-1 bg-transparent outline-none text-sm text-ink placeholder:text-ink-muted"
           />
           <button
             onClick={() => { setSearchOpen(false); setSearchText('') }}
-            aria-label="Close search"
+            aria-label={t('chat.closeSearch')}
             className="text-ink-muted hover:text-ink text-base px-1"
           >
             ✕
@@ -288,6 +290,7 @@ function MessagesList({
   hasNextPage, isFetchingNextPage, fetchNextPage,
   onJumpToReplied, onOpenActions,
 }: ListProps) {
+  const { t } = useTranslation()
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const wasAtBottomRef = useRef(true)
   const didInitialScrollRef = useRef(false)
@@ -387,7 +390,7 @@ function MessagesList({
         <div className="h-full grid place-items-center">
           <div className="text-center text-ink-muted">
             <div className="text-4xl mb-2">👋</div>
-            <p className="text-sm">No messages yet — break the ice.</p>
+            <p className="text-sm">{t('chat.noMessagesYet')}</p>
           </div>
         </div>
       )}
@@ -439,6 +442,7 @@ function ProfileHeaderBlock({
   typing: boolean
   verified: boolean
 }) {
+  const { t } = useTranslation()
   return (
     <>
       <div className="relative shrink-0">
@@ -448,7 +452,7 @@ function ProfileHeaderBlock({
             'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-surface-2',
             online ? 'bg-success' : 'bg-ink-muted',
           ].join(' ')}
-          aria-label={online ? 'Online' : 'Offline'}
+          aria-label={online ? t('chat.online') : t('chat.offline')}
         />
       </div>
       <div className="flex-1 min-w-0">
@@ -458,11 +462,11 @@ function ProfileHeaderBlock({
         </div>
         <div className="text-[11px] truncate">
           {typing ? (
-            <span className="text-success font-semibold">typing…</span>
+            <span className="text-success font-semibold">{t('chat.typing')}</span>
           ) : online ? (
-            <span className="text-success font-semibold">● Online</span>
+            <span className="text-success font-semibold">● {t('chat.online')}</span>
           ) : (
-            <span className="text-ink-muted">Offline</span>
+            <span className="text-ink-muted">{t('chat.offline')}</span>
           )}
         </div>
       </div>
@@ -488,6 +492,7 @@ type ComposerProps = {
 function Composer({
   disabled, sending, error, mode, replyTarget, myId, onCancelMode, onTyping, onFocus, onSubmit,
 }: ComposerProps) {
+  const { t } = useTranslation()
   const [text, setText] = useState('')
   const [pendingMedia, setPendingMedia] = useState<ChatMediaUpload | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -551,7 +556,7 @@ function Composer({
       }, 1000)
     } catch {
       stopTracks()
-      setUploadError('Microphone access is needed to record a voice note.')
+      setUploadError(t('chat.micPermission'))
     }
   }
 
@@ -683,19 +688,19 @@ function Composer({
           <div className="flex-1 min-w-0">
             <div className="text-xs font-semibold text-ink truncate">
               {upload.isPending
-                ? 'Uploading…'
-                : pendingMedia?.kind === 'video' ? 'Video ready'
-                : pendingMedia?.kind === 'audio' ? 'Voice note ready'
-                : 'Image ready'}
+                ? t('play.uploading')
+                : pendingMedia?.kind === 'video' ? t('chat.videoReady')
+                : pendingMedia?.kind === 'audio' ? t('chat.voiceNoteReady')
+                : t('chat.imageReady')}
             </div>
             <div className="text-[11px] text-ink-muted truncate">
-              {upload.isPending ? 'Hang on a sec.' : 'Add a caption and tap send.'}
+              {upload.isPending ? t('chat.hangOnSec') : t('chat.addCaptionSend')}
             </div>
           </div>
           {pendingMedia && (
             <button
               onClick={() => setPendingMedia(null)}
-              aria-label="Remove attachment"
+              aria-label={t('chat.removeAttachment')}
               className="text-ink-muted hover:text-ink text-base px-2"
             >
               ✕
@@ -710,7 +715,7 @@ function Composer({
         <div className="mb-2 mx-1 flex items-center gap-2 rounded-2xl bg-danger/10 ring-1 ring-danger/30 px-3 py-2">
           <span aria-hidden className="text-base">🛑</span>
           <span className="text-[12px] leading-snug text-danger">
-            {violationLabel(violation)} Keep conversations on Love meet.
+            {violationLabel(violation)} {t('chat.keepOnPlatform')}
           </span>
         </div>
       )}
@@ -720,17 +725,17 @@ function Composer({
         <div className="mb-2 mx-1 flex items-stretch gap-2 rounded-2xl glass px-3 py-2 border-l-2 border-coral">
           <div className="flex-1 min-w-0">
             <div className="text-[11px] text-coral font-semibold">
-              Replying to {replyTarget?.sender_id === myId ? 'yourself' : 'them'}
+              {replyTarget?.sender_id === myId ? t('chat.replyingToYourself') : t('chat.replyingToThem')}
             </div>
             <div className="text-xs text-ink-2 truncate">
               {replyTarget?.deleted_at
-                ? 'Message was deleted'
+                ? t('chat.messageDeleted')
                 : replyTarget?.body ?? '…'}
             </div>
           </div>
           <button
             onClick={() => { onCancelMode(); setText('') }}
-            aria-label="Cancel reply"
+            aria-label={t('chat.cancelReply')}
             className="text-ink-muted hover:text-ink text-base px-2"
           >
             ✕
@@ -742,12 +747,12 @@ function Composer({
       {mode.kind === 'edit' && (
         <div className="mb-2 mx-1 flex items-stretch gap-2 rounded-2xl glass px-3 py-2 border-l-2 border-gold">
           <div className="flex-1 min-w-0">
-            <div className="text-[11px] text-gold font-semibold">Editing message</div>
-            <div className="text-xs text-ink-muted">Press Esc to cancel</div>
+            <div className="text-[11px] text-gold font-semibold">{t('chat.editingMessage')}</div>
+            <div className="text-xs text-ink-muted">{t('chat.pressEscCancel')}</div>
           </div>
           <button
             onClick={() => { onCancelMode(); setText('') }}
-            aria-label="Cancel edit"
+            aria-label={t('chat.cancelEdit')}
             className="text-ink-muted hover:text-ink text-base px-2"
           >
             ✕
@@ -761,7 +766,7 @@ function Composer({
           <button
             type="button"
             onClick={cancelRecording}
-            aria-label="Cancel recording"
+            aria-label={t('chat.cancelRecording')}
             className="shrink-0 w-10 h-10 grid place-items-center rounded-full glass text-ink-2 hover:text-danger transition-colors"
           >
             🗑
@@ -769,12 +774,12 @@ function Composer({
           <div className="flex-1 flex items-center gap-2 glass rounded-3xl px-4 py-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-danger animate-pulse shrink-0" />
             <span className="text-sm font-semibold text-ink tabular-nums">{fmtRec(recSecs)}</span>
-            <span className="text-xs text-ink-muted ml-1">Recording…</span>
+            <span className="text-xs text-ink-muted ml-1">{t('chat.recording')}</span>
           </div>
           <button
             type="button"
             onClick={stopRecording}
-            aria-label="Stop and attach voice note"
+            aria-label={t('chat.stopAttachVoice')}
             className="shrink-0 rounded-full w-11 h-11 grid place-items-center text-lg bg-gradient-brand text-white glow-rose"
           >
             ✓
@@ -789,7 +794,7 @@ function Composer({
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={disabled || upload.isPending}
-                aria-label="Attach image or video"
+                aria-label={t('chat.attachMedia')}
                 className="shrink-0 w-10 h-10 grid place-items-center rounded-full glass text-ink-2 hover:text-rose transition-colors disabled:opacity-50"
               >
                 <span className="text-lg leading-none">＋</span>
@@ -819,10 +824,10 @@ function Composer({
               onKeyDown={onKeyDown}
               rows={1}
               placeholder={
-                mode.kind === 'edit' ? 'Edit your message…' :
-                mode.kind === 'reply' ? 'Reply…' :
-                pendingMedia ? 'Add a caption (optional)' :
-                'Message…'
+                mode.kind === 'edit' ? t('chat.editPlaceholder') :
+                mode.kind === 'reply' ? t('chat.replyPlaceholder') :
+                pendingMedia ? t('chat.captionPlaceholder') :
+                t('chat.messagePlaceholder')
               }
               disabled={disabled}
               className="w-full bg-transparent outline-none text-ink placeholder:text-ink-muted text-base resize-none leading-snug no-scrollbar"
@@ -833,7 +838,7 @@ function Composer({
               type="button"
               onClick={startRecording}
               disabled={disabled || upload.isPending}
-              aria-label="Record voice note"
+              aria-label={t('chat.recordVoiceNote')}
               className="rounded-full w-11 h-11 grid place-items-center text-lg shrink-0 glass text-ink-2 hover:text-rose transition-colors disabled:opacity-50"
             >
               🎙
@@ -848,7 +853,7 @@ function Composer({
                   ? 'bg-gradient-brand text-white glow-rose'
                   : 'bg-surface-3 text-ink-muted',
               ].join(' ')}
-              aria-label={mode.kind === 'edit' ? 'Save edit' : 'Send'}
+              aria-label={mode.kind === 'edit' ? t('chat.saveEdit') : t('post.send')}
             >
               {mode.kind === 'edit' ? '✓' : '➤'}
             </button>

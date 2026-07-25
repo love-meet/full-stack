@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useTelegramBanner } from '../stores/telegramBanner'
 import {
   canShowTelegramBanner,
@@ -15,6 +16,7 @@ import {
  * Dismiss persists across visits via localStorage.
  */
 export default function TelegramSuggestionBanner() {
+  const { t } = useTranslation()
   const visible = useTelegramBanner((s) => s.visible)
   const hide = useTelegramBanner((s) => s.hide)
   if (!visible || !canShowTelegramBanner()) return null
@@ -34,19 +36,19 @@ export default function TelegramSuggestionBanner() {
       <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center gap-3">
         <span className="text-lg shrink-0">💕</span>
         <p className="flex-1 leading-snug">
-          Love meet works best in Telegram.
+          {t('banners.telegramBest')}
         </p>
         <button
           onClick={onOpenTelegram}
           className="shrink-0 rounded-full bg-white text-rose px-3 py-1.5 font-bold"
         >
-          Open in Telegram
+          {t('banners.telegramOpen')}
         </button>
         <button
           onClick={onContinueWeb}
           className="shrink-0 rounded-full bg-white/20 hover:bg-white/30 px-2.5 py-1.5 font-semibold"
-          aria-label="Continue on web"
-          title="Continue on web"
+          aria-label={t('banners.continueWeb')}
+          title={t('banners.continueWeb')}
         >
           ✕
         </button>

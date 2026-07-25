@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAllTickets, useTicketsRealtime, type SupportStatus, type SupportTicket } from '../../hooks/useSupport'
 import { avatarUrlOr } from '../../lib/avatar'
 import { StatusPill, statusDot, timeAgo } from '../support/SupportScreen'
@@ -63,6 +64,7 @@ export default function SupportInbox() {
 }
 
 function AdminTicketRow({ ticket, onOpen }: { ticket: SupportTicket; onOpen: () => void }) {
+  const { t } = useTranslation()
   const unread = ticket.admin_unread > 0
   return (
     <button
@@ -82,7 +84,7 @@ function AdminTicketRow({ ticket, onOpen }: { ticket: SupportTicket; onOpen: () 
           <span className="font-semibold text-ink truncate">
             @{ticket.user_handle ?? ticket.user_display_name ?? 'user'}
           </span>
-          <StatusPill status={ticket.status} />
+          <StatusPill status={ticket.status} t={t} />
         </div>
         <div className="text-[13px] text-ink-2 truncate font-medium">{ticket.subject}</div>
         <div className={`text-[12px] truncate ${unread ? 'text-ink-2 font-semibold' : 'text-ink-muted'}`}>
@@ -91,7 +93,7 @@ function AdminTicketRow({ ticket, onOpen }: { ticket: SupportTicket; onOpen: () 
         </div>
       </div>
       <div className="shrink-0 flex flex-col items-end gap-1">
-        <span className="text-[11px] text-ink-muted">{timeAgo(ticket.last_message_at)}</span>
+        <span className="text-[11px] text-ink-muted">{timeAgo(ticket.last_message_at, t)}</span>
         {unread && (
           <span className="min-w-5 h-5 px-1.5 rounded-full bg-rose text-[10px] font-bold grid place-items-center text-white">
             {ticket.admin_unread}

@@ -1,7 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useBookmarkedPosts } from '../../hooks/useBookmarkedPosts'
 
 export default function SavedPostsScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const saved = useBookmarkedPosts()
 
@@ -12,8 +14,8 @@ export default function SavedPostsScreen() {
         style={{ paddingTop: 'var(--lm-top-inset)' }}
       >
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={() => navigate(-1)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
-          <div className="flex-1 text-center text-ink font-bold">Saved posts</div>
+          <button onClick={() => navigate(-1)} aria-label={t('post.back')} className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <div className="flex-1 text-center text-ink font-bold">{t('menu.savedPosts')}</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>
@@ -30,7 +32,7 @@ export default function SavedPostsScreen() {
         {saved.status === 'success' && saved.data.length === 0 && (
           <div className="glass rounded-3xl p-8 text-center text-ink-muted">
             <div className="text-4xl mb-2">🔖</div>
-            <p className="text-sm">No saved posts yet. Tap the bookmark on a post to keep it here.</p>
+            <p className="text-sm">{t('menu.noSavedPostsYet')}</p>
           </div>
         )}
 
@@ -49,7 +51,7 @@ export default function SavedPostsScreen() {
                 )
               ) : (
                 <div className="w-full h-full grid place-items-center p-2 text-[11px] text-ink-muted text-center">
-                  {p.caption?.slice(0, 60) ?? 'Post'}
+                  {p.caption?.slice(0, 60) ?? t('menu.postFallback')}
                 </div>
               )}
               {p.kind === 'video' && (
