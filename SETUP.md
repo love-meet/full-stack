@@ -1044,19 +1044,23 @@ unaffected. Re-enable either by uncommenting the marked line in each
 function's `index.ts` — the underlying logic wasn't touched, just made
 unreachable.
 
-## Adam's AI-generated gallery (gallery-bot)
+## Bot AI-generated galleries (gallery-bot)
 
-A one-off, deliberate exception to every other bot's non-human-imagery
-policy: the persona **Adam** (`adam_reeves`, added to feed-bot's roster) gets
-a 5-photo AI-generated gallery via [Replicate](https://replicate.com),
-uploaded to Cloudinary like any other media in this app, and saved to
-`profiles.gallery_urls` — the same column every real user already fills
-during onboarding but that had no display anywhere until now. Real users see
-it on the new **Gallery** tab on the profile screen (next to Posts).
+A deliberate exception to every other bot's non-human-imagery policy. A
+**curated set of 5 personas** — `adam_reeves`, `luna_wanders`,
+`kofi_travels`, `priya_reads`, `zara_coffee` — each get a 5-photo
+AI-generated gallery via [Replicate](https://replicate.com), uploaded to
+Cloudinary like any other media in this app and saved to
+`profiles.gallery_urls`. That column is what the discovery feed reads
+(`get_gallery_feed`, 0097) and what the profile **Gallery** tab renders.
 
-Read the header comment in `supabase/functions/gallery-bot/index.ts` before
-extending this pattern to any other bot — it's an explicit, flagged policy
-reversal, not a default.
+**Why this exception exists:** the gallery IS the "here's what I look like"
+surface of a dating profile, so bots can't appear in the discovery feed at
+all without photos of a person. feed-bot's posts stay non-human (see its
+`IMAGE_POOL` comment). This roster is a deliberately small **visible test**
+— look at how a feed of AI faces actually reads before deciding whether to
+scale it to the full 19-persona roster. Read the header comment in
+`supabase/functions/gallery-bot/index.ts` before adding anyone to it.
 
 1. Get a Replicate API token: create an account at
    [replicate.com](https://replicate.com), then grab a token from
@@ -1072,21 +1076,28 @@ reversal, not a default.
    npx supabase secrets set CLOUDINARY_UPLOAD_PRESET=<same as VITE_CLOUDINARY_UPLOAD_PRESET>
    ```
 
-3. **Make sure Adam exists first** — call feed-bot's `{"action":"seed"}` (see
-   the Feed activity bot section above) so `adam_reeves` is created before
-   generating his gallery.
+3. **Seed the personas first** — call feed-bot's `{"action":"seed"}` (see the
+   Feed activity bot section above) so the roster handles exist before
+   generating galleries.
 
-4. **Generate the gallery** (one-off, not scheduled — call it whenever you
-   want to (re)generate Adam's photos):
+4. **Generate the galleries.** Each call handles **one persona** by default
+   (5 image generations already take tens of seconds; the whole roster in a
+   single invocation would hit the edge-function timeout). Call it
+   repeatedly until `remaining` is 0 — roughly 5 calls:
    ```
    curl -X POST https://<project-ref>.supabase.co/functions/v1/gallery-bot \
      -H "Content-Type: application/json" \
      -H "x-webhook-secret: <GALLERY_BOT_SECRET>" \
      -d '{}'
    ```
-   Takes a a few tens of seconds (5 image generations). Response looks like
-   `{"ok":true,"handle":"adam_reeves","generated":5,"gallery_urls":[...]}`.
+   Response looks like
+   `{"ok":true,"processed":1,"remaining":4,"pending":[...],"results":[{"handle":"adam_reeves","generated":5}]}`.
 
-5. **Smoke test:** open Adam's profile in the app and check the new Gallery
-   tab — should show his 5 generated photos. Re-running the function
-   regenerates and replaces all 5.
+   Other options: `{"handle":"luna_wanders"}` for one specific persona,
+   `{"max":2}` to do two per call, `{"force":true}` to regenerate a persona
+   that already has a full gallery (otherwise they're skipped).
+
+5. **Smoke test:** open the feed — those personas should now appear as
+   swipeable cards (they're excluded before this because `get_gallery_feed`
+   only returns profiles with at least one gallery photo). Their profile
+   Gallery tab should show all 5.
