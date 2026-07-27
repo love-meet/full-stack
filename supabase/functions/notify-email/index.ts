@@ -233,7 +233,7 @@ function linkFor(n: Notification, appUrl: string): string {
   if ((n.type === 'gift' || n.type === 'gift_accepted' || n.type === 'gift_rejected') && n.gift_id) {
     return `${appUrl}/gift/${n.gift_id}`
   }
-  if ((n.type === 'chat_message' || n.type === 'chat_reminder') && n.conversation_id) {
+  if ((n.type === 'chat_message' || n.type === 'chat_reminder' || n.type === 'match') && n.conversation_id) {
     return `${appUrl}/chat/${n.conversation_id}`
   }
   if (n.type === 'support_user_msg') return `${appUrl}/admin/support`
@@ -295,6 +295,9 @@ function content(
     case 'match_post':
       return { subject: `Someone you might like just posted`, title: 'New match activity ✨', icon: '✨', accent: ROSE, cta: 'See the post',
         message: `${actor} — who matches your preferences — just shared a new post on Love meet.` }
+    case 'match':
+      return { subject: `It's a match with ${actor}! 💘`, title: "It's a match! 💘", icon: '💘', accent: ROSE, cta: 'Say hi',
+        message: `You and ${actor} are interested in each other. Your chat is open — go say hi!` }
     case 'welcome_signup':
       return { subject: `You said yes 💘 Welcome to Love meet`, title: "You're in 💘", icon: '💘', accent: ROSE, cta: 'Set up your profile',
         message: n.body ?? "Welcome to Love meet — the boldest swipe you'll make today. Someone out there is hoping you show up. Let's set up your profile and go find them." }

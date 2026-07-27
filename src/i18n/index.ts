@@ -13,9 +13,18 @@ import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, type LanguageCode } from './lang
 
 export const LANGUAGE_STORAGE_KEY = 'lm_lang'
 
+// try/catch: this runs at module scope during i18next init — an unguarded
+// localStorage access throws in storage-blocked browsers (Safari/Chrome
+// "block all cookies", some embedded webviews), which would crash the whole
+// bundle before React ever mounts. Blocked storage just means the language
+// gate shows every visit.
 export function getStoredLanguage(): LanguageCode | null {
-  const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY)
-  return SUPPORTED_LANGUAGES.some((l) => l.code === stored) ? (stored as LanguageCode) : null
+  try {
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY)
+    return SUPPORTED_LANGUAGES.some((l) => l.code === stored) ? (stored as LanguageCode) : null
+  } catch {
+    return null
+  }
 }
 
 void i18next.use(initReactI18next).init({
@@ -36,7 +45,11 @@ void i18next.use(initReactI18next).init({
 })
 
 export function setLanguage(code: LanguageCode) {
-  localStorage.setItem(LANGUAGE_STORAGE_KEY, code)
+  try {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, code)
+  } catch {
+    // Storage blocked — the language still switches for this session.
+  }
   void i18next.changeLanguage(code)
 }
 

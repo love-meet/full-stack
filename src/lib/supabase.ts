@@ -10,4 +10,10 @@ if (!url || !anonKey) {
   )
 }
 
+/** False when the env vars were missing at build time — the app boots with a
+ *  dead placeholder client and every backend call silently fails. App.tsx
+ *  checks this and shows an explicit config-error screen instead of letting
+ *  a misconfigured deploy masquerade as a working app with dead buttons. */
+export const supabaseConfigured = !!url && !!anonKey
+
 export const supabase = createClient(url ?? 'http://localhost', anonKey ?? 'public-anon-placeholder')

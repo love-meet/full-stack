@@ -5,13 +5,15 @@ import { useTranslation } from 'react-i18next'
 import { useUserPosts } from '../../hooks/useUserPosts'
 import { useReceivedGifts } from '../../hooks/useGift'
 import { useUserCurrency } from '../../hooks/useFx'
+import { useProfileById } from '../../hooks/useProfile'
 import { IconImages, IconVideo, IconPlay } from '../../components/icons'
 
-type TabKey = 'posts' | 'gifts' | 'videos' | 'career'
+type TabKey = 'posts' | 'gallery' | 'gifts' | 'videos' | 'career'
 
 function getTabs(t: (key: string) => string): { key: TabKey; label: string; disabled?: (isMe: boolean) => boolean }[] {
   return [
     { key: 'posts',   label: t('profile.tabPosts') },
+    { key: 'gallery', label: t('profile.tabGallery') },
     { key: 'gifts',   label: t('profile.tabGifts'),  disabled: (isMe) => !isMe },
     { key: 'videos',  label: t('profile.tabVideos'), disabled: () => true },
     { key: 'career',  label: t('profile.tabCareer'), disabled: () => true },
@@ -57,11 +59,44 @@ export default function ProfileTabs({ userId, isMe }: Props) {
       </div>
 
       <div className="pt-1">
-        {active === 'posts'  && <PostsGrid userId={userId} />}
-        {active === 'gifts'  && <GiftsList userId={userId} />}
-        {active === 'videos' && <ComingSoon />}
-        {active === 'career' && <ComingSoon />}
+        {active === 'posts'   && <PostsGrid userId={userId} />}
+        {active === 'gallery' && <GalleryGrid userId={userId} />}
+        {active === 'gifts'   && <GiftsList userId={userId} />}
+        {active === 'videos'  && <ComingSoon />}
+        {active === 'career'  && <ComingSoon />}
       </div>
+    </div>
+  )
+}
+
+function GalleryGrid({ userId }: { userId: string }) {
+  const { t } = useTranslation()
+  const q = useProfileById(userId)
+
+  if (q.isLoading) {
+    return (
+      <div className="grid grid-cols-3 gap-px bg-white/5">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="aspect-square bg-surface-2 animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+
+  if (q.isError) {
+    return <p className="text-center text-danger py-6 text-sm">{(q.error as Error).message}</p>
+  }
+
+  const photos = (q.data?.gallery_urls ?? []).filter(Boolean)
+  if (photos.length === 0) return <Empty icon="◫" label={t('profile.noGalleryYet')} />
+
+  return (
+    <div className="grid grid-cols-3 gap-px bg-white/5">
+      {photos.map((url, i) => (
+        <div key={`${url}-${i}`} className="aspect-square bg-surface overflow-hidden">
+          <img src={url} alt="" className="w-full h-full object-cover" />
+        </div>
+      ))}
     </div>
   )
 }

@@ -5,7 +5,6 @@ import { useAuth } from '../stores/auth'
 import { useProfile } from '../hooks/useProfile'
 import {
   useBackfillMatchPreferencesComplete,
-  useHasPosted,
   useMatchPreferences,
 } from '../hooks/useMatchPreferences'
 
@@ -14,20 +13,20 @@ import {
 const CHECKOUT_CANCELLED = 'lm.checkout.cancelled'
 
 /**
- * Three feed nudges, in priority order:
- *   1. First-post (compulsory) — full-screen if they have zero posts.
- *   2. Interview invite (compulsory) — once they've posted, until they
- *      complete the match interview.
- *   3. Free-plan notice — fires after they cancel out of the plan checkout
+ * Feed nudges, in priority order:
+ *   1. Interview invite (compulsory) — until they complete the match
+ *      interview. (The old "first post" nudge is gone: the gallery pivot
+ *      made onboarding's mandatory 5-photo gallery the feed content, so
+ *      there's no post to demand — and steering users into the compose
+ *      flow would create content the gallery feed never shows.)
+ *   2. Free-plan notice — fires after they cancel out of the plan checkout
  *      without paying. Has "Pick a plan" and "Skip for now" buttons.
  */
 export default function OnboardingPrompts() {
   const session = useAuth((s) => s.session)
   const ready = useAuth((s) => s.ready)
   const profile = useProfile()
-  const myId = session?.user.id ?? null
   const onboarded = !!profile.data?.onboarded_at
-  const hasPosted = useHasPosted(onboarded ? myId : null)
   const prefs = useMatchPreferences()
   const backfill = useBackfillMatchPreferencesComplete()
 
@@ -57,9 +56,8 @@ export default function OnboardingPrompts() {
 
   if (!ready || !session || !onboarded) return null
 
-  // Wait for the queries to actually resolve before deciding what to show —
+  // Wait for the query to actually resolve before deciding what to show —
   // otherwise a brief paint with undefined data flashes a stale modal.
-  const postLoaded = hasPosted.status === 'success'
   const prefsLoaded = prefs.status === 'success'
 
   // Treat the interview as completed if the timestamp is set OR if the
@@ -75,12 +73,8 @@ export default function OnboardingPrompts() {
     return !!(partnerAnswered && selfAnswered)
   })()
 
-  const wantPost = postLoaded && hasPosted.data === false
-  const wantInterview =
-    postLoaded && hasPosted.data === true &&
-    prefsLoaded && !interviewDone
-  const wantFreeNotice =
-    cancelled && !wantPost && !wantInterview
+  const wantInterview = prefsLoaded && !interviewDone
+  const wantFreeNotice = cancelled && !wantInterview
 
   function dismissFreeNotice() {
     sessionStorage.removeItem(CHECKOUT_CANCELLED)
@@ -89,35 +83,9 @@ export default function OnboardingPrompts() {
 
   return (
     <AnimatePresence>
-      {wantPost && <FirstPostModal key="first-post" />}
-      {!wantPost && wantInterview && <InterviewInviteModal key="interview" />}
+      {wantInterview && <InterviewInviteModal key="interview" />}
       {wantFreeNotice && <FreePlanNoticeModal key="free-notice" onDismiss={dismissFreeNotice} />}
     </AnimatePresence>
-  )
-}
-
-function FirstPostModal() {
-  return (
-    <ModalShell>
-      <div className="text-5xl mb-3">📸</div>
-      <h2 className="text-2xl font-extrabold text-gradient-warm">Show the world your spark</h2>
-      <p className="mt-2 text-ink-2">
-        Share your <b>first post</b> so people can find you. A photo, a moment, a smile — anything
-        you. Profiles with posts get noticed; profiles without them stay hidden.
-      </p>
-      <ul className="mt-4 space-y-1.5 text-sm text-ink-2">
-        <li className="flex items-center gap-2"><span>✨</span> Land on more "for you" feeds</li>
-        <li className="flex items-center gap-2"><span>💞</span> Get followed by people who like your vibe</li>
-        <li className="flex items-center gap-2"><span>💬</span> Start real conversations</li>
-      </ul>
-      <Link
-        to="/post"
-        className="mt-6 inline-block w-full rounded-full py-3.5 bg-gradient-brand text-white font-extrabold glow-rose text-center"
-      >
-        Share my first post
-      </Link>
-      <p className="mt-3 text-[11px] text-ink-muted">This step is required to start meeting people.</p>
-    </ModalShell>
   )
 }
 

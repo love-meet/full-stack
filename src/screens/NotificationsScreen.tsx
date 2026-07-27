@@ -33,7 +33,7 @@ export default function NotificationsScreen() {
     // post_id for context but should open the gift, not the post).
     if ((n.type === 'gift' || n.type === 'gift_accepted' || n.type === 'gift_rejected') && n.gift_id) {
       navigate(`/gift/${n.gift_id}`)
-    } else if ((n.type === 'chat_message' || n.type === 'chat_reminder') && n.conversation_id) {
+    } else if ((n.type === 'chat_message' || n.type === 'chat_reminder' || n.type === 'match') && n.conversation_id) {
       navigate(`/chat/${n.conversation_id}`)
     } else if (n.post_id) navigate(`/p/${n.post_id}`)
     else if (n.type === 'welcome' || n.type === 'welcome_signup') navigate('/guide')
@@ -153,6 +153,7 @@ function message(n: AppNotification, t: TFunction): React.ReactNode {
     case 'game_invite': return <>{who} {t('notif.invitedGame')}</>
     case 'game_join': return <>{who} {t('notif.joinedGame')}</>
     case 'game_waiting': return <>{t('notif.turnWaiting')}</>
+    case 'match': return <>{t('notif.newMatch', { name: actorName(n, t) })}</>
     // Transactional / system notifications carry their full text in body.
     case 'welcome':
     case 'welcome_signup':
@@ -178,6 +179,7 @@ function glyph(type: AppNotification['type']): string {
     case 'gift_accepted': return '🎉'
     case 'gift_rejected': return '🎁'
     case 'match_post': return '✨'
+    case 'match': return '💘'
     case 'new_member_nearby': return '💕'
     case 'welcome': return '💕'
     case 'welcome_signup': return '💘'

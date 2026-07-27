@@ -1,80 +1,57 @@
-import { useEffect, useRef, useState, Fragment, useCallback, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useMemo, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useFeed, type FeedPost } from '../hooks/useFeed'
+import { useGalleryFeed, useRecordGalleryDecision, type GalleryCandidate } from '../hooks/useGalleryFeed'
 import OnboardingPrompts from '../components/OnboardingPrompts'
 import TopIcons from '../shell/TopIcons'
-import { useToggleLike } from '../hooks/usePostMutations'
-import { useFeedRealtime } from '../hooks/useFeedRealtime'
 import { useMySubscription } from '../hooks/usePayments'
-import { useRelations, useToggleFollow, type Relation } from '../hooks/useFollow'
 import { useLiveGames, type LiveGame } from '../hooks/usePixelGame'
-import { useAuth } from '../stores/auth'
-import BlueTick from '../components/BlueTick'
-import { useFeedPrefs } from '../stores/feedPrefs'
-import { getSurface } from '../lib/surface'
 import { avatarUrlOr } from '../lib/avatar'
+import { flagEmoji } from '../lib/flags'
 import PresenceDot from '../components/PresenceDot'
-import GiftSheet from '../components/GiftSheet'
 import FeedAd from '../components/FeedAd'
-import PostMoreDropdown from '../components/PostMoreDropdown'
-import { IconComment, IconShare, IconMore, IconPlay } from '../components/icons'
 
-// Sponsored slides appear at RANDOM gaps (not a fixed count) for free-mode
-// users, so an ad can surface as the next post at any time. Gaps stay within
-// these bounds so it's neither too rare nor spammy.
-const AD_MIN_GAP = 3
-const AD_MAX_GAP = 7
+// A sponsored slide follows roughly 1 in 5 cards. The decision is a
+// deterministic hash of (card id, session seed) — NOT the card's index —
+// so consuming a card (Interested/Pass removes it from the list) never
+// reshuffles which of the remaining cards carry an ad. The seed lives at
+// module scope: fresh per page load, stable across re-renders, and no
+// render-time ref/impure-call for the hooks rules to object to.
+const AD_SEED = Math.floor(Math.random() * 1e9)
 
-// Deterministic per-session ad positions: a seeded PRNG gives varied,
-// unpredictable gaps that stay stable across re-renders (and as more posts
-// load), so slides don't reshuffle while scrolling.
-function computeAdPositions(count: number, seed: number): Set<number> {
-  let a = seed >>> 0
-  const rand = () => {
-    a = (a + 0x6d2b79f5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+function adFollowsCard(cardId: string, seed: number): boolean {
+  let h = seed >>> 0
+  for (let i = 0; i < cardId.length; i++) {
+    h = Math.imul(h ^ cardId.charCodeAt(i), 0x01000193)
   }
-  const gap = () => AD_MIN_GAP + Math.floor(rand() * (AD_MAX_GAP - AD_MIN_GAP + 1))
-  const positions = new Set<number>()
-  let i = gap() - 1 // index after which the first ad shows
-  while (i < count) {
-    positions.add(i)
-    i += gap()
+  return (h >>> 0) % 5 === 0
+}
+
+/** Stable-per-card random subset of a gallery — 1 to all of the person's
+ *  photos, in their original order — per the "select one, two, three, or
+ *  all five pictures from an album at random" spec. */
+function pickRandomSubset(urls: string[]): string[] {
+  if (urls.length <= 1) return urls
+  const count = 1 + Math.floor(Math.random() * urls.length)
+  const indices = urls.map((_, i) => i)
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[indices[i], indices[j]] = [indices[j], indices[i]]
   }
-  return positions
+  return indices.slice(0, count).sort((x, y) => x - y).map((i) => urls[i])
 }
 
 export default function FeedScreen() {
   const { t } = useTranslation()
-  useFeedRealtime()
   const isSubscriber = !!useMySubscription().data
   const showAds = !isSubscriber
-  const feed = useFeed()
-  const scrollerRef = useRef<HTMLDivElement>(null)
-  const adSeed = useRef(Math.floor(Math.random() * 1e9))
+  const feed = useGalleryFeed()
 
-  const pages = feed.data?.pages ?? []
-  const posts = pages.flat()
-  const relations = useRelations(posts.map((p) => p.author_id))
+  const cards = feed.cards
   const liveGames = useLiveGames().data ?? []
-  const isEmpty = feed.status === 'success' && posts.length === 0
-  const adAfter = useMemo(
-    () => (showAds ? computeAdPositions(posts.length, adSeed.current) : new Set<number>()),
-    [showAds, posts.length],
-  )
-
-  // Load the next page as the viewer nears the end of the current one.
-  const onScroll = useCallback(() => {
-    const el = scrollerRef.current
-    if (!el || !feed.hasNextPage || feed.isFetchingNextPage) return
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - el.clientHeight * 1.5) {
-      feed.fetchNextPage()
-    }
-  }, [feed])
+  const isEmpty = feed.status === 'success' && cards.length === 0
+  const showError = feed.status === 'error' && cards.length === 0
 
   return (
     <>
@@ -95,11 +72,9 @@ export default function FeedScreen() {
         </div>
       </div>
 
-      {/* Full-screen vertical snap feed: one post per screen. Sits above the
-          mobile bottom-nav (bottom-16) and clears the desktop sidebar. */}
+      {/* Full-screen vertical snap feed: one person per screen. Sits above
+          the mobile bottom-nav (bottom-16) and clears the desktop sidebar. */}
       <div
-        ref={scrollerRef}
-        onScroll={onScroll}
         className="fixed top-0 left-0 right-0 bottom-[calc(4rem_+_var(--lm-bottom-inset))] lg:left-64 lg:bottom-0 xl:right-[22rem] bg-black overflow-y-scroll snap-y snap-mandatory overscroll-contain no-scrollbar"
       >
         {feed.status === 'pending' && (
@@ -108,10 +83,18 @@ export default function FeedScreen() {
           </div>
         )}
 
-        {feed.status === 'error' && (
+        {showError && (
           <div className="h-full grid place-items-center px-8">
-            <div className="glass rounded-2xl p-5 text-sm text-danger text-center">
-              {t('feed.loadError', { message: (feed.error as Error).message })}
+            <div className="glass rounded-2xl p-5 text-center space-y-4">
+              <p className="text-sm text-danger">
+                {t('feed.loadError', { message: feed.error?.message ?? '' })}
+              </p>
+              <button
+                onClick={feed.retry}
+                className="rounded-full px-6 py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose"
+              >
+                {t('feed.retry')}
+              </button>
             </div>
           </div>
         )}
@@ -128,24 +111,35 @@ export default function FeedScreen() {
 
         {liveGames.length > 0 && <LiveGamesSlide games={liveGames} />}
 
-        {posts.map((post, i) => (
-          <Fragment key={post.id}>
-            <FeedSlide post={post} relation={relations.data?.get(post.author_id)} />
-            {adAfter.has(i) && <AdSlide />}
-          </Fragment>
+        {cards.map((card) => (
+          <PersonCardSlide
+            key={card.id}
+            card={card}
+            onDecided={() => feed.consume(card.id)}
+            adAfter={showAds && adFollowsCard(card.id, AD_SEED)}
+          />
         ))}
-
-        {feed.isFetchingNextPage && (
-          <div className="h-16 grid place-items-center">
-            <div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-          </div>
-        )}
       </div>
     </>
   )
 }
 
-// A sponsored slide — same full-screen footprint as a post. Renders nothing
+function PersonCardSlide({
+  card, onDecided, adAfter,
+}: {
+  card: GalleryCandidate
+  onDecided: () => void
+  adAfter: boolean
+}) {
+  return (
+    <>
+      <PersonCard card={card} onDecided={onDecided} />
+      {adAfter && <AdSlide />}
+    </>
+  )
+}
+
+// A sponsored slide — same full-screen footprint as a card. Renders nothing
 // if no Adsterra key is configured, so the feed just skips it.
 function AdSlide() {
   const { t } = useTranslation()
@@ -171,12 +165,9 @@ function AdSlide() {
 }
 
 // All currently-live games in ONE slide, scrollable horizontally so 70 live
-// games don't flood the feed as 70 separate slides. Width matches the rest
-// of the feed (max-w-xl) so swiping vertically doesn't reveal a layout jump.
+// games don't flood the feed as 70 separate slides.
 function LiveGamesSlide({ games }: { games: LiveGame[] }) {
   const { t } = useTranslation()
-  // Centre the row when it fits the viewport (≤ 2 cards); flow-start so
-  // longer rows scroll naturally from the leading edge.
   return (
     <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center overflow-hidden">
       <div className="w-full max-w-xl mx-auto px-4">
@@ -243,391 +234,106 @@ function PlayerFace({ p }: { p?: LiveGame['players'][number] }) {
 }
 
 // ---------------------------------------------------------------------------
-// One full-screen post.
+// One full-screen person card — swipe horizontally through their photos,
+// Interested/Pass at the bottom.
 // ---------------------------------------------------------------------------
-function FeedSlide({ post, relation }: { post: FeedPost; relation?: Relation }) {
+function PersonCard({ card, onDecided }: { card: GalleryCandidate; onDecided: () => void }) {
   const { t } = useTranslation()
-  const myId = useAuth((s) => s.session?.user.id ?? null)
-  const toggleLike = useToggleLike()
-  const [popKey, setPopKey] = useState(0)
-  const [giftOpen, setGiftOpen] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [expanded, setExpanded] = useState(false)
-  const moreBtnRef = useRef<HTMLButtonElement>(null)
+  const decide = useRecordGalleryDecision()
+  const [photoIndex, setPhotoIndex] = useState(0)
+  const [deciding, setDeciding] = useState<'interested' | 'passed' | null>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const photos = useMemo(() => pickRandomSubset(card.gallery_urls), [card.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isMine = myId === post.author_id
+  const flag = flagEmoji(card.country_code)
+  const name = card.display_name ?? card.handle ?? t('feed.player')
 
-  function onLike() {
-    toggleLike.mutate({ postId: post.id, nextLiked: !post.liked_by_me })
-    if (!post.liked_by_me) setPopKey((k) => k + 1)
+  function onPhotoScroll() {
+    const el = scrollerRef.current
+    if (!el || el.clientWidth === 0) return
+    setPhotoIndex(Math.round(el.scrollLeft / el.clientWidth))
+  }
+
+  function decideAndClose(decision: 'interested' | 'passed') {
+    if (deciding) return
+    setDeciding(decision)
+    decide.mutate({ targetId: card.id, decision })
+    // Give the tap feedback a beat to show before the card disappears.
+    setTimeout(onDecided, 180)
   }
 
   return (
     <section className="relative h-full w-full snap-start snap-always bg-black overflow-hidden">
-      {/* Centered column — the post keeps a phone-ish max width (like before)
-          instead of stretching across a wide desktop. Everything (media,
-          caption, action rail) lives inside it. */}
       <div className="relative h-full w-full max-w-md mx-auto">
-      {/* Media — full HEIGHT of the screen, whole image/video visible (never
-          cropped); width follows. object-contain on a definite box. */}
-      {post.kind === 'image' ? (
-        <img src={post.media_url} alt={post.alt_text ?? ''} className="w-full h-full object-contain" />
-      ) : (
-        <FeedVideo src={post.media_url} />
-      )}
-
-      {/* Top + bottom scrims for legibility. */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/70 to-transparent" />
-
-      {/* Caption + author — bottom-left, above the action rail. */}
-      <div className="absolute left-0 right-16 bottom-0 p-4 pb-5">
-        <Link to={`/profile/${post.author_id}`} className="flex items-center gap-2.5 mb-2 active:opacity-70">
-          <span className="relative shrink-0">
-            <img
-              src={avatarUrlOr(post.author_avatar_url, post.author_gender)}
-              alt=""
-              className="w-10 h-10 rounded-full object-cover ring-2 ring-white/40"
-            />
-            <PresenceDot userId={post.author_id} size="md" ringColor="ring-black/60" />
-          </span>
-          <span className="text-sm font-bold text-white drop-shadow flex items-center gap-1 min-w-0">
-            <span className="truncate">@{post.author_handle ?? post.author_display_name ?? 'unknown'}</span>
-            {relation?.is_subscriber ? <BlueTick size={15} /> : post.author_is_verified && <VerifiedBadge />}
-          </span>
-          <span className="text-[11px] text-white/70 drop-shadow">· {timeAgo(post.created_at)}</span>
-          {!isMine && (
-            <FeedFollowButton authorId={post.author_id} initialFollowing={relation?.is_following ?? false} />
-          )}
-        </Link>
-        {post.caption && (
-          <button
-            onClick={() => setExpanded((e) => !e)}
-            className="text-left text-white text-sm leading-relaxed drop-shadow block"
-          >
-            <span className={expanded ? '' : 'line-clamp-2'}>{post.caption}</span>
-          </button>
-        )}
-        {post.location_label && (
-          <a
-            href={`https://maps.google.com/?q=${post.location_lat},${post.location_lon}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-white/90 hover:text-white text-xs drop-shadow transition-colors"
-          >
-            <span>📍</span>
-            <span className="truncate">{post.location_label}</span>
-          </a>
-        )}
-      </div>
-
-      {/* Action rail — vertical, bottom-right. */}
-      <div className="absolute right-2 bottom-4 flex flex-col items-center gap-5">
-        <RailButton onClick={onLike} label={post.hide_like_count ? undefined : formatCount(post.like_count)} active={post.liked_by_me}>
-          <motion.span
-            key={popKey}
-            initial={popKey ? { scale: 1.6 } : false}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 16 }}
-            className="text-[26px] leading-none"
-          >
-            {post.liked_by_me ? '❤️' : '🤍'}
-          </motion.span>
-        </RailButton>
-
-        {!post.comments_disabled && (
-          <Link to={`/p/${post.id}`} className="flex flex-col items-center gap-1 text-white drop-shadow">
-            <IconComment size={28} className="text-white" />
-            <span className="text-[11px] font-semibold">{formatCount(post.comment_count)}</span>
-          </Link>
-        )}
-
-        <RailButton onClick={() => shareToTelegram(post)}>
-          <IconShare size={28} className="text-white" />
-        </RailButton>
-
-        {!isMine && (
-          <RailButton onClick={() => setGiftOpen(true)} label={post.gift_count > 0 ? formatCount(post.gift_count) : undefined}>
-            <span className="text-[26px] leading-none">🎁</span>
-          </RailButton>
-        )}
-
-        <button
-          ref={moreBtnRef}
-          onClick={() => setMenuOpen((o) => !o)}
-          aria-label={t('feed.moreOptions')}
-          className="text-white drop-shadow"
+        {/* Swipeable photo strip. */}
+        <div
+          ref={scrollerRef}
+          onScroll={onPhotoScroll}
+          className="h-full w-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
         >
-          <IconMore size={26} className="text-white" />
-        </button>
-        {menuOpen && (
-          <PostMoreDropdown post={post} isMine={isMine} anchorRef={moreBtnRef} onClose={() => setMenuOpen(false)} />
+          {photos.map((url, i) => (
+            <img
+              key={`${url}-${i}`}
+              src={url}
+              alt=""
+              className="h-full w-full shrink-0 snap-center object-contain"
+            />
+          ))}
+        </div>
+
+        {/* Photo position dots (Stories-style), only shown when there's more than one. */}
+        {photos.length > 1 && (
+          <div className="absolute top-2 inset-x-2 flex gap-1" style={{ marginTop: 'var(--lm-top-inset)' }}>
+            {photos.map((_, i) => (
+              <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                <div className={`h-full bg-white transition-all ${i <= photoIndex ? 'w-full' : 'w-0'}`} />
+              </div>
+            ))}
+          </div>
         )}
-      </div>
-      </div>
 
-      <AnimatePresence>
-        {giftOpen && (
-          <GiftSheet
-            postId={post.id}
-            recipientId={post.author_id}
-            recipientLabel={post.author_handle ?? post.author_display_name ?? 'user'}
-            onClose={() => setGiftOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-    </section>
-  )
-}
+        {/* Top + bottom scrims for legibility. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/70 to-transparent" />
 
-/** Compact "Follow" chip on the feed author line (blurred bg). Disappears
- *  once you're following (initially or after tapping). */
-function FeedFollowButton({ authorId, initialFollowing }: { authorId: string; initialFollowing: boolean }) {
-  const { t } = useTranslation()
-  const toggle = useToggleFollow(authorId)
-  const [done, setDone] = useState(false)
-  if (initialFollowing || done) return null
-  return (
-    <button
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDone(true); toggle.mutate(true) }}
-      className="ml-1 shrink-0 text-[11px] font-bold text-white bg-white/15 backdrop-blur-sm px-2.5 py-0.5 rounded-full ring-1 ring-white/30"
-    >
-      {t('feed.follow')}
-    </button>
-  )
-}
-
-function RailButton({
-  children, onClick, label, active,
-}: {
-  children: React.ReactNode
-  onClick: () => void
-  label?: string
-  active?: boolean
-}) {
-  return (
-    <motion.button
-      onClick={onClick}
-      whileTap={{ scale: 0.85 }}
-      className={['flex flex-col items-center gap-1 drop-shadow', active ? 'text-rose' : 'text-white'].join(' ')}
-    >
-      {children}
-      {label && <span className="text-[11px] font-semibold">{label}</span>}
-    </motion.button>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Custom video player: autoplays (muted) when it's the on-screen post; tap
-// center to pause/replay; buffering spinner; bottom progress bar to scrub;
-// speaker toggle for sound. Pauses automatically when scrolled off-screen.
-// ---------------------------------------------------------------------------
-function FeedVideo({ src }: { src: string }) {
-  const { t } = useTranslation()
-  const ref = useRef<HTMLVideoElement>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const barRef = useRef<HTMLDivElement>(null)
-  const [playing, setPlaying] = useState(false)
-  const [buffering, setBuffering] = useState(false)
-  const [progress, setProgress] = useState(0) // 0..1
-  const muted = useFeedPrefs((s) => s.muted)
-  const setMuted = useFeedPrefs((s) => s.setMuted)
-  // Remember if the user explicitly paused this slide, so the visibility
-  // observer doesn't fight them and re-play it while it's still on screen.
-  const userPaused = useRef(false)
-
-  // Autoplay when this post is on screen; pause when it scrolls away.
-  useEffect(() => {
-    const el = wrapRef.current
-    const v = ref.current
-    if (!el || !v) return
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        const onScreen = entry.intersectionRatio >= 0.6
-        if (onScreen) {
-          userPaused.current = false
-          v.muted = useFeedPrefs.getState().muted
-          v.play().catch(() => {
-            // Autoplay with sound can be blocked — retry muted so it still plays.
-            v.muted = true
-            useFeedPrefs.getState().setMuted(true)
-            v.play().catch(() => {})
-          })
-        } else {
-          v.pause()
-        }
-      },
-      { threshold: [0, 0.6, 1] },
-    )
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
-
-  // Keep the element's muted flag in sync with the shared preference.
-  useEffect(() => {
-    if (ref.current) ref.current.muted = muted
-  }, [muted])
-
-  function togglePlay() {
-    const v = ref.current
-    if (!v) return
-    if (v.paused) {
-      userPaused.current = false
-      void v.play().catch(() => {})
-    } else {
-      userPaused.current = true
-      v.pause()
-    }
-  }
-
-  function seek(clientX: number) {
-    const v = ref.current
-    const bar = barRef.current
-    if (!v || !bar || !v.duration) return
-    const rect = bar.getBoundingClientRect()
-    const frac = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
-    v.currentTime = frac * v.duration
-    setProgress(frac)
-  }
-
-  return (
-    <div ref={wrapRef} className="relative h-full w-full grid place-items-center">
-      <video
-        ref={ref}
-        src={src}
-        className="w-full h-full object-contain"
-        playsInline
-        loop
-        muted={muted}
-        preload="metadata"
-        disablePictureInPicture
-        onContextMenu={(e) => e.preventDefault()}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onWaiting={() => setBuffering(true)}
-        onPlaying={() => setBuffering(false)}
-        onCanPlay={() => setBuffering(false)}
-        onTimeUpdate={(e) => {
-          const v = e.currentTarget
-          if (v.duration) setProgress(v.currentTime / v.duration)
-        }}
-      />
-
-      {/* Center tap target: play / pause. The control group (sound toggle +
-          play/pause) shows when paused or buffering and hides while playing. */}
-      <button
-        onClick={togglePlay}
-        aria-label={playing ? t('feed.pause') : t('feed.play')}
-        className="absolute inset-0 grid place-items-center"
-      >
-        {(!playing || buffering) && (
-          <span className="flex flex-col items-center gap-4">
-            {/* Sound toggle — sits above the play button, monochrome white to
-                match it. stopPropagation so it doesn't also play/pause. */}
-            <span
-              role="button"
-              aria-label={muted ? t('feed.unmute') : t('feed.mute')}
-              onClick={(e) => { e.stopPropagation(); setMuted(!muted) }}
-              className="w-10 h-10 rounded-full bg-black/45 grid place-items-center text-white"
-            >
-              {muted ? <IconMuted /> : <IconSound />}
+        {/* Identity — bottom-left. */}
+        <div className="absolute left-0 right-0 bottom-24 px-4">
+          <Link to={`/profile/${card.id}`} className="inline-flex items-center gap-2 active:opacity-70">
+            <span className="text-xl font-extrabold text-white drop-shadow">
+              {name}{card.age ? <span className="font-semibold">, {card.age}</span> : null}
             </span>
-            <span className="relative grid place-items-center w-16 h-16">
-              {buffering && (
-                <span className="absolute inset-0 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-              )}
-              <span className="w-16 h-16 rounded-full bg-black/45 grid place-items-center text-white">
-                {playing ? <PauseGlyph /> : <IconPlay size={30} className="ml-0.5" />}
-              </span>
-            </span>
-          </span>
-        )}
-      </button>
+            {flag && <span className="text-xl drop-shadow" aria-hidden>{flag}</span>}
+          </Link>
+          {card.handle && <p className="text-sm text-white/70 drop-shadow">@{card.handle}</p>}
+        </div>
 
-      {/* Bottom progress bar — view + scrub. */}
-      <div
-        ref={barRef}
-        onPointerDown={(e) => {
-          (e.target as HTMLElement).setPointerCapture?.(e.pointerId)
-          seek(e.clientX)
-        }}
-        onPointerMove={(e) => { if (e.buttons === 1) seek(e.clientX) }}
-        className="absolute bottom-0 left-0 right-0 px-0 py-2 cursor-pointer"
-      >
-        <div className="h-1 mx-0 rounded-full bg-white/25">
-          <div className="h-full rounded-full bg-white" style={{ width: `${progress * 100}%` }} />
+        {/* Interested / Pass — bottom action row. */}
+        <div className="absolute left-0 right-0 bottom-6 px-8 flex items-center justify-center gap-6">
+          <motion.button
+            onClick={() => decideAndClose('passed')}
+            whileTap={{ scale: 0.85 }}
+            disabled={!!deciding}
+            aria-label={t('feed.pass')}
+            className={[
+              'w-16 h-16 rounded-full grid place-items-center text-3xl glass ring-2 transition-shadow',
+              deciding === 'passed' ? 'ring-rose' : 'ring-white/20',
+            ].join(' ')}
+          >
+            ✕
+          </motion.button>
+          <motion.button
+            onClick={() => decideAndClose('interested')}
+            whileTap={{ scale: 0.85 }}
+            disabled={!!deciding}
+            aria-label={t('feed.interested')}
+            className={[
+              'w-16 h-16 rounded-full grid place-items-center text-3xl bg-gradient-brand glow-rose transition-shadow',
+              deciding === 'interested' ? 'ring-2 ring-white' : '',
+            ].join(' ')}
+          >
+            💚
+          </motion.button>
         </div>
       </div>
-    </div>
-  )
-}
-
-function PauseGlyph() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <rect x="6" y="5" width="4" height="14" rx="1" />
-      <rect x="14" y="5" width="4" height="14" rx="1" />
-    </svg>
-  )
-}
-
-function IconSound() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
-      <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
-      <path d="M16 8.5a4 4 0 0 1 0 7M18.5 6a7.5 7.5 0 0 1 0 12"
-        fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function IconMuted() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
-      <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
-      <path d="M16.5 9.5l5 5M21.5 9.5l-5 5"
-        fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-/** Small cyan ✓ badge, matching the mobile MaterialIcons "verified" tint. */
-function VerifiedBadge() {
-  return (
-    <svg viewBox="0 0 20 20" width="15" height="15" aria-label="Verified" className="text-gold shrink-0">
-      <path fill="currentColor" d="M10 1.2l2 1.6 2.5-.3.7 2.4 2.3 1-.4 2.5 1.4 2.1-1.6 2 .3 2.5-2.4.7-1 2.3-2.5-.4-2.1 1.4-2-1.6-2.5.3-.7-2.4-2.3-1 .4-2.5L.6 9.4 2.2 7.4 2 5l2.4-.7 1-2.3 2.5.4z" />
-      <path fill="#070A16" d="M8.5 12.2l-2-2 1.1-1.1 1 1 3.2-3.3 1.1 1.1z" />
-    </svg>
-  )
-}
-
-function formatCount(n: number): string {
-  if (n < 1000) return String(n)
-  if (n < 1_000_000) return (n / 1000).toFixed(n < 10_000 ? 1 : 0) + 'k'
-  return (n / 1_000_000).toFixed(1) + 'm'
-}
-
-function timeAgo(iso: string): string {
-  const t = new Date(iso).getTime()
-  const s = Math.max(0, (Date.now() - t) / 1000)
-  if (s < 60) return `${Math.floor(s)}s`
-  if (s < 3600) return `${Math.floor(s / 60)}m`
-  if (s < 86400) return `${Math.floor(s / 3600)}h`
-  return `${Math.floor(s / 86400)}d`
-}
-
-function shareToTelegram(post: FeedPost) {
-  const url = `${window.location.origin}/feed?post=${post.id}`
-  const text = post.caption
-    ? `“${post.caption.slice(0, 100)}” — @${post.author_handle ?? 'someone'} on Love meet`
-    : `Look at this on Love meet`
-  if (getSurface() === 'telegram' && window.Telegram?.WebApp) {
-    const share = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
-    const wa = window.Telegram.WebApp as unknown as { openTelegramLink?: (s: string) => void }
-    if (wa.openTelegramLink) { wa.openTelegramLink(share); return }
-  }
-  if (navigator.share) { void navigator.share({ url, text }).catch(() => {}); return }
-  window.open(
-    `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
-    '_blank',
+    </section>
   )
 }

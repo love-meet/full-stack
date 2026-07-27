@@ -863,3 +863,230 @@ What's live in **Phase 1** (front-end):
    of the feed instantly. From another browser / account, tapping the
    heart on that post should update the like count on the first browser
    within ~1s (realtime).
+
+## Feed activity bot (0093)
+
+Synthetic accounts that post + comment on the feed so it feels alive before
+real user volume builds up. Content policy: bot avatars are left blank (same
+generic placeholder any real user without a photo gets) and bot posts only
+ever use non-human stock imagery (nature/travel/pets/food/hobbies) — see the
+comment at the top of `supabase/functions/feed-bot/index.ts` before adding
+any new image to the pool.
+
+1. **Run the migration.** Paste
+   [supabase/migrations/0093_feed_bot.sql](supabase/migrations/0093_feed_bot.sql)
+   into the SQL editor — but **replace `<project-ref>` and `<FEED_BOT_SECRET>`
+   in the `net.http_post` call first**. Adds `profiles.is_bot`, an index for
+   dedup checks, and (if `pg_cron` + `pg_net` are both enabled) schedules the
+   bot to tick every 20 minutes.
+
+2. **Enable `pg_net`.** Dashboard → Database → Extensions → enable `pg_net`
+   (alongside `pg_cron`, already enabled for the game auto-sweep in
+   0057_game_autosweep.sql).
+
+3. **Deploy the function + set its secret:**
+   ```
+   npx supabase functions deploy feed-bot --no-verify-jwt --project-ref <ref>
+   npx supabase secrets set FEED_BOT_SECRET=<any long random string>
+   ```
+
+4. **Seed the bot roster — once.** Call the function manually with
+   `{"action":"seed"}` and the `x-webhook-secret` header set to your
+   `FEED_BOT_SECRET`, e.g.:
+   ```
+   curl -X POST https://<project-ref>.supabase.co/functions/v1/feed-bot \
+     -H "Content-Type: application/json" \
+     -H "x-webhook-secret: <FEED_BOT_SECRET>" \
+     -d '{"action":"seed"}'
+   ```
+   Creates ~18 bot accounts (real `auth.users` rows + `profiles.is_bot = true`).
+   Idempotent — safe to call again, it skips handles that already exist.
+
+5. **Smoke test:** call the function once more with an empty body (`{}`) and
+   confirm the response looks like `{"ok":true,"commented":0,"posted":M}`.
+   Check the profile Posts tab of a persona for new bot posts. `commented`
+   is always 0 while commenting is paused (see "Paused" note below) — do
+   NOT expect bot comments to appear on real posts.
+
+**Fix (0096):** the persona roster was originally seeded with `onboarded_at`
+set, which unintentionally made those ~18 accounts show up in Search and
+made them eligible for the "new member near you"/"someone you might like
+posted" notifications — i.e. discoverable as if they were real potential
+matches. Run [supabase/migrations/0096_persona_search_exclusion.sql](supabase/migrations/0096_persona_search_exclusion.sql)
+to clear it retroactively (safe — nothing in game-bot/chat-bot's RPCs
+depends on `onboarded_at`). New personas seeded after this fix no longer
+set it in the first place.
+
+## Live-game + chat bot (0094)
+
+Extends the **same** `is_bot` roster from feed-bot with two more capabilities:
+a bot can join a real user's game as a live opponent (Number Duel, Draughts,
+Pixel Rush), and a bot can hold up its end of a DM conversation using the
+Claude API. Neither needs new client code — a game bot joins through the
+existing invite-code flow, and a chat bot is reachable the moment a real user
+taps "Message" on a bot's profile (same `start_dm` RPC every DM uses).
+
+Because the game RPCs and the `messages` insert policy check `auth.uid()`,
+both functions sign in as the *acting* bot (a real Supabase session), unlike
+feed-bot which writes directly with the service-role key. That means every
+bot account needs one shared, known password — set once via `game-bot`'s
+`{"action":"prepare"}` call, never exposed to end users.
+
+1. **Run the migration.** Paste
+   [supabase/migrations/0094_game_chat_bot.sql](supabase/migrations/0094_game_chat_bot.sql)
+   into the SQL editor — **replace `<project-ref>` and `<GAME_BOT_SECRET>`
+   in the `net.http_post` call first**. Adds a lobby-scan index and schedules
+   `game-bot` to tick every minute (matches `sweep_games()`'s own cadence in
+   0057_game_autosweep.sql, so the bot never lags behind the AFK-forfeit
+   timers).
+
+2. **Deploy both functions + set secrets:**
+   ```
+   npx supabase functions deploy game-bot --no-verify-jwt --project-ref <ref>
+   npx supabase functions deploy chat-bot --no-verify-jwt --project-ref <ref>
+   npx supabase secrets set GAME_BOT_SECRET=<any long random string>
+   npx supabase secrets set CHAT_BOT_SECRET=<any long random string>
+   npx supabase secrets set BOT_ACCOUNT_PASSWORD=<any long random string>
+   npx supabase secrets set ANTHROPIC_API_KEY=<your Anthropic API key>
+   ```
+   `BOT_ACCOUNT_PASSWORD` must be the same value for both functions — it's
+   the shared login for every bot account.
+
+3. **Prepare the bot roster — once.** Call `game-bot` with `{"action":"prepare"}`:
+   ```
+   curl -X POST https://<project-ref>.supabase.co/functions/v1/game-bot \
+     -H "Content-Type: application/json" \
+     -H "x-webhook-secret: <GAME_BOT_SECRET>" \
+     -d '{"action":"prepare"}'
+   ```
+   Sets every `is_bot` account's password to `BOT_ACCOUNT_PASSWORD` and tops
+   up any bot under 20 coins (games cost 1 coin to create/join). Idempotent —
+   safe to re-run any time (e.g. after seeding new bots via feed-bot).
+
+4. **Wire up the chat webhook.** Dashboard → Database → Webhooks → new
+   webhook on `public.messages`, event **INSERT**, HTTP Request to
+   `https://<project-ref>.supabase.co/functions/v1/chat-bot`, header
+   `x-webhook-secret: <CHAT_BOT_SECRET>`. Same pattern as the existing
+   `notify-email` webhook on `public.notifications` (see M5 above).
+
+5. **Smoke test — games:** create a 1v1 game from a real account, don't
+   invite anyone, and wait ~1 minute. A bot should join automatically (check
+   `/play/<code>` — an opponent appears). Start the match and confirm the
+   bot actually takes turns (Number Duel: sets a secret then guesses;
+   Draughts: moves a piece within a minute of its turn; Pixel Rush: uploads
+   an image on its turn, then "solves" after a several-second delay).
+
+6. **Smoke test — chat:** from a real account, open a bot's profile (e.g.
+   one that commented on your feed) and tap Message. Send something. Within
+   a few seconds you should see the typing indicator, then an in-character
+   reply. Send a follow-up and confirm the reply stays consistent with
+   earlier context (it's reading the last 20 messages each time).
+
+## Like bots (0095)
+
+A separate, much larger (up to ~10,000) pool of bot accounts whose only job
+is to like real posts — distinct from feed-bot's persona roster
+(`profiles.bot_kind`: `'persona'` = posts/comments/games/chat, `'liker'` =
+likes only). Likers have no bio, no photo, are never discoverable in search,
+never get onboarding/match notifications, and a like from one never
+generates a "X liked your post" notification — see the header comment in
+`0095_like_bots.sql` for why each of those is deliberate. Likes trickle in
+over many 5-minute ticks and most posts settle well under the full bot pool
+— nothing is designed to put all 10,000 likes on one post.
+
+1. **Run the migration.** Paste
+   [supabase/migrations/0095_like_bots.sql](supabase/migrations/0095_like_bots.sql)
+   into the SQL editor — **replace `<project-ref>` and `<LIKE_BOT_SECRET>`
+   in the `net.http_post` call first**. Adds `profiles.bot_kind` (backfills
+   existing bots to `'persona'`), the `bot_add_likes()` SQL helper (not
+   grantable to real users — only reachable via the Edge Function's
+   service-role client), and schedules `like-bot` to tick every 5 minutes.
+
+2. **Deploy the function + set its secret:**
+   ```
+   npx supabase functions deploy like-bot --no-verify-jwt --project-ref <ref>
+   npx supabase secrets set LIKE_BOT_SECRET=<any long random string>
+   ```
+
+3. **Seed the liker pool — in chunks, up to your target.** Each call only
+   creates what's still missing (≤300 per call to stay well inside the
+   function's execution time limit), so just call it repeatedly until the
+   response says `"done":true`:
+   ```
+   curl -X POST https://<project-ref>.supabase.co/functions/v1/like-bot \
+     -H "Content-Type: application/json" \
+     -H "x-webhook-secret: <LIKE_BOT_SECRET>" \
+     -d '{"action":"seed","target":10000}'
+   ```
+   At ~300/call that's ~34 calls for the full 10,000 — a small shell loop
+   works fine:
+   ```
+   for i in $(seq 1 40); do
+     curl -s -X POST https://<project-ref>.supabase.co/functions/v1/like-bot \
+       -H "Content-Type: application/json" -H "x-webhook-secret: <LIKE_BOT_SECRET>" \
+       -d '{"action":"seed","target":10000}'
+     echo
+   done
+   ```
+   You don't have to seed all 10,000 up front — seed a smaller `target`
+   (e.g. 500) to start, and re-run with a higher `target` later to top up.
+
+4. **Smoke test:** call the function once more with an empty body (`{}`)
+   and confirm the response looks like `{"ok":true,"liked":N,"postsTouched":M}`.
+   Check a recent post's like count over a few ticks (~15–20 minutes) —
+   it should climb gradually, a few at a time, not jump all at once. Confirm
+   the post author does **not** get a flood of like notifications from it.
+
+**Paused (2026-07-26):** liking (`like-bot`'s tick) and commenting
+(`feed-bot`'s `runComments`) are both commented out for now, in favor of the
+gallery flow below. Posting to the feed (`feed-bot`'s `runPosts`) is
+unaffected. Re-enable either by uncommenting the marked line in each
+function's `index.ts` — the underlying logic wasn't touched, just made
+unreachable.
+
+## Adam's AI-generated gallery (gallery-bot)
+
+A one-off, deliberate exception to every other bot's non-human-imagery
+policy: the persona **Adam** (`adam_reeves`, added to feed-bot's roster) gets
+a 5-photo AI-generated gallery via [Replicate](https://replicate.com),
+uploaded to Cloudinary like any other media in this app, and saved to
+`profiles.gallery_urls` — the same column every real user already fills
+during onboarding but that had no display anywhere until now. Real users see
+it on the new **Gallery** tab on the profile screen (next to Posts).
+
+Read the header comment in `supabase/functions/gallery-bot/index.ts` before
+extending this pattern to any other bot — it's an explicit, flagged policy
+reversal, not a default.
+
+1. Get a Replicate API token: create an account at
+   [replicate.com](https://replicate.com), then grab a token from
+   [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens).
+   Image generation is pay-per-use (Flux Schnell is inexpensive per image).
+
+2. **Deploy the function + set secrets:**
+   ```
+   npx supabase functions deploy gallery-bot --no-verify-jwt --project-ref <ref>
+   npx supabase secrets set GALLERY_BOT_SECRET=<any long random string>
+   npx supabase secrets set REPLICATE_API_TOKEN=<your Replicate token>
+   npx supabase secrets set CLOUDINARY_CLOUD_NAME=<same as VITE_CLOUDINARY_CLOUD_NAME>
+   npx supabase secrets set CLOUDINARY_UPLOAD_PRESET=<same as VITE_CLOUDINARY_UPLOAD_PRESET>
+   ```
+
+3. **Make sure Adam exists first** — call feed-bot's `{"action":"seed"}` (see
+   the Feed activity bot section above) so `adam_reeves` is created before
+   generating his gallery.
+
+4. **Generate the gallery** (one-off, not scheduled — call it whenever you
+   want to (re)generate Adam's photos):
+   ```
+   curl -X POST https://<project-ref>.supabase.co/functions/v1/gallery-bot \
+     -H "Content-Type: application/json" \
+     -H "x-webhook-secret: <GALLERY_BOT_SECRET>" \
+     -d '{}'
+   ```
+   Takes a a few tens of seconds (5 image generations). Response looks like
+   `{"ok":true,"handle":"adam_reeves","generated":5,"gallery_urls":[...]}`.
+
+5. **Smoke test:** open Adam's profile in the app and check the new Gallery
+   tab — should show his 5 generated photos. Re-running the function
+   regenerates and replaces all 5.
