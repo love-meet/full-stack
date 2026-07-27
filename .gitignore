@@ -31,3 +31,6 @@ supabase/.branches/
 *.njsproj
 *.sln
 *.sw?
+
+# Netlify CLI local state
+.netlify/
