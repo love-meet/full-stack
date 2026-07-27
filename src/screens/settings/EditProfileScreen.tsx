@@ -11,12 +11,14 @@ import {
 } from '../../hooks/useProfile'
 import { useUploadAvatar } from '../../hooks/useUploadAvatar'
 import { avatarFor } from '../../lib/avatar'
+import GalleryEditor from '../../components/GalleryEditor'
 
 const GENDERS: Profile['gender'][] = ['female', 'male', 'nonbinary', 'other', 'prefer_not_to_say']
 const LOOKING: NonNullable<Profile['looking_for']>[] = ['serious', 'casual', 'friends']
 
 type Form = {
   avatar_url: string
+  gallery: string[]
   display_name: string
   handle: string
   bio: string
@@ -35,6 +37,7 @@ type Form = {
 function fromProfile(p: Profile): Form {
   return {
     avatar_url: p.avatar_url ?? '',
+    gallery: (p.gallery_urls ?? []).filter(Boolean),
     display_name: p.display_name ?? '',
     handle: p.handle ?? '',
     bio: p.bio ?? '',
@@ -54,6 +57,9 @@ function fromProfile(p: Profile): Form {
 function toPatch(form: Form, original: Profile): ProfileUpdate {
   const patch: ProfileUpdate = {}
   if (form.avatar_url !== (original.avatar_url ?? '')) patch.avatar_url = form.avatar_url || null
+  if (JSON.stringify(form.gallery) !== JSON.stringify((original.gallery_urls ?? []).filter(Boolean))) {
+    patch.gallery_urls = form.gallery
+  }
   if (form.display_name !== (original.display_name ?? '')) patch.display_name = form.display_name.trim() || null
   if (form.handle !== (original.handle ?? '')) patch.handle = form.handle.trim() || null
   if (form.bio !== (original.bio ?? '')) patch.bio = form.bio.trim() || null
@@ -275,6 +281,20 @@ export default function EditProfileScreen() {
               placeholder={t('editProfile.bioPlaceholder')}
             />
           </Field>
+        </Section>
+
+        {/* --- Gallery — the photos the discovery feed shows other users.
+             Deliberately NOT wrapped in <Field>: that renders a <label>, and
+             a label around this grid would route stray clicks into the
+             hidden file inputs. --- */}
+        <Section title={t('editProfile.gallery')}>
+          <div>
+            <p className="text-[11px] text-ink-muted mb-2">{t('editProfile.galleryHint')}</p>
+            <GalleryEditor
+              value={form.gallery}
+              onChange={(next) => set('gallery', next)}
+            />
+          </div>
         </Section>
 
         {/* --- Identity --- */}

@@ -60,7 +60,7 @@ export default function ProfileTabs({ userId, isMe }: Props) {
 
       <div className="pt-1">
         {active === 'posts'   && <PostsGrid userId={userId} />}
-        {active === 'gallery' && <GalleryGrid userId={userId} />}
+        {active === 'gallery' && <GalleryGrid userId={userId} isMe={isMe} />}
         {active === 'gifts'   && <GiftsList userId={userId} />}
         {active === 'videos'  && <ComingSoon />}
         {active === 'career'  && <ComingSoon />}
@@ -69,7 +69,7 @@ export default function ProfileTabs({ userId, isMe }: Props) {
   )
 }
 
-function GalleryGrid({ userId }: { userId: string }) {
+function GalleryGrid({ userId, isMe }: { userId: string; isMe: boolean }) {
   const { t } = useTranslation()
   const q = useProfileById(userId)
 
@@ -88,16 +88,40 @@ function GalleryGrid({ userId }: { userId: string }) {
   }
 
   const photos = (q.data?.gallery_urls ?? []).filter(Boolean)
-  if (photos.length === 0) return <Empty icon="◫" label={t('profile.noGalleryYet')} />
+
+  // The gallery is what the discovery feed shows other people, so give the
+  // owner a direct way in — Edit profile is not an obvious place to look.
+  const editLink = isMe ? (
+    <div className="px-5 pt-4">
+      <Link
+        to="/profile/edit"
+        className="block w-full glass rounded-full py-3 text-center text-sm font-semibold text-ink-2 hover:text-rose transition-colors"
+      >
+        {t('profile.editGallery')}
+      </Link>
+    </div>
+  ) : null
+
+  if (photos.length === 0) {
+    return (
+      <>
+        <Empty icon="◫" label={t('profile.noGalleryYet')} />
+        {editLink}
+      </>
+    )
+  }
 
   return (
-    <div className="grid grid-cols-3 gap-px bg-white/5">
-      {photos.map((url, i) => (
-        <div key={`${url}-${i}`} className="aspect-square bg-surface overflow-hidden">
-          <img src={url} alt="" className="w-full h-full object-cover" />
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-3 gap-px bg-white/5">
+        {photos.map((url, i) => (
+          <div key={`${url}-${i}`} className="aspect-square bg-surface overflow-hidden">
+            <img src={url} alt="" className="w-full h-full object-cover" />
+          </div>
+        ))}
+      </div>
+      {editLink}
+    </>
   )
 }
 
