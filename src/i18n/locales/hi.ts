@@ -112,6 +112,7 @@ export default {
         regionLabel: 'क्षेत्र',
         countryLabel: 'देश',
         usageNote: 'हम आपको प्रासंगिक लोग दिखाने के लिए आपके स्थान का उपयोग करते हैं। आप इसे कभी भी अपनी प्रोफ़ाइल में अपडेट कर सकते हैं।',
+        enterManuallyLink: 'या इसे मैन्युअल रूप से दर्ज करें',
         enterManually: 'अपना स्थान मैन्युअल रूप से दर्ज करें।',
         stateRegionLabel: 'राज्य / क्षेत्र',
         selectCountry: 'देश चुनें…',

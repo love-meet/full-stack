@@ -112,6 +112,7 @@ export default {
         regionLabel: '地区',
         countryLabel: '国家',
         usageNote: '我们使用你的位置来为你展示相关的人。你可以随时在个人资料中更新此设置。',
+        enterManuallyLink: '或手动输入',
         enterManually: '手动输入你的位置。',
         stateRegionLabel: '省份 / 地区',
         selectCountry: '选择国家…',

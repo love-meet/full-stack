@@ -112,6 +112,7 @@ export default {
         regionLabel: 'ภูมิภาค',
         countryLabel: 'ประเทศ',
         usageNote: 'เราใช้ตำแหน่งของคุณเพื่อแสดงคนที่เกี่ยวข้อง คุณสามารถอัปเดตได้ทุกเมื่อในโปรไฟล์ของคุณ',
+        enterManuallyLink: 'หรือกรอกด้วยตนเอง',
         enterManually: 'กรอกตำแหน่งของคุณด้วยตนเอง',
         stateRegionLabel: 'จังหวัด / ภูมิภาค',
         selectCountry: 'เลือกประเทศ…',

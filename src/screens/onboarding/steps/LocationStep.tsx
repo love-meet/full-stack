@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -17,6 +17,22 @@ export default function LocationStep({ data, set }: StepProps) {
   const [error, setError] = useState<string | null>(null)
   const [manualOpen, setManualOpen] = useState(false)
 
+  // Watchdog for getCurrentPosition never calling EITHER callback. The
+  // `timeout` option below only starts counting once the permission prompt
+  // has been answered, so a dismissed or suppressed prompt (common in
+  // in-app browsers, e.g. Telegram's Mini-App WebView) leaves this step
+  // pinned on "Detecting…" forever — no error, so no manual fallback, and
+  // Continue never enables. This guarantees we always reach a state the
+  // user can act on.
+  const watchdog = useRef<number | null>(null)
+  function clearWatchdog() {
+    if (watchdog.current !== null) {
+      window.clearTimeout(watchdog.current)
+      watchdog.current = null
+    }
+  }
+  useEffect(() => clearWatchdog, [])
+
   function detect() {
     if (!('geolocation' in navigator)) {
       setStatus('error')
@@ -25,8 +41,14 @@ export default function LocationStep({ data, set }: StepProps) {
     }
     setStatus('asking')
     setError(null)
+    clearWatchdog()
+    watchdog.current = window.setTimeout(() => {
+      setStatus('error')
+      setError(t('onboarding.stepFields.location.timeout'))
+    }, 15000)
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        clearWatchdog()
         try {
           const { latitude, longitude } = pos.coords
           const detail = await reverseGeocode(latitude, longitude)
@@ -48,6 +70,7 @@ export default function LocationStep({ data, set }: StepProps) {
         }
       },
       (err) => {
+        clearWatchdog()
         setStatus('error')
         setError(geolocationErrorMessage(err, t))
       },
@@ -92,6 +115,17 @@ export default function LocationStep({ data, set }: StepProps) {
                   {t('onboarding.stepFields.location.continueManually')}
                 </button>
               </div>
+            )}
+            {/* Always offered — never make GPS the only way through this
+                step. Users who decline location, or whose browser blocks it
+                outright, still need a path forward. */}
+            {status !== 'error' && (
+              <button
+                onClick={() => { clearWatchdog(); setStatus('idle'); setManualOpen(true) }}
+                className="w-full text-center text-xs text-ink-muted hover:text-rose transition-colors py-1"
+              >
+                {t('onboarding.stepFields.location.enterManuallyLink')}
+              </button>
             )}
           </motion.div>
         ) : manualOpen || manual ? (

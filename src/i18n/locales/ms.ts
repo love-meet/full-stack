@@ -112,6 +112,7 @@ export default {
         regionLabel: 'Wilayah',
         countryLabel: 'Negara',
         usageNote: 'Kami guna lokasi anda untuk tunjukkan orang yang relevan. Anda boleh kemas kini ini bila-bila masa dalam profil anda.',
+        enterManuallyLink: 'Atau masukkannya secara manual',
         enterManually: 'Masukkan lokasi anda secara manual.',
         stateRegionLabel: 'Negeri / wilayah',
         selectCountry: 'Pilih negara…',

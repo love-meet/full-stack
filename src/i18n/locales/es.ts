@@ -112,6 +112,7 @@ export default {
         regionLabel: 'Región',
         countryLabel: 'País',
         usageNote: 'Usamos tu ubicación para mostrarte personas relevantes. Puedes actualizarla en cualquier momento desde tu perfil.',
+        enterManuallyLink: 'O ingrésala manualmente',
         enterManually: 'Ingresa tu ubicación manualmente.',
         stateRegionLabel: 'Departamento / región',
         selectCountry: 'Seleccionar país…',
