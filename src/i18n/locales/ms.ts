@@ -172,6 +172,8 @@ export default {
     mute: 'Senyapkan',
     unmute: 'Nyahsenyap',
     pass: 'Langkau',
+    prevPhoto: 'Foto sebelumnya',
+    nextPhoto: 'Foto seterusnya',
     interested: 'Saya berminat',
   },
   post: {

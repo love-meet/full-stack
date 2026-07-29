@@ -172,6 +172,8 @@ export default {
     mute: 'म्यूट करें',
     unmute: 'अनम्यूट करें',
     pass: 'छोड़ें',
+    prevPhoto: 'पिछली फ़ोटो',
+    nextPhoto: 'अगली फ़ोटो',
     interested: 'मुझे दिलचस्पी है',
   },
   post: {

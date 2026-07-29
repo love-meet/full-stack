@@ -172,6 +172,8 @@ export default {
     mute: 'ปิดเสียง',
     unmute: 'เปิดเสียง',
     pass: 'ข้าม',
+    prevPhoto: 'รูปก่อนหน้า',
+    nextPhoto: 'รูปถัดไป',
     interested: 'ฉันสนใจ',
   },
   post: {

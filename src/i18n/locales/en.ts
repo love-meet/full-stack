@@ -172,6 +172,8 @@ export default {
     mute: 'Mute',
     unmute: 'Unmute',
     pass: 'Pass',
+    prevPhoto: 'Previous photo',
+    nextPhoto: 'Next photo',
     interested: "I'm interested",
   },
   post: {

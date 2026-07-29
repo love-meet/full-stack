@@ -172,6 +172,8 @@ export default {
     mute: '静音',
     unmute: '取消静音',
     pass: '跳过',
+    prevPhoto: '上一张照片',
+    nextPhoto: '下一张照片',
     interested: '我感兴趣',
   },
   post: {

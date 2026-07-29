@@ -172,6 +172,8 @@ export default {
     mute: 'Couper le son',
     unmute: 'Réactiver le son',
     pass: 'Passer',
+    prevPhoto: 'Photo précédente',
+    nextPhoto: 'Photo suivante',
     interested: 'Je suis intéressé(e)',
   },
   post: {

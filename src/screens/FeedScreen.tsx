@@ -246,6 +246,15 @@ function PersonCard({ card, onDecided }: { card: GalleryCandidate; onDecided: ()
     setPhotoIndex(Math.round(el.scrollLeft / el.clientWidth))
   }
 
+  /** Advance the carousel one photo. Touch users swipe; this gives mouse and
+   *  keyboard users a way through the gallery, which they otherwise had no
+   *  affordance for at all (wheel-down just moves to the next person). */
+  function step(dir: -1 | 1) {
+    const el = scrollerRef.current
+    if (!el || el.clientWidth === 0) return
+    el.scrollBy({ left: dir * el.clientWidth, behavior: 'smooth' })
+  }
+
   function decideAndClose(decision: 'interested' | 'passed') {
     if (deciding) return
     setDeciding(decision)
@@ -268,10 +277,45 @@ function PersonCard({ card, onDecided }: { card: GalleryCandidate; onDecided: ()
               key={`${url}-${i}`}
               src={url}
               alt=""
-              className="h-full w-full shrink-0 snap-center object-contain"
+              // cover, not contain: a full-screen gallery card should fill the
+              // frame like every other swipe-feed dating app. contain left
+              // portrait/transparent images floating in a black letterbox.
+              className="h-full w-full shrink-0 snap-center object-cover"
             />
           ))}
         </div>
+
+        {/* Prev/next — the only way through a gallery with a mouse. Sits
+            above the photo strip but below the identity/action rows. */}
+        {photos.length > 1 && (
+          <>
+            {photoIndex > 0 && (
+              <button
+                type="button"
+                onClick={() => step(-1)}
+                aria-label={t('feed.prevPhoto')}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full grid place-items-center bg-black/40 hover:bg-black/60 text-white text-xl backdrop-blur-sm transition-colors"
+              >
+                ‹
+              </button>
+            )}
+            {photoIndex < photos.length - 1 && (
+              <button
+                type="button"
+                onClick={() => step(1)}
+                aria-label={t('feed.nextPhoto')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full grid place-items-center bg-black/40 hover:bg-black/60 text-white text-xl backdrop-blur-sm transition-colors"
+              >
+                ›
+              </button>
+            )}
+            {/* Photo counter, so it's obvious this is a gallery of N. */}
+            <div className="absolute top-3 right-3 z-10 rounded-full bg-black/45 backdrop-blur-sm px-2.5 py-1 text-[11px] font-bold text-white"
+                 style={{ marginTop: 'var(--lm-top-inset)' }}>
+              {photoIndex + 1}/{photos.length}
+            </div>
+          </>
+        )}
 
         {/* Photo position dots (Stories-style), only shown when there's more than one. */}
         {photos.length > 1 && (

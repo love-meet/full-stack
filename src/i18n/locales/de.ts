@@ -172,6 +172,8 @@ export default {
     mute: 'Stummschalten',
     unmute: 'Ton aktivieren',
     pass: 'Überspringen',
+    prevPhoto: 'Vorheriges Foto',
+    nextPhoto: 'Nächstes Foto',
     interested: 'Interessiert',
   },
   post: {
