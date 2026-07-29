@@ -7,8 +7,8 @@ import OnboardingPrompts from '../components/OnboardingPrompts'
 import TopIcons from '../shell/TopIcons'
 import { useMySubscription } from '../hooks/usePayments'
 import { useLiveGames, type LiveGame } from '../hooks/usePixelGame'
-import { avatarUrlOr } from '../lib/avatar'
-import { flagEmoji } from '../lib/flags'
+import { avatarFor, avatarUrlOr } from '../lib/avatar'
+import { flagEmoji, flagImageUrl } from '../lib/flags'
 import PresenceDot from '../components/PresenceDot'
 import FeedAd from '../components/FeedAd'
 
@@ -26,20 +26,6 @@ function adFollowsCard(cardId: string, seed: number): boolean {
     h = Math.imul(h ^ cardId.charCodeAt(i), 0x01000193)
   }
   return (h >>> 0) % 5 === 0
-}
-
-/** Stable-per-card random subset of a gallery — 1 to all of the person's
- *  photos, in their original order — per the "select one, two, three, or
- *  all five pictures from an album at random" spec. */
-function pickRandomSubset(urls: string[]): string[] {
-  if (urls.length <= 1) return urls
-  const count = 1 + Math.floor(Math.random() * urls.length)
-  const indices = urls.map((_, i) => i)
-  for (let i = indices.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[indices[i], indices[j]] = [indices[j], indices[i]]
-  }
-  return indices.slice(0, count).sort((x, y) => x - y).map((i) => urls[i])
 }
 
 export default function FeedScreen() {
@@ -243,9 +229,15 @@ function PersonCard({ card, onDecided }: { card: GalleryCandidate; onDecided: ()
   const [photoIndex, setPhotoIndex] = useState(0)
   const [deciding, setDeciding] = useState<'interested' | 'passed' | null>(null)
   const scrollerRef = useRef<HTMLDivElement>(null)
-  const photos = useMemo(() => pickRandomSubset(card.gallery_urls), [card.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The person's WHOLE gallery, in their own order — one slider per person.
+  const photos = useMemo(
+    () => card.gallery_urls.filter(Boolean),
+    [card.gallery_urls],
+  )
 
   const flag = flagEmoji(card.country_code)
+  const flagSrc = flagImageUrl(card.country_code)
+  const avatar = avatarFor(card)
   const name = card.display_name ?? card.handle ?? t('feed.player')
 
   function onPhotoScroll() {
@@ -295,15 +287,31 @@ function PersonCard({ card, onDecided }: { card: GalleryCandidate; onDecided: ()
         {/* Top + bottom scrims for legibility. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/70 to-transparent" />
 
-        {/* Identity — bottom-left. */}
+        {/* Identity — bottom-left: avatar + name/age/flag + handle. */}
         <div className="absolute left-0 right-0 bottom-24 px-4">
-          <Link to={`/profile/${card.id}`} className="inline-flex items-center gap-2 active:opacity-70">
-            <span className="text-xl font-extrabold text-white drop-shadow">
-              {name}{card.age ? <span className="font-semibold">, {card.age}</span> : null}
+          <Link to={`/profile/${card.id}`} className="flex items-center gap-3 active:opacity-70">
+            <img
+              src={avatar}
+              alt=""
+              className="w-12 h-12 rounded-full object-cover ring-2 ring-white/70 shadow-lg shrink-0"
+            />
+            <span className="min-w-0">
+              <span className="flex items-center gap-2">
+                <span className="text-xl font-extrabold text-white drop-shadow truncate">
+                  {name}{card.age ? <span className="font-semibold">, {card.age}</span> : null}
+                </span>
+                {/* Image, not emoji — Windows renders flag emoji as bare
+                    letters ("NG"). Falls back to the code if it can't load. */}
+                {flagSrc
+                  ? <img src={flagSrc} alt={card.country_code ?? ''}
+                         className="h-4 w-auto rounded-sm shadow shrink-0" loading="lazy" />
+                  : flag && <span className="text-lg drop-shadow" aria-hidden>{flag}</span>}
+              </span>
+              {card.handle && (
+                <span className="block text-sm text-white/70 drop-shadow truncate">@{card.handle}</span>
+              )}
             </span>
-            {flag && <span className="text-xl drop-shadow" aria-hidden>{flag}</span>}
           </Link>
-          {card.handle && <p className="text-sm text-white/70 drop-shadow">@{card.handle}</p>}
         </div>
 
         {/* Interested / Pass — bottom action row. */}

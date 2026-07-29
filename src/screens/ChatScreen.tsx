@@ -15,6 +15,8 @@ import { useAuth } from '../stores/auth'
 import { useRelations } from '../hooks/useFollow'
 import { avatarUrlOr } from '../lib/avatar'
 import BlueTick from '../components/BlueTick'
+import InterestedList from './chat/InterestedList'
+import { useMyInterests } from '../hooks/useGalleryFeed'
 
 export default function ChatScreen() {
   const { t } = useTranslation()
@@ -24,6 +26,8 @@ export default function ChatScreen() {
   const typingMap = useTypingMap()
   const relations = useRelations((convs.data ?? []).map((c) => c.other_id))
   const [q, setQ] = useState('')
+  const [tab, setTab] = useState<'messages' | 'interested'>('messages')
+  const interests = useMyInterests()
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase()
@@ -42,6 +46,38 @@ export default function ChatScreen() {
       <ScreenHeader title={t('chat.title')} right={<TopIcons />} />
 
       <ReturnToGameBanner />
+
+      {/* Messages | Interested */}
+      <div className="flex mx-5 sm:mx-8 mt-4 border-b border-white/10">
+        {([
+          ['messages',   t('chat.tabMessages'),   null],
+          ['interested', t('chat.tabInterested'), (interests.data ?? []).length || null],
+        ] as const).map(([key, label, count]) => {
+          const isActive = tab === key
+          return (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={[
+                'relative flex-1 py-3 text-sm font-semibold transition-colors',
+                isActive ? 'text-ink' : 'text-ink-muted',
+              ].join(' ')}
+            >
+              {label}
+              {count ? <span className="ml-1.5 text-[11px] text-rose font-bold">{count}</span> : null}
+              {isActive && (
+                <motion.div
+                  layoutId="chat-tab-underline"
+                  className="absolute inset-x-0 -bottom-px h-[3px] bg-magenta rounded-full"
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {tab === 'interested' ? <InterestedList /> : <>
 
       <div className="px-5 sm:px-8 pt-5">
         <div className="glass rounded-full px-4 py-2.5 flex items-center gap-2 focus-within:ring-brand transition-shadow">
@@ -91,6 +127,8 @@ export default function ChatScreen() {
           </motion.li>
         ))}
       </motion.ul>
+
+      </>}
     </div>
   )
 }

@@ -21,6 +21,7 @@ import TypingIndicatorBubble from '../components/chat/TypingIndicatorBubble'
 import MessageActionsSheet from '../components/chat/MessageActionsSheet'
 import ChatOptionsSheet from '../components/chat/ChatOptionsSheet'
 import { useUploadChatMedia, type ChatMediaUpload } from '../hooks/useUploadChatMedia'
+import { useCreateGame } from '../hooks/usePixelGame'
 
 type ComposerMode =
   | { kind: 'idle' }
@@ -476,6 +477,89 @@ function ProfileHeaderBlock({
 
 // ---------- Composer ----------
 
+/**
+ * Chat → game bridge. Creates a 1v1 game of the chosen type, posts the join
+ * link into the conversation so the other person can tap straight through,
+ * then drops the creator into the lobby.
+ *
+ * Note create_game costs 1 coin (see 0090_games_coins.sql) — a failure here
+ * is usually "Not enough coins", so the error is surfaced inline rather than
+ * swallowed.
+ */
+function GameInviteButton({
+  disabled, onInvite,
+}: { disabled: boolean; onInvite: (body: string) => Promise<void> }) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const createGame = useCreateGame()
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const GAMES = [
+    { type: 'pixel_rush'  as const, emoji: '🧩', label: t('games.pixelRushTitle') },
+    { type: 'number_duel' as const, emoji: '🔢', label: t('games.numberDuelTitle') },
+    { type: 'draughts'    as const, emoji: '♟',  label: t('games.draughtsTitle') },
+  ]
+
+  async function start(type: 'pixel_rush' | 'number_duel' | 'draughts', label: string) {
+    setError(null)
+    try {
+      const game = await createGame.mutateAsync({ kind: '1v1', type })
+      const url = `${window.location.origin}/play/${game.invite_code}`
+      await onInvite(t('chat.gameInviteText', { game: label, url }))
+      setOpen(false)
+      navigate(`/play/${game.invite_code}`)
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={disabled || createGame.isPending}
+        aria-label={t('chat.playGame')}
+        className="w-10 h-10 grid place-items-center rounded-full glass text-ink-2 hover:text-rose transition-colors disabled:opacity-50"
+      >
+        <span className="text-lg leading-none">{createGame.isPending ? '…' : '🎮'}</span>
+      </button>
+
+      {open && (
+        <>
+          {/* Click-outside catcher. */}
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 z-40 cursor-default"
+          />
+          <div className="absolute bottom-12 left-0 z-50 w-56 glass rounded-2xl p-1.5 shadow-xl">
+            <p className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-ink-muted font-bold">
+              {t('chat.playGame')}
+            </p>
+            {GAMES.map((g) => (
+              <button
+                key={g.type}
+                type="button"
+                onClick={() => void start(g.type, g.label)}
+                disabled={createGame.isPending}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left text-sm text-ink-2 hover:text-ink hover:bg-white/[0.06] transition-colors disabled:opacity-50"
+              >
+                <span className="text-base">{g.emoji}</span>
+                <span className="font-semibold">{g.label}</span>
+              </button>
+            ))}
+            {error && <p className="px-2.5 py-1.5 text-[11px] text-danger">{error}</p>}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 type ComposerProps = {
   disabled: boolean
   sending: boolean
@@ -808,6 +892,10 @@ function Composer({
                   void pickMedia(e.target.files?.[0])
                   e.target.value = ''
                 }}
+              />
+              <GameInviteButton
+                disabled={disabled || upload.isPending}
+                onInvite={async (body) => { await onSubmit(body, null) }}
               />
             </>
           )}

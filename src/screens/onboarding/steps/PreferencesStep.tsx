@@ -3,13 +3,23 @@ import type { StepProps } from '../types'
 
 export default function PreferencesStep({ data, set }: StepProps) {
   const { t } = useTranslation()
+  // Deliberately NOT clamped as you type. Clamping every keystroke made the
+  // field impossible to edit: with 18 in it, deleting the "8" left "1",
+  // which clamped straight back to 18 — so you could never clear it to type
+  // 35. Out-of-range values are allowed to sit in the field and are caught
+  // by the step's 18–100 check (see stepStatus in OnboardingScreen), which
+  // keeps Continue disabled and explains why.
+  //
+  // The opposite bound is only pulled along once this one is a real in-range
+  // value, otherwise a half-typed or cleared field would drag it too (e.g.
+  // clearing "max" would have reset "min" to 0 via Math.min).
   function setMin(n: number) {
-    const min = clamp(n, 18, 100)
-    set({ ageMin: min, ageMax: Math.max(min, data.ageMax) })
+    if (inRange(n)) set({ ageMin: n, ageMax: Math.max(n, data.ageMax) })
+    else set({ ageMin: n })
   }
   function setMax(n: number) {
-    const max = clamp(n, 18, 100)
-    set({ ageMax: max, ageMin: Math.min(max, data.ageMin) })
+    if (inRange(n)) set({ ageMax: n, ageMin: Math.min(n, data.ageMin) })
+    else set({ ageMax: n })
   }
 
   return (
@@ -18,7 +28,7 @@ export default function PreferencesStep({ data, set }: StepProps) {
         <div className="flex items-baseline justify-between px-1">
           <Label>{t('onboarding.stepFields.preferences.ageRangeLabel')}</Label>
           <span className="text-sm font-semibold text-ink">
-            {data.ageMin} – {data.ageMax}
+            {data.ageMin || '—'} – {data.ageMax || '—'}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -74,8 +84,14 @@ function NumberField({
           inputMode="numeric"
           min={18}
           max={100}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value) || 18)}
+          // 0 renders as blank so the field can genuinely be emptied; any
+          // digits the user types are kept verbatim (validation gates
+          // Continue rather than rewriting the input under them).
+          value={value === 0 ? '' : String(value)}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/[^\d]/g, '').slice(0, 3)
+            onChange(raw === '' ? 0 : Number(raw))
+          }}
           className="w-full bg-transparent outline-none text-ink text-base"
         />
       </div>
@@ -121,6 +137,6 @@ function ToggleRow({
   )
 }
 
-function clamp(n: number, min: number, max: number) {
-  return Math.min(Math.max(n, min), max)
+function inRange(n: number) {
+  return n >= 18 && n <= 100
 }

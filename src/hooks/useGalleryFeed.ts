@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../stores/auth'
 
@@ -7,10 +7,25 @@ export type GalleryCandidate = {
   id: string
   handle: string | null
   display_name: string | null
+  avatar_url: string | null
   gender: 'female' | 'male' | 'nonbinary' | 'other' | 'prefer_not_to_say' | null
   country_code: string | null
   gallery_urls: string[]
   age: number | null
+}
+
+/** A row from get_my_interests() — backs the Interested tab. */
+export type InterestRow = {
+  id: string
+  handle: string | null
+  display_name: string | null
+  avatar_url: string | null
+  country_code: string | null
+  gallery_urls: string[]
+  age: number | null
+  interested_at: string
+  is_match: boolean
+  conversation_id: string | null
 }
 
 const BATCH_SIZE = 10
@@ -85,10 +100,32 @@ export function useGalleryFeed() {
 }
 
 export function useRecordGalleryDecision() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ targetId, decision }: { targetId: string; decision: 'interested' | 'passed' }) => {
       const { error } = await supabase.rpc('record_gallery_decision', { p_target_id: targetId, p_decision: decision })
       if (error) throw error
+    },
+    // An "interested" decision adds a row to the Interested tab — and can
+    // create a match (mutual), which also adds a conversation.
+    onSuccess: (_d, vars) => {
+      if (vars.decision !== 'interested') return
+      void qc.invalidateQueries({ queryKey: ['my-interests'] })
+      void qc.invalidateQueries({ queryKey: ['conversations'] })
+    },
+  })
+}
+
+/** People whose gallery I marked Interested in — newest first. */
+export function useMyInterests() {
+  const session = useAuth((s) => s.session)
+  return useQuery<InterestRow[]>({
+    queryKey: ['my-interests'],
+    enabled: !!session,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_my_interests')
+      if (error) throw error
+      return (data ?? []) as InterestRow[]
     },
   })
 }
