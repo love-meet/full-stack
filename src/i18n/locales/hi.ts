@@ -429,6 +429,8 @@ export default {
     matched: 'मैछ हो गया!',
     waiting: 'उनके बदले में पसंद करने का इंतजार',
     message: 'संदेश',
+    unlike: 'पसंद हटाएं',
+    confirmUnlike: 'हटाएं',
     viewProfile: 'प्रोफाइल देखें',
   },
   chat: {

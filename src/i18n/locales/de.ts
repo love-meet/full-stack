@@ -429,6 +429,8 @@ export default {
     matched: 'Ein Match!',
     waiting: 'Warten, bis du zurückgemocht wirst',
     message: 'Nachricht',
+    unlike: 'Nicht mehr mögen',
+    confirmUnlike: 'Entfernen',
     viewProfile: 'Profil ansehen',
   },
   chat: {

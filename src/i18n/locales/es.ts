@@ -429,6 +429,8 @@ export default {
     matched: '¡Es un match!',
     waiting: 'Esperando que le gustes de vuelta',
     message: 'Mensaje',
+    unlike: 'Quitar me interesa',
+    confirmUnlike: 'Quitar',
     viewProfile: 'Ver perfil',
   },
   chat: {

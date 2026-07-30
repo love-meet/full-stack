@@ -429,6 +429,8 @@ export default {
     matched: 'Padanan!',
     waiting: 'Menunggu mereka menyukai anda semula',
     message: 'Mesej',
+    unlike: 'Buang suka',
+    confirmUnlike: 'Buang',
     viewProfile: 'Lihat profil',
   },
   chat: {

@@ -426,6 +426,8 @@ export default {
     matched: 'แมตช์แล้ว!',
     waiting: 'รอให้เขากดหัวใจกลับ',
     message: 'ส่งข้อความ',
+    unlike: 'เลิกสนใจ',
+    confirmUnlike: 'เลิกสนใจ',
     viewProfile: 'ดูโปรไฟล์',
   },
   chat: {

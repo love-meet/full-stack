@@ -429,6 +429,8 @@ export default {
     matched: 'Deu match!',
     waiting: 'Aguardando que ela também curta você',
     message: 'Mensagem',
+    unlike: 'Desfazer',
+    confirmUnlike: 'Desfazer',
     viewProfile: 'Ver perfil',
   },
   chat: {

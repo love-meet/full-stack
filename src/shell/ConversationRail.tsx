@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -7,6 +8,7 @@ import { useRelations } from '../hooks/useFollow'
 import { avatarUrlOr } from '../lib/avatar'
 import BlueTick from '../components/BlueTick'
 import { ChatPane } from '../screens/ChatDetailScreen'
+import InterestedList from '../screens/chat/InterestedList'
 
 /**
  * Desktop-only (xl+) right rail: a persistent conversations panel. Shows the
@@ -34,6 +36,7 @@ export default function ConversationRail() {
 
 function ConversationList({ onOpen }: { onOpen: (id: string) => void }) {
   const { t } = useTranslation()
+  const [tab, setTab] = useState<'messages' | 'interested'>('messages')
   const q = useConversations()
   const items = q.data ?? []
   const relations = useRelations(items.map((c) => c.other_id))
@@ -45,6 +48,35 @@ function ConversationList({ onOpen }: { onOpen: (id: string) => void }) {
         <Link to="/search" className="text-ink-2 hover:text-rose text-lg" aria-label={t('chat.newMessage')}>✎</Link>
       </header>
 
+      {/* Same Messages | Interested split as the /chat screen — this rail is
+          the only chat surface on desktop, so without it the Interested tab
+          is unreachable there. */}
+      <div className="shrink-0 flex px-2 border-b border-white/5">
+        {([
+          ['messages',   t('chat.tabMessages')],
+          ['interested', t('chat.tabInterested')],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={[
+              'relative flex-1 py-2.5 text-xs font-bold transition-colors',
+              tab === key ? 'text-ink' : 'text-ink-muted hover:text-ink-2',
+            ].join(' ')}
+          >
+            {label}
+            {tab === key && (
+              <span className="absolute inset-x-3 -bottom-px h-[2px] bg-magenta rounded-full" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'interested' ? (
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+          <InterestedList />
+        </div>
+      ) : (
       <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
         {q.status === 'pending' && (
           <div className="p-3 space-y-2">
@@ -101,6 +133,7 @@ function ConversationList({ onOpen }: { onOpen: (id: string) => void }) {
           ))}
         </ul>
       </div>
+      )}
     </div>
   )
 }

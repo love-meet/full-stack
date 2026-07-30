@@ -429,6 +429,8 @@ export default {
     matched: "C'est un match",
     waiting: 'En attente qu’il vous aime en retour',
     message: 'Message',
+    unlike: 'Retirer',
+    confirmUnlike: 'Retirer',
     viewProfile: 'Voir le profil',
   },
   chat: {

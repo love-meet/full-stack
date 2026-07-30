@@ -429,6 +429,8 @@ export default {
     matched: "It's a match",
     waiting: 'Waiting for them to like you back',
     message: 'Message',
+    unlike: 'Unlike',
+    confirmUnlike: 'Unlike',
     viewProfile: 'View profile',
   },
   chat: {

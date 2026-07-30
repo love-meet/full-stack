@@ -116,6 +116,25 @@ export function useRecordGalleryDecision() {
   })
 }
 
+/**
+ * "Unlike" — reverse an Interested decision. Clears the interest, the view
+ * record (so they return to the feed) and any match. See
+ * 0099_undo_gallery_interest.sql for why an existing conversation is kept.
+ */
+export function useUndoGalleryDecision() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (targetId: string) => {
+      const { error } = await supabase.rpc('undo_gallery_decision', { p_target_id: targetId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['my-interests'] })
+      void qc.invalidateQueries({ queryKey: ['conversations'] })
+    },
+  })
+}
+
 /** People whose gallery I marked Interested in — newest first. */
 export function useMyInterests() {
   const session = useAuth((s) => s.session)

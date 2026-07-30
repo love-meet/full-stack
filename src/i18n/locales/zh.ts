@@ -426,6 +426,8 @@ export default {
     matched: '配对成功',
     waiting: '等待对方也喜欢你',
     message: '发消息',
+    unlike: '取消喜欢',
+    confirmUnlike: '取消',
     viewProfile: '查看资料',
   },
   chat: {

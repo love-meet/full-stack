@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { stagger, itemUp } from '../../shell/motion'
-import { useMyInterests, type InterestRow } from '../../hooks/useGalleryFeed'
+import { useMyInterests, useUndoGalleryDecision, type InterestRow } from '../../hooks/useGalleryFeed'
 import { avatarUrlOr } from '../../lib/avatar'
 import { flagImageUrl } from '../../lib/flags'
 
@@ -70,6 +71,8 @@ export default function InterestedList() {
 function InterestRowItem({ r }: { r: InterestRow }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const undo = useUndoGalleryDecision()
+  const [confirming, setConfirming] = useState(false)
   const name = r.display_name ?? r.handle ?? t('notif.someone')
   const flagSrc = flagImageUrl(r.country_code)
   // Prefer their first gallery photo as the thumbnail — this list is about
@@ -112,6 +115,36 @@ function InterestRowItem({ r }: { r: InterestRow }) {
         >
           {t('interested.viewProfile')}
         </Link>
+      )}
+
+      {/* Unlike. Two-step because it's destructive for a match (it drops the
+          match for BOTH people), and because a mis-tap would otherwise
+          silently undo a like with no way back except finding them again. */}
+      {confirming ? (
+        <div className="shrink-0 flex items-center gap-1">
+          <button
+            onClick={() => setConfirming(false)}
+            className="rounded-full px-2.5 py-2 text-xs font-semibold glass text-ink-2"
+          >
+            {t('post.cancel')}
+          </button>
+          <button
+            onClick={() => undo.mutate(r.id)}
+            disabled={undo.isPending}
+            className="rounded-full px-3 py-2 text-xs font-bold bg-danger text-white disabled:opacity-60"
+          >
+            {undo.isPending ? '…' : t('interested.confirmUnlike')}
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setConfirming(true)}
+          aria-label={t('interested.unlike')}
+          title={t('interested.unlike')}
+          className="shrink-0 w-8 h-8 grid place-items-center rounded-full text-ink-muted hover:text-danger hover:bg-danger/10 transition-colors"
+        >
+          ✕
+        </button>
       )}
     </div>
   )
