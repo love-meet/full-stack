@@ -146,26 +146,74 @@ export default function PlayGameScreen() {
   // window.confirm renders BEHIND the canvas in Telegram Mini App fullscreen
   // mode, so taps appear to do nothing. Use Telegram's native showConfirm
   // when available — it floats above everything.
-  function confirmPrompt(message: string): Promise<boolean> {
-    const wa = window.Telegram?.WebApp
-    if (wa?.showConfirm) {
-      return new Promise<boolean>((resolve) => {
-        wa.showConfirm!(message, (ok: boolean) => resolve(!!ok))
-      })
-    }
-    return Promise.resolve(window.confirm(message))
+  // In-app confirmation, deliberately NOT window.confirm / Telegram's
+  // showConfirm. Both could silently no-op, which made the red ⏻ button look
+  // dead: native modals are suppressed in sandboxed iframes and some in-app
+  // WebViews (confirm() then returns false), and Telegram's showConfirm needs
+  // Bot API 6.2+ — on older clients it never invokes its callback, so the
+  // promise never settled and nothing happened at all. This renders our own
+  // dialog, so it can't be blocked by the host environment.
+  const [confirmState, setConfirmState] = useState<
+    { message: string; actionLabel: string; resolve: (ok: boolean) => void } | null
+  >(null)
+
+  function confirmPrompt(message: string, actionLabel: string): Promise<boolean> {
+    return new Promise<boolean>((resolve) => setConfirmState({ message, actionLabel, resolve }))
   }
+
+  function settleConfirm(ok: boolean) {
+    confirmState?.resolve(ok)
+    setConfirmState(null)
+  }
+
+  // Same reasoning as the confirm dialog: alert() can be suppressed too, so a
+  // failed close/leave would also look like a dead button. Surface it in-app.
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const confirmModal = (
+    <>
+      {confirmState && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 backdrop-blur-sm px-6">
+          <div className="glass rounded-2xl p-5 w-full max-w-sm">
+            <p className="text-sm text-ink leading-relaxed">{confirmState.message}</p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => settleConfirm(false)}
+                className="flex-1 rounded-full py-2.5 text-sm font-semibold glass text-ink-2 hover:text-ink transition-colors"
+              >
+                {t('post.cancel')}
+              </button>
+              <button
+                onClick={() => settleConfirm(true)}
+                className="flex-1 rounded-full py-2.5 text-sm font-bold bg-danger text-white active:scale-95 transition"
+              >
+                {confirmState.actionLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {actionError && (
+        <button
+          onClick={() => setActionError(null)}
+          className="fixed left-4 right-4 bottom-24 z-[100] glass rounded-2xl px-4 py-3 text-left text-sm text-danger ring-1 ring-danger/40"
+        >
+          {actionError}
+        </button>
+      )}
+    </>
+  )
 
   async function doClose() {
     if (!g) return
-    if (!(await confirmPrompt(t('play.confirmCloseGame')))) return
+    if (!(await confirmPrompt(t('play.confirmCloseGame'), t('play.close')))) return
     try { await closeGame.mutateAsync(g.id); navigate('/games') }
-    catch (e) { alert((e as Error).message) }
+    catch (e) { setActionError((e as Error).message) }
   }
 
   async function doLeave() {
     if (!g) return
-    if (!(await confirmPrompt(t('play.confirmLeaveGame')))) return
+    if (!(await confirmPrompt(t('play.confirmLeaveGame'), t('play.leave')))) return
     try {
       await leaveGame.mutateAsync(g.id)
       // Optimistically drop ourselves from the players cache so the host's
@@ -176,7 +224,7 @@ export default function PlayGameScreen() {
       // Surface the failure instead of silently swallowing — without this,
       // the leaver navigates away thinking they've left while their row is
       // still alive server-side and the host still sees them.
-      alert(t('play.couldNotLeave', { message: (e as Error).message }))
+      setActionError(t('play.couldNotLeave', { message: (e as Error).message }))
       return
     }
     navigate('/')
@@ -253,7 +301,12 @@ export default function PlayGameScreen() {
 
   // ----- active / finished -----
   if (g.status === 'active' || g.status === 'finished') {
-    return <Match g={g} players={list} myId={myId} online={online} viewers={viewers} onClose={doClose} onLeave={doLeave} />
+    return (
+      <>
+        <Match g={g} players={list} myId={myId} online={online} viewers={viewers} onClose={doClose} onLeave={doLeave} />
+        {confirmModal}
+      </>
+    )
   }
 
   // ----- lobby -----
@@ -368,6 +421,7 @@ export default function PlayGameScreen() {
       </Card>
 
       {shareOpen && <ShareSheet url={inviteUrl} text={shareText} title={t('play.shareInviteTitle')} onClose={() => setShareOpen(false)} />}
+      {confirmModal}
       {newMemberToast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-ink text-surface px-4 py-2 rounded-full shadow-lg text-sm font-bold z-50 whitespace-nowrap pointer-events-none animate-in fade-in slide-in-from-bottom-4">
           {newMemberToast}
