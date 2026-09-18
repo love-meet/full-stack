@@ -9,7 +9,7 @@ export type NotificationType =
   | 'welcome' | 'welcome_signup' | 'deposit'
   | 'password_changed' | 'chat_reminder' | 'chat_message'
   | 'support_user_msg' | 'support_reply'
-  | 'launch_bonus' | 'subscription_expired' | 'follow'
+  | 'launch_bonus' | 'subscription_expired' | 'follow' | 'profile_viewed'
   | 'game_invite' | 'game_join' | 'game_waiting'
 
 export type AppNotification = {

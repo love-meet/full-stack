@@ -36,7 +36,7 @@ export default function NotificationsScreen() {
     else if (n.type === 'welcome' || n.type === 'welcome_signup') navigate('/guide')
     else if (n.type === 'launch_bonus') navigate('/wallet')
     else if (n.type === 'subscription_expired') navigate('/subscription')
-    else if (n.type === 'follow' && n.actor_id) navigate(`/profile/${n.actor_id}`)
+    else if ((n.type === 'follow' || n.type === 'profile_viewed') && n.actor_id) navigate(`/profile/${n.actor_id}`)
     else if (n.type === 'password_changed') navigate('/security')
     else if (n.type === 'chat_reminder' || n.type === 'chat_message') navigate('/chat')
     else if (n.type === 'support_user_msg') navigate('/admin/support')
@@ -136,6 +136,7 @@ function message(n: AppNotification): React.ReactNode {
     case 'gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁 Tap to accept or decline.</>
     case 'chat_message': return <>{who} sent you a message{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : '.'}</>
     case 'follow': return <>{who} started following you.</>
+    case 'profile_viewed': return <>{who} looked at your profile.</>
     case 'gift_accepted': return <>{who} accepted your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎉</>
     case 'gift_rejected': return <>{who} declined your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''}.</>
     case 'match_post': return <>{who} — who matches your preferences — just posted. ✨</>
@@ -175,6 +176,7 @@ function glyph(type: AppNotification['type']): string {
     case 'launch_bonus': return '🎁'
     case 'subscription_expired': return '💔'
     case 'follow': return '👤'
+    case 'profile_viewed': return '👀'
     case 'game_invite': return '🎮'
     case 'game_join': return '🎮'
     case 'game_waiting': return '⏰'

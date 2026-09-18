@@ -25,6 +25,7 @@ import PostDetailScreen from './screens/PostDetailScreen'
 import EditProfileScreen from './screens/settings/EditProfileScreen'
 import LegalScreen from './screens/legal/LegalScreen'
 import WalletScreen from './screens/settings/WalletScreen'
+import CreditsScreen from './screens/settings/CreditsScreen'
 import SecurityScreen from './screens/settings/SecurityScreen'
 import CloseAccountScreen from './screens/settings/CloseAccountScreen'
 import SubscriptionScreen from './screens/settings/SubscriptionScreen'
@@ -95,6 +96,7 @@ export const router = createBrowserRouter([
               { path: 'profile/edit',          element: <EditProfileScreen /> },
               { path: 'profile-menu',          element: <ProfileMenuScreen /> },
               { path: 'profile/:userId',       element: <ProfileScreen /> },
+              { path: 'credits',               element: <CreditsScreen /> },
               { path: 'wallet',                element: <WalletScreen /> },
               { path: 'subscription',          element: <SubscriptionScreen /> },
               { path: 'security',              element: <SecurityScreen /> },

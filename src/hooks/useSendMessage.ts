@@ -9,6 +9,7 @@ import {
   type MessagePages,
 } from './useMessages'
 import { conversationKey, conversationsKey } from './useConversations'
+import { creditsKey, spendDailyMessageCredit } from './useCredits'
 
 type SendVars = {
   /** Caption / text. Optional when media is present; required otherwise. */
@@ -41,6 +42,20 @@ export function useSendMessage(conversationId: string) {
       const body = vars.body?.trim() || null
       const hasMedia = !!vars.media
       if (!body && !hasMedia) throw new Error('Empty message')
+
+      // 100 credits on the first message sent in a day; every message after
+      // that, in any chat, is free until the day rolls over. The RPC is
+      // idempotent per user per day, so calling it on every send is correct
+      // and costs at most one charge — the client never decides whether today
+      // has been paid for.
+      //
+      // Charged BEFORE the insert: if there aren't enough credits the message
+      // must not send, and the composer turns the failure into an offer to buy
+      // rather than a dead end.
+      const credit = await spendDailyMessageCredit()
+      if (credit.charged) {
+        qc.setQueryData(creditsKey(session.user.id), credit.balance)
+      }
 
       const { data, error } = await supabase
         .from('messages')

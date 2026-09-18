@@ -63,10 +63,11 @@ export default function ProfileMenuScreen() {
       ],
     },
     {
-      title: 'Money',
+      title: 'Credits',
       items: [
-        { icon: '🧾', label: 'Transaction history', hint: 'Every credit & debit', onClick: () => navigate('/wallet') },
+        { icon: '💬', label: 'Credits', hint: 'Balance, history, and getting more', onClick: () => navigate('/credits') },
         { icon: '⭐', label: 'Subscription', hint: 'Premium plans', onClick: () => navigate('/subscription') },
+        { icon: '🧾', label: 'Transaction history', hint: 'Gifts and subscriptions', onClick: () => navigate('/wallet') },
       ],
     },
     {

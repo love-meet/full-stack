@@ -1,7 +1,8 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../stores/auth'
+import { supabase } from '../lib/supabase'
 import { useProfile, useProfileById } from '../hooks/useProfile'
 import { useMySubscription, useSubscriptionPlans } from '../hooks/usePayments'
 import { useStartDM } from '../hooks/useStartDM'
@@ -32,6 +33,14 @@ export default function ProfileScreen() {
   const profileSocial = useProfileSocial(routeUserId ?? myProfileQ.data?.id ?? null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [imageOpen, setImageOpen] = useState(false)
+
+  // "Someone viewed your profile" (§6). Fire-and-forget: the RPC ignores self
+  // views and blocked pairs, and notifies at most once a day per pair, so
+  // scrolling back to the same profile doesn't buzz anyone repeatedly.
+  useEffect(() => {
+    if (!routeUserId || !session || routeUserId === session.user.id) return
+    void supabase.rpc('record_profile_view', { p_viewed: routeUserId })
+  }, [routeUserId, session])
 
   // Measure the hero container so the cinematic interpolation runs in pure
   // pixels — Framer Motion can't smoothly interpolate '52vh' → '96px' or
