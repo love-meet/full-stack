@@ -58,8 +58,8 @@ const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] 
         body: `The "Naughty 18+" section in Explore contains adult content. It's gated behind an explicit age confirmation. On iOS the Naughty room is hidden entirely per Apple's review guidelines.`,
       },
       {
-        heading: 'Gifts, tips, and earnings',
-        body: `Gifts sent via the gift sheet are credited to the recipient's earnings balance, which they can withdraw once the payments stack ships. Sending a gift is a non-refundable purchase. Earnings paid out as crypto (USDT-TRC20) may incur a small network fee.`,
+        heading: 'Gifts and balances',
+        body: `Gifts sent via the gift sheet are credited to the recipient's in-app balance. Sending a gift is a non-refundable purchase. In-app balances have no cash value: they cannot be cashed out, transferred to money, or exchanged outside the app.`,
       },
       {
         heading: 'Account suspension',
@@ -107,15 +107,11 @@ const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] 
     sections: [
       {
         heading: 'Contact us',
-        body: `The fastest way to reach a human is email: lovemeet@highzcore.tech. Include your handle and, if it's about a payment, the LM- reference shown on the deposit or withdrawal. We usually reply within 24 hours.`,
+        body: `The fastest way to reach a human is email: lovemeet@highzcore.tech. Include your handle and, if it's about a payment, the LM- reference shown on the transaction. We usually reply within 24 hours.`,
       },
       {
-        heading: 'Deposits not showing up',
-        body: `Bank-transfer (Wema) and card (Flutterwave) deposits are confirmed manually or by webhook and can take a few minutes. If a transfer hasn't credited after an hour, email us the LM- reference and a screenshot of the transfer. USDT (TRC-20) deposits confirm once the network does — usually a minute or two.`,
-      },
-      {
-        heading: 'Withdrawals',
-        body: `Withdrawals are reviewed before the on-chain transfer is signed, so they aren't instant. Make sure your TRC-20 address is correct — crypto transfers can't be reversed. You can see the status of any withdrawal in Menu → Withdraw.`,
+        heading: 'A payment not showing up',
+        body: `Card and bank-transfer payments are confirmed by webhook and can take a few minutes. If a payment hasn't credited after an hour, email us the LM- reference and a screenshot of the transfer.`,
       },
       {
         heading: 'Safety',

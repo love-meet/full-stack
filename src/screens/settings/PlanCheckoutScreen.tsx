@@ -7,7 +7,7 @@ import {
 } from '../../hooks/usePayments'
 import { useProfile } from '../../hooks/useProfile'
 import { useAuth } from '../../stores/auth'
-import { useUserCurrency } from '../../hooks/useFx'
+import { useUserCurrency } from '../../hooks/useAmount'
 
 const BUSINESS_ID = import.meta.env.VITE_ALATPAY_BUSINESS_ID as string | undefined
 const API_KEY = import.meta.env.VITE_ALATPAY_API_KEY as string | undefined
@@ -37,7 +37,8 @@ export default function PlanCheckoutScreen() {
   const [error, setError] = useState<string | null>(null)
 
   const totalUsd = (plan?.price_usdt ?? 0) * months
-  const localAmount = cur.isNgn ? cur.toLocal(totalUsd) : totalUsd
+  // Currency conversion is gone (Phase 0) — all amounts are quoted and charged in USD.
+  const localAmount = totalUsd
   const chargeCurrency: 'NGN' | 'USD' = cur.isNgn ? 'NGN' : 'USD'
   const chargeAmount = cur.isNgn ? Math.round(localAmount) : Number(totalUsd.toFixed(2))
   const configured = !!BUSINESS_ID && !!API_KEY

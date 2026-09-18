@@ -36,10 +36,7 @@ export default function NotificationsScreen() {
     else if (n.type === 'welcome' || n.type === 'welcome_signup') navigate('/guide')
     else if (n.type === 'launch_bonus') navigate('/wallet')
     else if (n.type === 'subscription_expired') navigate('/subscription')
-    else if (n.type === 'referral_joined') navigate('/affiliate')
     else if (n.type === 'follow' && n.actor_id) navigate(`/profile/${n.actor_id}`)
-    else if (n.type === 'deposit') navigate('/wallet')
-    else if (n.type.startsWith('withdrawal')) navigate('/earnings')
     else if (n.type === 'password_changed') navigate('/security')
     else if (n.type === 'chat_reminder' || n.type === 'chat_message') navigate('/chat')
     else if (n.type === 'support_user_msg') navigate('/admin/support')
@@ -138,7 +135,6 @@ function message(n: AppNotification): React.ReactNode {
     case 'reply_like': return <>{who} liked your reply.</>
     case 'gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁 Tap to accept or decline.</>
     case 'chat_message': return <>{who} sent you a message{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : '.'}</>
-    case 'referral_joined': return <>{who} joined using your invite 🎉 You'll earn 5% of their subscriptions for life.</>
     case 'follow': return <>{who} started following you.</>
     case 'gift_accepted': return <>{who} accepted your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎉</>
     case 'gift_rejected': return <>{who} declined your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''}.</>
@@ -151,10 +147,6 @@ function message(n: AppNotification): React.ReactNode {
     // Transactional / system notifications carry their full text in body.
     case 'welcome':
     case 'welcome_signup':
-    case 'deposit':
-    case 'withdrawal':
-    case 'withdrawal_sent':
-    case 'withdrawal_rejected':
     case 'password_changed':
     case 'chat_reminder':
       return <>{n.body}</>
@@ -175,10 +167,6 @@ function glyph(type: AppNotification['type']): string {
     case 'match_post': return '✨'
     case 'welcome': return '💕'
     case 'welcome_signup': return '💘'
-    case 'deposit': return '✅'
-    case 'withdrawal': return '⏳'
-    case 'withdrawal_sent': return '💸'
-    case 'withdrawal_rejected': return '⚠️'
     case 'password_changed': return '🔒'
     case 'chat_reminder': return '💬'
     case 'chat_message': return '✉️'
@@ -186,7 +174,6 @@ function glyph(type: AppNotification['type']): string {
     case 'support_reply': return '🛟'
     case 'launch_bonus': return '🎁'
     case 'subscription_expired': return '💔'
-    case 'referral_joined': return '🤝'
     case 'follow': return '👤'
     case 'game_invite': return '🎮'
     case 'game_join': return '🎮'

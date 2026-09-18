@@ -2,14 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useProfile } from './useProfile'
 import type { GroupPost } from './useGroupPosts'
-import type {
-  Deposit,
-  WithdrawalRequest,
-} from './usePayments'
+import type { Deposit } from './usePayments'
 
 export type AdminStats = {
   open_reports: number
-  pending_payouts: number
   pending_deposits: number
   active_bans: number
   open_tickets: number
@@ -270,7 +266,7 @@ export function useActiveBans() {
 }
 
 // ============================================================================
-// Payouts (withdrawals + deposits oversight)
+// Deposits oversight
 // ============================================================================
 
 export function usePendingDeposits() {
@@ -306,76 +302,6 @@ export function useMarkDepositPaid() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin:deposits'] })
-      qc.invalidateQueries({ queryKey: ['admin:stats'] })
-    },
-  })
-}
-
-export function usePendingWithdrawals() {
-  return useQuery<WithdrawalRequest[]>({
-    queryKey: ['admin:withdrawals', 'pending'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('withdrawal_requests')
-        .select('*')
-        .in('status', ['pending', 'approved'])
-        .order('created_at', { ascending: false })
-        .limit(50)
-      if (error) throw error
-      return (data ?? []) as WithdrawalRequest[]
-    },
-  })
-}
-
-export function useApproveWithdrawal() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (reqId: string) => {
-      const { data, error } = await supabase
-        .rpc('approve_withdrawal', { req_id: reqId })
-        .select('*')
-        .single()
-      if (error) throw error
-      return data as WithdrawalRequest
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin:withdrawals'] })
-      qc.invalidateQueries({ queryKey: ['admin:stats'] })
-    },
-  })
-}
-
-export function useMarkWithdrawalSent() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (vars: { reqId: string; txHash: string }) => {
-      const { data, error } = await supabase
-        .rpc('mark_withdrawal_sent', { req_id: vars.reqId, tx_hash: vars.txHash })
-        .select('*')
-        .single()
-      if (error) throw error
-      return data as WithdrawalRequest
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin:withdrawals'] })
-      qc.invalidateQueries({ queryKey: ['admin:stats'] })
-    },
-  })
-}
-
-export function useRejectWithdrawal() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (vars: { reqId: string; reason: string }) => {
-      const { data, error } = await supabase
-        .rpc('reject_withdrawal', { req_id: vars.reqId, reason: vars.reason })
-        .select('*')
-        .single()
-      if (error) throw error
-      return data as WithdrawalRequest
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin:withdrawals'] })
       qc.invalidateQueries({ queryKey: ['admin:stats'] })
     },
   })

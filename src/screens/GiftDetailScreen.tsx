@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useGift, useRespondGift } from '../hooks/useGift'
-import { useUserCurrency } from '../hooks/useFx'
+import { useUserCurrency } from '../hooks/useAmount'
 import { useAuth } from '../stores/auth'
 
 export default function GiftDetailScreen() {

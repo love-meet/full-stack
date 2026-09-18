@@ -11,11 +11,7 @@ import { useAuth } from '../stores/auth'
 export type LedgerKind =
   | 'gift_sent'
   | 'gift_received'
-  | 'tip_sent'
-  | 'tip_received'
-  | 'referral_bonus'
   | 'deposit'
-  | 'withdrawal'
   | 'adjustment'
 
 export type LedgerDirection = 'credit' | 'debit'
@@ -46,27 +42,6 @@ export const walletKey = (userId: string | null) => ['wallet', userId] as const
 export const ledgerKey = (userId: string | null, filter: LedgerFilter) =>
   ['ledger', userId, filter] as const
 
-export type EarningsSummary = {
-  lifetime_earnings: number
-  earnings_30d: number
-}
-
-/** Lifetime + last-30-day earnings (gifts/tips/referrals received). */
-export function useEarningsSummary() {
-  const session = useAuth((s) => s.session)
-  return useQuery<EarningsSummary>({
-    queryKey: ['earnings_summary', session?.user.id ?? null],
-    enabled: !!session,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('my_earnings_summary')
-        .select('lifetime_earnings, earnings_30d')
-        .maybeSingle()
-      if (error) throw error
-      return (data as EarningsSummary | null) ?? { lifetime_earnings: 0, earnings_30d: 0 }
-    },
-  })
-}
 
 const LEDGER_PAGE = 30
 
@@ -136,7 +111,7 @@ export function useLedger(filter: LedgerFilter = {}) {
 /**
  * Subscribes to my wallets row + my new ledger entries. Updates the
  * cached balance immediately when a credit/debit lands. Mount on
- * WalletScreen/EarningsScreen.
+ * WalletScreen.
  */
 export function useWalletRealtime() {
   const qc = useQueryClient()

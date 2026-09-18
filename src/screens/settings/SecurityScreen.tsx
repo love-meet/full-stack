@@ -71,7 +71,7 @@ function PinSection({ alreadySet }: { alreadySet: boolean }) {
       <div className="glass rounded-2xl p-5">
         <p className="text-sm text-ink-2">
           {alreadySet
-            ? 'You already have a PIN set. Enter a new one below to replace it. PINs gate withdrawals and other sensitive actions.'
+            ? 'You already have a PIN set. Enter a new one below to replace it. PINs gate sensitive actions.'
             : 'Add a 4–6 digit PIN. We hash it server-side; we never see the raw digits.'}
         </p>
 

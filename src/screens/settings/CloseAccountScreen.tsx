@@ -72,7 +72,7 @@ export default function CloseAccountScreen() {
           <ul className="mt-5 space-y-2 text-sm text-ink-2">
             <li>· Your handle becomes available for someone else to take.</li>
             <li>· Direct messages you sent stay visible to the other person until they delete the conversation, but your identity on those messages becomes blank.</li>
-            <li>· Any pending withdrawal you haven't claimed is forfeited.</li>
+            <li>· Any in-app balance you still hold is forfeited.</li>
           </ul>
 
           <div className="mt-6">

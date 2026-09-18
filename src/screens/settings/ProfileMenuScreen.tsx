@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../stores/auth'
 import { useProfile } from '../../hooks/useProfile'
 import { useWallet } from '../../hooks/useWallet'
-import { useEarningsSummary } from '../../hooks/useWallet'
+
 import { useIsAdmin } from '../../hooks/useAdmin'
 import WalletCardDeck from '../../components/wallet/WalletCardDeck'
 import ConfirmDialog from '../../components/ConfirmDialog'
@@ -28,7 +28,7 @@ export default function ProfileMenuScreen() {
   const signOut = useAuth((s) => s.signOut)
   const profileQ = useProfile()
   const wallet = useWallet()
-  const earnings = useEarningsSummary()
+
   const isAdmin = useIsAdmin()
   const [confirmLogout, setConfirmLogout] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -65,11 +65,8 @@ export default function ProfileMenuScreen() {
     {
       title: 'Money',
       items: [
-        { icon: '⬇', label: 'Add funds', hint: 'Card, transfer, USSD via ALATPay', onClick: () => navigate('/wallet/deposit') },
         { icon: '🧾', label: 'Transaction history', hint: 'Every credit & debit', onClick: () => navigate('/wallet') },
-        { icon: '💰', label: 'Earnings history', hint: 'Tips, gifts, referrals received', onClick: () => navigate('/earnings') },
         { icon: '⭐', label: 'Subscription', hint: 'Premium plans', onClick: () => navigate('/subscription') },
-        { icon: '💸', label: 'Affiliate', hint: 'Earn 5% for life on referrals', onClick: () => navigate('/affiliate') },
       ],
     },
     {
@@ -85,7 +82,7 @@ export default function ProfileMenuScreen() {
     ...(isAdmin ? [{
       title: 'Admin',
       items: [
-        { icon: '🛠', label: 'Admin console', hint: 'Moderation, users, payouts', onClick: () => navigate('/admin') },
+        { icon: '🛠', label: 'Admin console', hint: 'Moderation, users, transactions', onClick: () => navigate('/admin') },
       ] as Item[],
     }] : []),
     {
@@ -132,7 +129,6 @@ export default function ProfileMenuScreen() {
           uuid={profile.id}
           referralCode={refCode}
           balanceUsdt={wallet.data?.balance_usdt ?? 0}
-          earningsUsdt={earnings.data?.lifetime_earnings ?? 0}
         />
 
         {/* Menu */}

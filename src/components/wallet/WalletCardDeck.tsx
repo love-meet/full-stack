@@ -4,34 +4,30 @@ import {
   useMotionTemplate,
   useMotionValue,
   useSpring,
-  type PanInfo,
 } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
-import { useUserCurrency } from '../../hooks/useFx'
+import { useUserCurrency } from '../../hooks/useAmount'
 
 type Props = {
   uuid: string
   referralCode: string
   balanceUsdt: number
-  earningsUsdt: number
 }
 
-const SWIPE_THRESHOLD = 60
-
 /**
- * A two-card, CSS-3D swipeable deck for the profile-menu page:
- *   - Card 0: Wallet — balance, UUID (copy), referral (copy), show/hide.
- *   - Card 1: Earnings — lifetime earnings + a Withdraw button.
+ * The CSS-3D wallet card for the profile-menu page: balance, UUID (copy),
+ * referral (copy), show/hide.
  *
- * Each card lives in a perspective container and tilts toward the pointer
+ * It was a two-card swipeable deck; the Earnings card went in Phase 0 along
+ * with the earnings summary it read from. Phase 3 replaces the balance here
+ * with the credit balance.
+ *
+ * The card lives in a perspective container and tilts toward the pointer
  * (desktop) for a real-depth feel; a glare sweep + layered shadow sell the
- * 3D without any WebGL. Swipe / drag horizontally (or tap the dots) to move
- * between cards. All text stays as real, selectable, copyable DOM.
+ * 3D without any WebGL. All text stays as real, selectable, copyable DOM.
  */
 export default function WalletCardDeck({
-  uuid, referralCode, balanceUsdt, earningsUsdt,
+  uuid, referralCode, balanceUsdt,
 }: Props) {
-  const [index, setIndex] = useState(0)
   const [hidden, setHidden] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -59,23 +55,10 @@ export default function WalletCardDeck({
     }
   }
 
-  function onDragEnd(_e: unknown, info: PanInfo) {
-    if (info.offset.x < -SWIPE_THRESHOLD && index < 1) setIndex(1)
-    else if (info.offset.x > SWIPE_THRESHOLD && index > 0) setIndex(0)
-  }
-
   return (
     <div className="select-none">
       <div className="overflow-hidden" style={{ perspective: 1400 }}>
-        <motion.div
-          className="flex"
-          drag="x"
-          dragElastic={0.12}
-          dragConstraints={{ left: 0, right: 0 }}
-          onDragEnd={onDragEnd}
-          animate={{ x: `calc(${-index * 100}% - ${index * 0.75}rem)` }}
-          transition={{ type: 'spring', stiffness: 300, damping: 32 }}
-        >
+        <motion.div className="flex">
           <CardShell>
             <WalletFace
               uuid={uuid}
@@ -86,29 +69,7 @@ export default function WalletCardDeck({
               onCopy={copy}
             />
           </CardShell>
-          <CardShell>
-            <EarningsFace
-              earningsUsdt={earningsUsdt}
-              hidden={hidden}
-              onToggleHidden={() => setHidden((h) => !h)}
-            />
-          </CardShell>
         </motion.div>
-      </div>
-
-      {/* Pagination dots */}
-      <div className="mt-3 flex justify-center gap-2">
-        {['Wallet', 'Earnings'].map((label, i) => (
-          <button
-            key={label}
-            onClick={() => setIndex(i)}
-            aria-label={`Show ${label} card`}
-            className={[
-              'h-1.5 rounded-full transition-all',
-              i === index ? 'w-6 bg-rose' : 'w-1.5 bg-ink-muted/40',
-            ].join(' ')}
-          />
-        ))}
       </div>
 
       {/* Copy toast */}
@@ -234,62 +195,6 @@ function WalletFace({
       <div className="mt-auto pt-5 space-y-1.5">
         <CopyRow label="UUID" value={shorten(uuid)} onCopy={() => onCopy(uuid, 'UUID')} />
         <CopyRow label="Referral" value={referralCode} onCopy={() => onCopy(referralCode, 'Referral code')} />
-      </div>
-    </div>
-  )
-}
-
-// ---------- Earnings face ----------
-
-function EarningsFace({
-  earningsUsdt, hidden, onToggleHidden,
-}: {
-  earningsUsdt: number
-  hidden: boolean
-  onToggleHidden: () => void
-}) {
-  const navigate = useNavigate()
-  const cur = useUserCurrency()
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-extrabold tracking-[0.25em] uppercase opacity-90">
-          Earnings
-        </span>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 min-w-[2.5rem] text-center">
-          {cur.pending ? '…' : cur.code}
-        </span>
-      </div>
-
-      <div className="mt-5">
-        <div className="text-[10px] uppercase tracking-[0.2em] opacity-80 font-bold">
-          Lifetime earnings
-        </div>
-        <div className="flex items-center gap-2 mt-0.5">
-          {cur.pending ? (
-            <span className="inline-block h-8 w-40 rounded-lg bg-white/25 animate-pulse" />
-          ) : (
-            <span className="text-3xl font-extrabold tabular-nums drop-shadow">
-              {hidden ? '******' : cur.format(earningsUsdt)}
-            </span>
-          )}
-          <button
-            onClick={onToggleHidden}
-            aria-label={hidden ? 'Show earnings' : 'Hide earnings'}
-            className="text-base opacity-90 hover:opacity-100"
-          >
-            {hidden ? '🙈' : '👁'}
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-auto pt-5">
-        <button
-          onClick={() => navigate('/wallet/withdraw')}
-          className="w-full rounded-2xl py-3 bg-white/95 text-rose font-extrabold text-sm shadow-lg active:scale-[0.98] transition-transform"
-        >
-          ⬆ Withdraw
-        </button>
       </div>
     </div>
   )

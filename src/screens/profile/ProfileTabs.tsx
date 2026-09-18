@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useUserPosts } from '../../hooks/useUserPosts'
 import { useReceivedGifts } from '../../hooks/useGift'
-import { useUserCurrency } from '../../hooks/useFx'
+import { useUserCurrency } from '../../hooks/useAmount'
 import { IconImages, IconVideo, IconPlay } from '../../components/icons'
 
 type TabKey = 'posts' | 'gifts' | 'videos' | 'career'

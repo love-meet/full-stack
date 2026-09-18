@@ -189,7 +189,7 @@ function NewTicketSheet({
             maxLength={160}
             value={subject}
             onChange={(e) => onSubject(e.target.value)}
-            placeholder="e.g. Withdrawal not received"
+            placeholder="e.g. Payment not credited"
             className="lm-input"
             autoFocus
           />

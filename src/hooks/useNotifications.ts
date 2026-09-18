@@ -6,11 +6,10 @@ import { useAuth } from '../stores/auth'
 export type NotificationType =
   | 'like' | 'comment' | 'reply' | 'comment_like' | 'reply_like'
   | 'gift' | 'gift_accepted' | 'gift_rejected' | 'match_post'
-  | 'welcome' | 'welcome_signup'
-  | 'deposit' | 'withdrawal' | 'withdrawal_sent' | 'withdrawal_rejected'
+  | 'welcome' | 'welcome_signup' | 'deposit'
   | 'password_changed' | 'chat_reminder' | 'chat_message'
   | 'support_user_msg' | 'support_reply'
-  | 'launch_bonus' | 'subscription_expired' | 'referral_joined' | 'follow'
+  | 'launch_bonus' | 'subscription_expired' | 'follow'
   | 'game_invite' | 'game_join' | 'game_waiting'
 
 export type AppNotification = {

@@ -4,13 +4,13 @@ import {
   useSubscriptionPlans,
   type SubscriptionPlan,
 } from '../../hooks/usePayments'
-import { useUserCurrency } from '../../hooks/useFx'
+import { useUserCurrency } from '../../hooks/useAmount'
 
 export default function SubscriptionScreen() {
   const navigate = useNavigate()
   const plans = useSubscriptionPlans()
   const sub = useMySubscription()
-  const fx = useUserCurrency()
+  const cur = useUserCurrency()
 
   const active = sub.data
   const onFree = !active
@@ -77,7 +77,7 @@ export default function SubscriptionScreen() {
               key={p.id}
               plan={p}
               isCurrent={active?.plan_id === p.id}
-              format={fx.ready || fx.code === 'USD' ? fx.format : (u) => `$${u.toFixed(2)}`}
+              format={cur.format}
               onPick={() => navigate(`/plans/${p.id}`)}
             />
           ))}

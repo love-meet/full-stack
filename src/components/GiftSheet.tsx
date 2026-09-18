@@ -6,7 +6,7 @@ import { useDrawerLock } from '../stores/ui'
 import { GIFT_CATALOGUE, type CatalogueGift } from '../lib/gifts'
 import { useSendGift } from '../hooks/useSendGift'
 import { useWallet } from '../hooks/useWallet'
-import { useUserCurrency } from '../hooks/useFx'
+import { useUserCurrency } from '../hooks/useAmount'
 
 type Props = {
   postId: string

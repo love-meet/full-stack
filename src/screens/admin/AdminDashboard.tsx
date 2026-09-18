@@ -7,8 +7,7 @@ export default function AdminDashboard() {
   const cards = [
     { label: 'Open reports',      to: '/admin/moderation',   key: 'open_reports',     accent: 'rose' },
     { label: 'Open tickets',      to: '/admin/support',      key: 'open_tickets',     accent: 'gold' },
-    { label: 'Pending payouts',   to: '/admin/payouts',      key: 'pending_payouts',  accent: 'coral' },
-    { label: 'Pending deposits',  to: '/admin/payouts',      key: 'pending_deposits', accent: 'gold' },
+    { label: 'Pending deposits',  to: '/admin/transactions', key: 'pending_deposits', accent: 'gold' },
     { label: 'Active bans',       to: '/admin/users',        key: 'active_bans',      accent: 'danger' },
     { label: 'Admins',            to: '/admin/users',        key: 'admin_count',      accent: 'magenta' },
     { label: 'Users',             to: '/admin/users',        key: 'user_count',       accent: 'success' },

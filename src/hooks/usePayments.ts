@@ -9,9 +9,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../stores/auth'
 import { walletKey } from './useWallet'
 
-export type PaymentProvider = 'wema' | 'flutterwave' | 'ccpayment' | 'manual' | 'alatpay'
+export type PaymentProvider = 'wema' | 'flutterwave' | 'manual' | 'alatpay'
 export type DepositStatus = 'pending' | 'paid' | 'failed' | 'cancelled'
-export type WithdrawalStatus = 'pending' | 'approved' | 'sent' | 'rejected' | 'failed'
 
 export type Deposit = {
   id: string
@@ -27,32 +26,6 @@ export type Deposit = {
   created_at: string
 }
 
-export type WithdrawalRequest = {
-  id: string
-  user_id: string
-  amount_usdt: number
-  destination: string
-  payout_amount_local: number | null
-  payout_currency: string | null
-  status: WithdrawalStatus
-  reviewed_by: string | null
-  reviewed_at: string | null
-  sent_tx_hash: string | null
-  reject_reason: string | null
-  created_at: string
-}
-
-export type PayoutAccount = {
-  user_id: string
-  account_name: string
-  bank_name: string
-  account_number: string
-  bank_code: string | null
-  country_code: string | null
-  created_at: string
-  updated_at: string
-  eligible_at: string
-}
 
 export type SubscriptionPlan = {
   id: string
@@ -240,126 +213,3 @@ export function useMyDeposits() {
   })
 }
 
-// ============================================================================
-// WITHDRAWALS
-// ============================================================================
-
-/** Earnings available to withdraw (deposits are NOT withdrawable):
- *  earnings received − already withdrawn + refunds for rejected requests. */
-export function useWithdrawable() {
-  const session = useAuth((s) => s.session)
-  return useQuery<number>({
-    queryKey: ['withdrawable', session?.user.id ?? null],
-    enabled: !!session,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('my_withdrawable')
-      if (error) throw error
-      return Number(data ?? 0)
-    },
-  })
-}
-
-export function useRequestWithdrawal() {
-  const qc = useQueryClient()
-  const session = useAuth((s) => s.session)
-  return useMutation({
-    mutationFn: async (vars: { amountUsd: number; amountLocal: number; currencyLocal: string }) => {
-      const { data, error } = await supabase
-        .rpc('request_withdrawal', {
-          amount_usd: vars.amountUsd,
-          amount_local: vars.amountLocal,
-          currency_local: vars.currencyLocal,
-        })
-        .select('*')
-        .single()
-      if (error) throw error
-      return data as WithdrawalRequest
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['withdrawals:mine'] })
-      qc.invalidateQueries({ queryKey: ['withdrawable'] })
-      if (session) qc.invalidateQueries({ queryKey: walletKey(session.user.id) })
-      qc.invalidateQueries({ queryKey: ['ledger'] })
-    },
-  })
-}
-
-/** The signed-in user's saved payout (bank) account, or null. */
-export function useMyPayoutAccount() {
-  const session = useAuth((s) => s.session)
-  return useQuery<PayoutAccount | null>({
-    queryKey: ['payout-account', session?.user.id ?? null],
-    enabled: !!session,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payout_accounts')
-        .select('*')
-        .eq('user_id', session!.user.id)
-        .maybeSingle()
-      if (error) throw error
-      return (data as PayoutAccount | null) ?? null
-    },
-  })
-}
-
-export function useSavePayoutAccount() {
-  const qc = useQueryClient()
-  const session = useAuth((s) => s.session)
-  return useMutation({
-    mutationFn: async (vars: {
-      accountName: string
-      bankName: string
-      accountNumber: string
-      bankCode?: string | null
-      countryCode?: string | null
-    }) => {
-      if (!session) throw new Error('not signed in')
-      const { data, error } = await supabase
-        .from('payout_accounts')
-        .upsert({
-          user_id: session.user.id,
-          account_name: vars.accountName,
-          bank_name: vars.bankName,
-          account_number: vars.accountNumber,
-          bank_code: vars.bankCode ?? null,
-          country_code: vars.countryCode ?? null,
-        })
-        .select('*')
-        .single()
-      if (error) throw error
-      return data as PayoutAccount
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['payout-account'] })
-    },
-  })
-}
-
-export function useMyWithdrawals() {
-  const session = useAuth((s) => s.session)
-  return useInfiniteQuery<
-    WithdrawalRequest[],
-    Error,
-    InfiniteData<WithdrawalRequest[]>,
-    ['withdrawals:mine', string | null],
-    string | null
-  >({
-    queryKey: ['withdrawals:mine', session?.user.id ?? null],
-    enabled: !!session,
-    initialPageParam: null,
-    queryFn: async ({ pageParam }) => {
-      let q = supabase
-        .from('withdrawal_requests')
-        .select('*')
-        .eq('user_id', session!.user.id)
-        .order('created_at', { ascending: false })
-        .limit(PAGE)
-      if (pageParam) q = q.lt('created_at', pageParam)
-      const { data, error } = await q
-      if (error) throw error
-      return (data ?? []) as WithdrawalRequest[]
-    },
-    getNextPageParam: (last) =>
-      last.length < PAGE ? undefined : last[last.length - 1].created_at,
-  })
-}
