@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useMySubscription } from '../hooks/usePayments'
+import { AD_PROVIDER, useAdsEnabled } from '../hooks/useAds'
 
 // Adsterra ad units. Each ad renders in its own sandboxed iframe so multiple
 // instances don't collide (the invoke script targets the document it runs in).
@@ -55,10 +55,22 @@ function useMinWidth(px: number): boolean {
   return match
 }
 
-/** In-feed sponsored banner: a wide leaderboard on desktop, a small banner on
- *  mobile (falls back to the mobile unit if the desktop key isn't set yet). */
+/**
+ * In-feed sponsored banner: a wide leaderboard on desktop, a small banner on
+ * mobile (falls back to the mobile unit if the desktop key isn't set yet).
+ *
+ * Shown to everyone the switch allows — no subscription check, no credit
+ * check. §7: ads are not a reward and they unlock nothing.
+ *
+ * AdMob has no web SDK, so on the website and inside Telegram this always
+ * renders the Adsterra unit. When the native shell ships and sets
+ * VITE_AD_PROVIDER=admob, this is the one place that needs an AdMob branch —
+ * the shell exposes its banner view and this returns that instead.
+ */
 export default function FeedAd() {
   const wide = useMinWidth(768)
+  const adsOn = useAdsEnabled()
+  if (!adsOn || AD_PROVIDER !== 'adsterra') return null
   if (wide && KEY_728x90) return <AdsterraBanner unitKey={KEY_728x90} w={728} h={90} />
   // Mobile: prefer the 300x250 rectangle (fills the card); else the 320x50.
   if (KEY_300x250) return <AdsterraBanner unitKey={KEY_300x250} w={300} h={250} />
@@ -67,18 +79,18 @@ export default function FeedAd() {
 
 /** Desktop sidebar skyscraper (160x600). Renders nothing until its key is set. */
 export function SidebarAd() {
-  if (!KEY_160x600) return null
+  const adsOn = useAdsEnabled()
+  if (!adsOn || AD_PROVIDER !== 'adsterra' || !KEY_160x600) return null
   return <AdsterraBanner unitKey={KEY_160x600} w={160} h={600} />
 }
 
 /**
- * A framed "Sponsored" banner for inline placement (comment lists, threads).
- * Free users only — subscribers see nothing. Uses the same responsive unit
- * as the feed.
+ * A framed "Sponsored" banner for inline placement. Same unit as the feed,
+ * same rule: everyone sees it while the switch is on.
  */
 export function InlineAd() {
-  const isSubscriber = !!useMySubscription().data
-  if (isSubscriber) return null
+  const adsOn = useAdsEnabled()
+  if (!adsOn) return null
   return (
     <div className="my-3 glass rounded-2xl px-3 py-3 flex flex-col items-center gap-2">
       <span className="self-start text-[10px] font-bold uppercase tracking-[0.18em] text-ink-muted">
@@ -92,8 +104,8 @@ export function InlineAd() {
 // ── Whole-page script ads (Popunder, Social Bar) ─────────────────────────
 // Adsterra "Popunder" and "Social Bar" units are single <script src> tags
 // that hook the whole page (popunder triggers on the next click, social bar
-// renders its own floating widget). We inject them ONCE per page-load for
-// non-subscribers, and leave them mounted across route changes.
+// renders its own floating widget). We inject them ONCE per page-load and
+// leave them mounted across route changes.
 
 // TODO: paste the Popunder unit's "Get Code" src here, or set
 // VITE_ADSTERRA_POPUNDER_SRC in Netlify. Leaving it empty no-ops the popunder.
@@ -116,11 +128,17 @@ function useScriptAd(src: string, flagKey: string, enabled: boolean) {
   }, [enabled, src, flagKey])
 }
 
-/** Adsterra Popunder — fires on the user's next click anywhere on the page.
- *  Mount it on screens where popunder is allowed (games). Non-subscribers only. */
+/**
+ * Adsterra Popunder — fires on the user's next click anywhere on the page.
+ * Mount it only on screens where a popunder is acceptable.
+ *
+ * NOT mounted on any game screen. Games are free and pay nothing; an ad that
+ * hijacks the next tap during someone's turn would read as the price of
+ * playing, which is exactly what §7 says ads must never be.
+ */
 export function PopunderAd() {
-  const isSubscriber = !!useMySubscription().data
-  useScriptAd(POPUNDER_SRC, '__lm_popunder', !isSubscriber)
+  const adsOn = useAdsEnabled()
+  useScriptAd(POPUNDER_SRC, '__lm_popunder', adsOn && AD_PROVIDER === 'adsterra')
   return null
 }
 

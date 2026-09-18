@@ -7,6 +7,7 @@ import NotifPermissionBanner from './NotifPermissionBanner'
 import { usePresenceInit } from '../hooks/usePresenceInit'
 import { useEnsureBrowserNotifications } from '../hooks/useBrowserNotifications'
 import { useIncomingMessageAlerts } from '../hooks/useIncomingMessageAlerts'
+import { useAdSettingsRealtime } from '../hooks/useAds'
 
 // Routes that take over the whole mobile viewport — no bottom nav, no main
 // padding-bottom for the nav. Sidebar still shows on desktop.
@@ -18,6 +19,8 @@ export default function Shell() {
   usePresenceInit()
   useEnsureBrowserNotifications()
   useIncomingMessageAlerts()
+  // Flipping the ad switch empties every slot live, with no reload.
+  useAdSettingsRealtime()
 
   const immersive = IMMERSIVE_ROUTES.some(
     (p) => location.pathname === p || location.pathname.startsWith(`${p}/`),
