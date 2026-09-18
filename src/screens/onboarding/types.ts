@@ -1,72 +1,57 @@
-// Shared form state for the 5-step onboarding wizard.
-// Mirrors the field set from _archive/mobile/src/screens/personalForm/.
+// Shared form state for onboarding.
+//
+// §4: signup captures the minimum the product cannot run without, and nothing
+// else. That is gender, country/state/city, language, username and a profile
+// picture. Everything that used to be here — bio, relationship intent,
+// interests, the age range, the privacy toggles — moved to Profile, where the
+// user adds it whenever they feel like it and is never blocked on it.
+//
+// Date of birth is the one required field beyond §4's list. Love meet is
+// 18+: the terms say so, the Naughty room is age-gated, and the store review
+// guidelines require it. The product genuinely cannot run without knowing the
+// user is an adult, which is the test §4 sets.
 
 export type Gender = 'male' | 'female' | 'nonbinary' | 'other' | 'prefer_not_to_say'
-export type LookingFor = 'serious' | 'casual' | 'friends'
 
 export type FormData = {
-  // Avatar — pre-filled from the OAuth provider's picture if available;
-  // user can override by uploading their own.
-  avatar: string
-
-  // Step 1 — Name
-  firstName: string
-  lastName: string
+  // Step 1 — You
   username: string
   // Transient: live username availability (not persisted). null = unknown
   // / checking; true = free; false = taken or invalid. Gates "Continue".
   usernameAvailable: boolean | null
-
-  // Step 2 — Details
   gender: Gender | ''
   dobDay: string   // '' or '1'..'31'
   dobMonth: string // '' or '1'..'12'
   dobYear: string  // '' or '1925'..'(thisYear - 18)'
 
-  // Step 3 — About
-  bio: string
-  lookingFor: LookingFor | ''
-  hobbies: string[] // min 3, max 5
-
-  // Step 4 — Preferences
-  ageMin: number
-  ageMax: number
-  showOnlineStatus: boolean
-  showDistance: boolean
-
-  // Step 5 — Location. Detected (GPS → coords + place) OR entered manually
-  // (country select; lat/lon stay null). Either path satisfies the step.
-  address: string
-  region: string
+  // Step 2 — Where you are
   countryCode: string  // ISO 3166-1 alpha-2, e.g. "NG"
   countryName: string  // full name, e.g. "Nigeria"
-  lat: number | null
-  lon: number | null
+  region: string       // state / province
+  city: string
+  language: string     // code from src/data/languages.ts
+
+  // Step 3 — Your picture. Either an uploaded URL or one of the suggested
+  // images; both land in the same field. `suggested` only tracks which chip
+  // is highlighted, so re-picking a suggestion after an upload reads right.
+  avatar: string
+  avatarIsSuggested: boolean
 }
 
 export const initialFormData: FormData = {
-  avatar: '',
-  firstName: '',
-  lastName: '',
   username: '',
   usernameAvailable: null,
   gender: '',
   dobDay: '',
   dobMonth: '',
   dobYear: '',
-  bio: '',
-  lookingFor: '',
-  hobbies: [],
-  ageMin: 18,
-  ageMax: 35,
-  showOnlineStatus: true,
-  showDistance: true,
-  address: '',
-  region: '',
   countryCode: '',
   countryName: '',
-  lat: null,
-  lon: null,
+  region: '',
+  city: '',
+  language: '',
+  avatar: '',
+  avatarIsSuggested: false,
 }
 
 export type StepProps = {
@@ -75,9 +60,7 @@ export type StepProps = {
 }
 
 export const STEPS = [
-  { key: 'name',        title: 'Tell us about you',     subtitle: 'What should we call you?' },
-  { key: 'details',     title: 'A bit more',             subtitle: 'This helps us get to know you.' },
-  { key: 'about',       title: 'What are you into',      subtitle: 'And what are you looking for?' },
-  { key: 'preferences', title: 'Your preferences',       subtitle: 'Who would you like to meet?' },
-  { key: 'location',    title: 'Where are you',          subtitle: 'So we can find people near you.' },
+  { key: 'you',      title: 'Who you are',    subtitle: 'Pick a username and tell us how you identify.' },
+  { key: 'where',    title: 'Where you are',  subtitle: 'So we can show you people nearby who speak your language.' },
+  { key: 'picture',  title: 'Your picture',   subtitle: 'The one thing people see first.' },
 ] as const

@@ -16,6 +16,8 @@ export type Profile = {
   bio: string | null
   looking_for: 'serious' | 'casual' | 'friends' | null
   interests: string[]
+  language: string | null
+  gallery_urls: string[]
   age_min: number | null
   age_max: number | null
   show_online_status: boolean
@@ -67,6 +69,7 @@ export type ProfileUpdate = Partial<
     | 'bio'
     | 'looking_for'
     | 'interests'
+    | 'language'
     | 'age_min'
     | 'age_max'
     | 'show_online_status'
