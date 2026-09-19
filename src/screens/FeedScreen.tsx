@@ -128,9 +128,11 @@ export default function FeedScreen() {
             person={person}
             onSeen={markSeen}
             onOpenGallery={() => setGallery(person)}
-            // A sponsored card roughly every eighth profile (§7). Always on,
-            // for everyone — it is not a reward and unlocks nothing.
-            showAdAfter={(i + 1) % 8 === 0}
+            // A sponsored card every tenth profile (§7). Always on, for
+            // everyone — not a reward, unlocks nothing. Tenth rather than
+            // eighth because the feed is faces: an ad among them intrudes
+            // more than one among posts did.
+            showAdAfter={(i + 1) % 10 === 0}
           />
         ))}
       </div>

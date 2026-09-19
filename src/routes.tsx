@@ -16,7 +16,6 @@ import ChatScreen from './screens/ChatScreen'
 import ChatDetailScreen from './screens/ChatDetailScreen'
 import SearchScreen from './screens/SearchScreen'
 import InterviewScreen from './screens/InterviewScreen'
-import PlanCheckoutScreen from './screens/settings/PlanCheckoutScreen'
 import GiftDetailScreen from './screens/GiftDetailScreen'
 import GuideScreen from './screens/GuideScreen'
 import NotificationsScreen from './screens/NotificationsScreen'
@@ -24,11 +23,9 @@ import ProfileScreen from './screens/ProfileScreen'
 import PostDetailScreen from './screens/PostDetailScreen'
 import EditProfileScreen from './screens/settings/EditProfileScreen'
 import LegalScreen from './screens/legal/LegalScreen'
-import WalletScreen from './screens/settings/WalletScreen'
 import CreditsScreen from './screens/settings/CreditsScreen'
 import SecurityScreen from './screens/settings/SecurityScreen'
 import CloseAccountScreen from './screens/settings/CloseAccountScreen'
-import SubscriptionScreen from './screens/settings/SubscriptionScreen'
 import ProfileMenuScreen from './screens/settings/ProfileMenuScreen'
 import SavedPostsScreen from './screens/settings/SavedPostsScreen'
 import InviteFriendsScreen from './screens/settings/InviteFriendsScreen'
@@ -37,7 +34,6 @@ import AdminLayout from './screens/admin/AdminLayout'
 import AdminDashboard from './screens/admin/AdminDashboard'
 import ModerationQueue from './screens/admin/ModerationQueue'
 import UserManagement from './screens/admin/UserManagement'
-import TransactionsView from './screens/admin/TransactionsView'
 import SupportInbox from './screens/admin/SupportInbox'
 import SupportScreen from './screens/support/SupportScreen'
 import SupportTicketScreen from './screens/support/SupportTicketScreen'
@@ -74,8 +70,6 @@ export const router = createBrowserRouter([
           // Match-preferences interview — full-screen, no bottom nav.
           { path: 'interview',            element: <InterviewScreen /> },
 
-          // Pay-and-unlock plan checkout — direct ALATPay, no wallet detour.
-          { path: 'plans/:planId',        element: <PlanCheckoutScreen /> },
 
           // Shell-wrapped main app.
           {
@@ -97,8 +91,6 @@ export const router = createBrowserRouter([
               { path: 'profile-menu',          element: <ProfileMenuScreen /> },
               { path: 'profile/:userId',       element: <ProfileScreen /> },
               { path: 'credits',               element: <CreditsScreen /> },
-              { path: 'wallet',                element: <WalletScreen /> },
-              { path: 'subscription',          element: <SubscriptionScreen /> },
               { path: 'security',              element: <SecurityScreen /> },
               { path: 'saved',                 element: <SavedPostsScreen /> },
               { path: 'support',               element: <SupportScreen /> },
@@ -115,7 +107,6 @@ export const router = createBrowserRouter([
                   { path: 'moderation',    element: <ModerationQueue /> },
                   { path: 'support',       element: <SupportInbox /> },
                   { path: 'users',         element: <UserManagement /> },
-                  { path: 'transactions', element: <TransactionsView /> },
                 ],
               },
             ],

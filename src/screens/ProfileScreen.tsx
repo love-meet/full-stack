@@ -4,7 +4,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../stores/auth'
 import { supabase } from '../lib/supabase'
 import { useProfile, useProfileById } from '../hooks/useProfile'
-import { useMySubscription, useSubscriptionPlans } from '../hooks/usePayments'
 import { useStartDM } from '../hooks/useStartDM'
 import { useProfileSocial, useToggleFollow, type ProfileSocial } from '../hooks/useFollow'
 import { avatarFor } from '../lib/avatar'
@@ -142,7 +141,6 @@ export default function ProfileScreen() {
             @{username}
             {social?.is_subscriber && <BlueTick size={16} />}
           </div>
-          {isMe && <PlanChip />}
           <div className="mt-1 flex items-center gap-4 text-sm text-ink-2">
             <span><b className="text-ink">{social?.followers ?? 0}</b> followers</span>
             <span><b className="text-ink">{social?.following ?? 0}</b> following</span>
@@ -296,24 +294,3 @@ function initialSize() {
   return { width: window.innerWidth, viewportH: window.innerHeight }
 }
 
-/** Small chip under the username showing the viewer's current plan. */
-function PlanChip() {
-  const sub = useMySubscription()
-  const plans = useSubscriptionPlans()
-  const active = sub.data
-  const name = active
-    ? plans.data?.find((p) => p.id === active.plan_id)?.name ?? 'Active'
-    : 'Free'
-  const isFree = !active
-  return (
-    <div
-      className={[
-        'mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 ring-1 text-[11px] font-bold',
-        isFree ? 'bg-white/5 text-ink-2 ring-white/10' : 'bg-rose/15 text-rose ring-rose/30',
-      ].join(' ')}
-    >
-      <span aria-hidden>{isFree ? '◌' : '👑'}</span>
-      <span>{name} plan</span>
-    </div>
-  )
-}

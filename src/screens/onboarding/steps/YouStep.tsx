@@ -8,9 +8,6 @@ type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: 'female', label: 'Woman' },
   { value: 'male', label: 'Man' },
-  { value: 'nonbinary', label: 'Nonbinary' },
-  { value: 'other', label: 'Other' },
-  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ]
 
 const MONTHS = [

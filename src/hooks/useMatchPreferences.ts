@@ -6,7 +6,6 @@ export type MatchPreferences = {
   user_id: string
   partner: Record<string, string>
   self: Record<string, string>
-  plan_goal: 'free' | 'premium' | 'vip' | null
   completed_at: string | null
 }
 
@@ -43,7 +42,6 @@ export function useSaveMatchPreferences() {
     mutationFn: async (vars: {
       partner: Record<string, string>
       self: Record<string, string>
-      planGoal?: 'free' | 'premium' | 'vip'
       completed?: boolean
     }) => {
       if (!userId) throw new Error('not authenticated')
@@ -51,13 +49,11 @@ export function useSaveMatchPreferences() {
         user_id: string
         partner: Record<string, string>
         self: Record<string, string>
-        plan_goal: 'free' | 'premium' | 'vip' | null
-        completed_at?: string
+              completed_at?: string
       } = {
         user_id: userId,
         partner: vars.partner,
         self: vars.self,
-        plan_goal: vars.planGoal ?? null,
       }
       if (vars.completed) patch.completed_at = new Date().toISOString()
       const { error } = await supabase.from('match_preferences').upsert(patch)

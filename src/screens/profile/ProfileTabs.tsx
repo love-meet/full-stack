@@ -3,7 +3,6 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useUserPosts } from '../../hooks/useUserPosts'
 import { useReceivedGifts } from '../../hooks/useGift'
-import { useUserCurrency } from '../../hooks/useAmount'
 import { IconImages, IconVideo, IconPlay } from '../../components/icons'
 
 type TabKey = 'posts' | 'gifts' | 'videos' | 'career'
@@ -136,7 +135,6 @@ function PostsGrid({ userId }: { userId: string }) {
 
 function GiftsList({ userId }: { userId: string }) {
   const q = useReceivedGifts(userId)
-  const cur = useUserCurrency()
 
   if (q.status === 'pending') {
     return (
@@ -157,8 +155,6 @@ function GiftsList({ userId }: { userId: string }) {
   return (
     <ul className="px-5 pt-4 space-y-2">
       {gifts.map((g) => {
-        const amountUsd = g.amount_cents / 100
-        const price = cur.ready || cur.code === 'USD' ? cur.format(amountUsd) : `$${amountUsd}`
         const from = g.sender?.handle ? `@${g.sender.handle}` : g.sender?.display_name ?? 'Someone'
         return (
           <li key={g.id}>
@@ -168,7 +164,7 @@ function GiftsList({ userId }: { userId: string }) {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-ink truncate">{g.gift_name}</div>
-                <div className="text-[11px] text-ink-muted truncate">from {from} · {price}</div>
+                <div className="text-[11px] text-ink-muted truncate">from {from}</div>
               </div>
               <GiftStatusTag status={g.status} />
             </Link>
@@ -179,12 +175,10 @@ function GiftsList({ userId }: { userId: string }) {
   )
 }
 
-function GiftStatusTag({ status }: { status: 'pending' | 'accepted' | 'rejected' | 'failed' }) {
+function GiftStatusTag({ status }: { status: 'sent' | 'rejected' }) {
   const map = {
-    pending:  { label: 'Pending',  cls: 'bg-gold/15 text-gold' },
-    accepted: { label: 'Accepted', cls: 'bg-success/15 text-success' },
+    sent:     { label: 'Sent',     cls: 'bg-success/15 text-success' },
     rejected: { label: 'Declined', cls: 'bg-rose/15 text-rose' },
-    failed:   { label: 'Failed',   cls: 'bg-rose/15 text-rose' },
   } as const
   const m = map[status]
   return (

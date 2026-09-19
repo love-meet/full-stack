@@ -34,8 +34,7 @@ export default function NotificationsScreen() {
       navigate(`/chat/${n.conversation_id}`)
     } else if (n.post_id) navigate(`/p/${n.post_id}`)
     else if (n.type === 'welcome' || n.type === 'welcome_signup') navigate('/guide')
-    else if (n.type === 'launch_bonus') navigate('/wallet')
-    else if (n.type === 'subscription_expired') navigate('/subscription')
+    else if (n.type === 'launch_bonus') navigate('/credits')
     else if ((n.type === 'follow' || n.type === 'profile_viewed') && n.actor_id) navigate(`/profile/${n.actor_id}`)
     else if (n.type === 'password_changed') navigate('/security')
     else if (n.type === 'chat_reminder' || n.type === 'chat_message') navigate('/chat')
@@ -139,18 +138,16 @@ function message(n: AppNotification): React.ReactNode {
     case 'reply': return <>{who} replied: <span className="text-ink-2">“{n.body}”</span></>
     case 'comment_like': return <>{who} liked your comment.</>
     case 'reply_like': return <>{who} liked your reply.</>
-    case 'gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁 Tap to accept or decline.</>
+    case 'gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁</>
     case 'chat_message': return <>{who} sent you a message{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : '.'}</>
     case 'follow': return <>{who} started following you.</>
     case 'profile_viewed': return <>{who} looked at your profile.</>
-    case 'gift_accepted': return <>{who} accepted your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎉</>
-    case 'gift_rejected': return <>{who} declined your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''}.</>
     case 'match_post': return <>{who} — who matches your preferences — just posted. ✨</>
     case 'support_user_msg': return <>{who} messaged live support: <span className="text-ink-2">“{n.body}”</span></>
     case 'support_reply': return <>Support replied{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : ''} 🛟</>
     case 'game_invite': return <>{who} invited you to play a game 🎮 Tap to join.</>
     case 'game_round': return <>{who} made a move. Your turn.</>
-    case 'game_join': return <>{who} joined your game 🎮 Tap to open the lobby.</>
+    case 'game_join': return <>{who} joined your game 🎮</>
     case 'game_waiting': return <>⏰ It's your turn — your opponent is waiting. Tap to play.</>
     // Transactional / system notifications carry their full text in body.
     case 'welcome':

@@ -11,7 +11,18 @@
 // guidelines require it. The product genuinely cannot run without knowing the
 // user is an adult, which is the test §4 sets.
 
-export type Gender = 'male' | 'female' | 'nonbinary' | 'other' | 'prefer_not_to_say'
+/**
+ * Signup gender is male or female only.
+ *
+ * Victor, 19 Sep: the entire feed depends on it. Under a strict
+ * men-see-women rule a nonbinary user appears in nobody's feed at all —
+ * invisible, which is a worse bug than not offering the option. A proper
+ * show_me preference gets designed later rather than bolted on here.
+ *
+ * profiles.gender still accepts the wider set, so existing rows are
+ * untouched; this narrows the signup surface only.
+ */
+export type Gender = 'male' | 'female'
 
 export type FormData = {
   // Step 1 — You

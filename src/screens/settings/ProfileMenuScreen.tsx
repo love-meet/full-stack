@@ -2,10 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../stores/auth'
 import { useProfile } from '../../hooks/useProfile'
-import { useWallet } from '../../hooks/useWallet'
 
 import { useIsAdmin } from '../../hooks/useAdmin'
-import WalletCardDeck from '../../components/wallet/WalletCardDeck'
 import ConfirmDialog from '../../components/ConfirmDialog'
 
 type Item = {
@@ -20,14 +18,12 @@ type Item = {
 
 /**
  * Full-page replacement for the old bottom-sheet settings menu.
- * Top: a swipeable 3D Wallet/Earnings card deck (no avatar).
  * Below: the reorganized menu.
  */
 export default function ProfileMenuScreen() {
   const navigate = useNavigate()
   const signOut = useAuth((s) => s.signOut)
   const profileQ = useProfile()
-  const wallet = useWallet()
 
   const isAdmin = useIsAdmin()
   const [confirmLogout, setConfirmLogout] = useState(false)
@@ -41,8 +37,6 @@ export default function ProfileMenuScreen() {
     )
   }
 
-  const profile = profileQ.data
-  const refCode = `LM-${profile.id.slice(0, 6).toUpperCase()}`
 
   async function doLogout() {
     setBusy(true)
@@ -66,8 +60,6 @@ export default function ProfileMenuScreen() {
       title: 'Credits',
       items: [
         { icon: '💬', label: 'Credits', hint: 'Balance, history, and getting more', onClick: () => navigate('/credits') },
-        { icon: '⭐', label: 'Subscription', hint: 'Premium plans', onClick: () => navigate('/subscription') },
-        { icon: '🧾', label: 'Transaction history', hint: 'Gifts and subscriptions', onClick: () => navigate('/wallet') },
       ],
     },
     {
@@ -83,7 +75,7 @@ export default function ProfileMenuScreen() {
     ...(isAdmin ? [{
       title: 'Admin',
       items: [
-        { icon: '🛠', label: 'Admin console', hint: 'Moderation, users, transactions', onClick: () => navigate('/admin') },
+        { icon: '🛠', label: 'Admin console', hint: 'Moderation, users, support', onClick: () => navigate('/admin') },
       ] as Item[],
     }] : []),
     {
@@ -125,12 +117,6 @@ export default function ProfileMenuScreen() {
       </header>
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 py-6">
-        {/* 3D card deck */}
-        <WalletCardDeck
-          uuid={profile.id}
-          referralCode={refCode}
-          balanceUsdt={wallet.data?.balance_usdt ?? 0}
-        />
 
         {/* Menu */}
         <div className="mt-8 space-y-5">

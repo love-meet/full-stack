@@ -1,15 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../stores/auth'
-import { type CatalogueGift, usdToCents } from '../lib/gifts'
-import { feedQueryKey } from './useFeed'
-import { walletKey } from './useWallet'
+import { type CatalogueGift } from '../lib/gifts'
 
 /**
- * Send a gift on a post via the send_gift RPC. The RPC checks the sender's
- * balance, debits them (escrow), creates the 'pending' gift, and notifies the
- * recipient — who can then accept (recipient is credited) or decline (sender
- * refunded). All movements land in the wallet ledger.
+ * Send a gift on a post.
+ *
+ * Gifts are free and purely cosmetic. There is no price, no escrow, no
+ * accept/decline step — the gift is simply delivered and the recipient is
+ * notified.
+ *
+ * They deliberately grant the recipient NOTHING. Crediting them would let two
+ * accounts gift each other free messaging for ever; the credit ledger no
+ * longer even has a kind that could express it.
  */
 export function useSendGift() {
   const session = useAuth((s) => s.session)
@@ -31,7 +34,6 @@ export function useSendGift() {
           p_gift_id: vars.gift.giftId,
           p_gift_name: vars.gift.name,
           p_gift_image: vars.gift.image,
-          p_amount_cents: usdToCents(vars.gift.price),
         })
         .select()
         .single()
@@ -39,11 +41,7 @@ export function useSendGift() {
       return data
     },
     onSuccess: () => {
-      // Bump the gift count on the relevant feed card next refresh.
-      qc.invalidateQueries({ queryKey: feedQueryKey, refetchType: 'none' })
-      // Sender was debited — refresh wallet + ledger.
-      if (session) qc.invalidateQueries({ queryKey: walletKey(session.user.id) })
-      qc.invalidateQueries({ queryKey: ['ledger'] })
+      qc.invalidateQueries({ queryKey: ['gifts'] })
     },
   })
 }

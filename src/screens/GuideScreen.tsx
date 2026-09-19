@@ -39,11 +39,11 @@ const STEPS: Step[] = [
     cta: 'Get my invite link',
   },
   {
-    emoji: '👑',
-    title: 'Go premium to stand out',
-    body: 'Premium boosts your visibility, unlocks groups and gives you the blue verified tick.',
-    to: '/subscription',
-    cta: 'See plans',
+    emoji: '💬',
+    title: 'Credits are for messaging',
+    body: "100 credits covers the first message you send on any day — after that, message as much as you like until tomorrow. Games are free.",
+    to: '/credits',
+    cta: 'See credits',
   },
 ]
 

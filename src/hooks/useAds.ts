@@ -17,20 +17,23 @@ import { supabase } from '../lib/supabase'
  *                   and picked up live, no redeploy
  */
 
-export type AdProvider = 'adsterra' | 'admob' | 'none'
+export type AdProvider = 'adsense' | 'admob' | 'none'
 
 /**
  * Which ad network this build talks to.
  *
- * Defaults to Adsterra because that is what actually works on the two
- * surfaces shipping first. AdMob is a mobile SDK — it has no web SDK, so it
- * cannot serve the website or the Telegram Mini-App at all; the Google
- * product for those is AdSense / Ad Manager. Setting this to 'admob' is only
- * meaningful inside the native shell, which is the last surface in the ship
- * order. See AdSlot for how that is dispatched.
+ * AdSense on web and inside Telegram, AdMob on the native app. Adsterra was
+ * ruled out deliberately: it puts scam creatives next to the product, and we
+ * are taking a dating app to Apple's review. That is not the reputation to
+ * buy for a bit of fill rate.
+ *
+ * AdMob is mobile-SDK only — it has no web SDK, so setting this to 'admob' is
+ * only meaningful inside the native shell. 'none' compiles ads out entirely,
+ * which is also the answer if AdSense approval is slow: ship without ads,
+ * nothing is blocked on them.
  */
 export const AD_PROVIDER: AdProvider =
-  ((import.meta.env.VITE_AD_PROVIDER as AdProvider | undefined) ?? 'adsterra')
+  ((import.meta.env.VITE_AD_PROVIDER as AdProvider | undefined) ?? 'adsense')
 
 export const adSettingsKey = ['app-settings', 'ads'] as const
 

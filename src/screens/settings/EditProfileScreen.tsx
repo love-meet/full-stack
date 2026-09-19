@@ -12,7 +12,10 @@ import { useAddGalleryPhoto, useRemoveGalleryPhoto, GALLERY_MAX } from '../../ho
 import { avatarFor } from '../../lib/avatar'
 import { LANGUAGES } from '../../data/languages'
 
-const GENDERS: Profile['gender'][] = ['female', 'male', 'nonbinary', 'other', 'prefer_not_to_say']
+// Male/female only, same as signup. The feed pairs on this field, so a
+// profile set to anything else appears in nobody's feed — offering the choice
+// here would just be a quieter way to make someone invisible.
+const GENDERS: Profile['gender'][] = ['female', 'male']
 const LOOKING: NonNullable<Profile['looking_for']>[] = ['serious', 'casual', 'friends']
 
 type Form = {
