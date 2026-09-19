@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { StepProps } from '../types'
-import { COUNTRIES, STATES } from '../../../data/geo'
+import { COUNTRIES, STATES, matchRegion } from '../../../data/geo'
 import { LANGUAGES } from '../../../data/languages'
 
 type DetectStatus = 'idle' | 'asking' | 'error'
@@ -44,13 +44,23 @@ export default function WhereStep({ data, set }: StepProps) {
         try {
           const d = await reverseGeocode(pos.coords.latitude, pos.coords.longitude)
           if (!d.country_name) throw new Error("Couldn't work out your country from that location.")
+          const code = d.country_code ?? ''
+          // The geocoder's wording rarely matches our state list exactly, so
+          // reconcile it. An unmatched state stays blank for the user to pick
+          // rather than being silently set to the wrong one.
+          const region = matchRegion(code, d.region)
           set({
-            countryCode: d.country_code ?? '',
+            countryCode: code,
             countryName: d.country_name,
-            region: d.region ?? '',
+            region,
             city: d.city ?? '',
           })
           setStatus('idle')
+          if (!region && d.region) {
+            setError(`Found ${d.region}, but pick your state below to be sure.`)
+          } else if (!region) {
+            setError('Got your country — pick your state below.')
+          }
         } catch (e) {
           setStatus('error')
           setError((e as Error).message || 'Could not look that up — pick your country below.')
@@ -81,7 +91,7 @@ export default function WhereStep({ data, set }: StepProps) {
         </span>
       </button>
 
-      {status === 'error' && error && <p className="text-xs text-danger px-1">{error}</p>}
+      {error && <p className="text-xs text-ink-muted px-1">{error}</p>}
 
       <Field label="Country">
         <select
@@ -176,7 +186,7 @@ async function reverseGeocode(lat: number, lon: number) {
   return {
     country_code: cc && /^[A-Z]{2}$/.test(cc) ? cc : null,
     country_name: (a.country as string | undefined) ?? null,
-    region: (a.state ?? a.region ?? null) as string | null,
+    region: (a.state ?? a.region ?? a.state_district ?? a.county ?? null) as string | null,
     city: (a.city ?? a.town ?? a.village ?? a.suburb ?? null) as string | null,
   }
 }
