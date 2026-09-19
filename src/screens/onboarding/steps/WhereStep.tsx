@@ -46,9 +46,15 @@ export default function WhereStep({ data, set }: StepProps) {
           if (!d.country_name) throw new Error("Couldn't work out your country from that location.")
           const code = d.country_code ?? ''
           // The geocoder's wording rarely matches our state list exactly, so
-          // reconcile it. An unmatched state stays blank for the user to pick
-          // rather than being silently set to the wrong one.
-          const region = matchRegion(code, d.region)
+          // try every candidate it gave us and keep the first that reconciles.
+          // An unmatched state stays blank for the user to pick rather than
+          // being silently set to the wrong one.
+          let region = ''
+          for (const candidate of d.regionCandidates) {
+            region = matchRegion(code, candidate)
+            if (region) break
+          }
+
           set({
             countryCode: code,
             countryName: d.country_name,
@@ -56,11 +62,13 @@ export default function WhereStep({ data, set }: StepProps) {
             city: d.city ?? '',
           })
           setStatus('idle')
-          if (!region && d.region) {
-            setError(`Found ${d.region}, but pick your state below to be sure.`)
-          } else if (!region) {
-            setError('Got your country — pick your state below.')
-          }
+
+          const missing = [!region && 'state', !d.city && 'city'].filter(Boolean)
+          setError(
+            missing.length
+              ? `Found ${d.country_name}${d.city ? ` and ${d.city}` : ''} — add your ${missing.join(' and ')} below.`
+              : null,
+          )
         } catch (e) {
           setStatus('error')
           setError((e as Error).message || 'Could not look that up — pick your country below.')
@@ -175,18 +183,44 @@ function geolocationErrorMessage(err: GeolocationPositionError): string {
 }
 
 async function reverseGeocode(lat: number, lon: number) {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=en`
+  const url =
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18` +
+    `&lat=${lat}&lon=${lon}&accept-language=en`
   const res = await fetch(url, { headers: { 'Accept-Language': 'en' } })
   if (!res.ok) throw new Error(`Reverse geocode failed (${res.status})`)
   const data = await res.json()
-  const a = data.address ?? {}
+  const a = (data.address ?? {}) as Record<string, string | undefined>
+
+  // Leave a breadcrumb: when detection disappoints, the first question is
+  // always "what did it actually return?"
+  console.debug('[location] reverse geocode address', a)
+
   // Only accept a clean ISO 3166-1 alpha-2 code so the country select can
   // actually key on what we store.
-  const cc = (a.country_code as string | undefined)?.toUpperCase() ?? null
+  const cc = a.country_code?.toUpperCase() ?? null
+
+  // Which key holds the state varies by country and by how much OSM detail
+  // exists at the point — and sometimes none of them do, while the state is
+  // still sitting there in display_name. So collect every candidate and let
+  // matchRegion try them in order rather than betting on one field.
+  const displayParts = String(data.display_name ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  const regionCandidates = [
+    a.state,
+    a.region,
+    a.province,
+    a.state_district,
+    a.county,
+    ...displayParts,
+  ].filter((s): s is string => !!s)
+
   return {
     country_code: cc && /^[A-Z]{2}$/.test(cc) ? cc : null,
-    country_name: (a.country as string | undefined) ?? null,
-    region: (a.state ?? a.region ?? a.state_district ?? a.county ?? null) as string | null,
-    city: (a.city ?? a.town ?? a.village ?? a.suburb ?? null) as string | null,
+    country_name: a.country ?? null,
+    regionCandidates,
+    city: a.city ?? a.town ?? a.village ?? a.suburb ?? a.municipality ?? null,
   }
 }

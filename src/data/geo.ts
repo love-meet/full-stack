@@ -154,10 +154,10 @@ export function matchRegion(countryCode: string, detected: string | null | undef
   const alias = ALIASES[countryCode]?.[target]
   if (alias) return alias
 
-  // Last resort: one side contains the other ("greater accra" vs "accra").
-  const loose = states.find((s) => {
-    const n = norm(s)
-    return n.includes(target) || target.includes(n)
-  })
-  return loose ?? ''
+  // Deliberately NO substring fallback. Candidates include parts of the
+  // geocoder's display_name, and "Nigeria" contains "Niger" — a real state.
+  // A loose match would confidently set the wrong one. Normalisation already
+  // covers the cases that matter ("Lagos State", "Greater Accra Region",
+  // "Nairobi County"); anything it can't reach is better left blank.
+  return ''
 }
