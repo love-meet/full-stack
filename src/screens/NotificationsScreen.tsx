@@ -41,9 +41,15 @@ export default function NotificationsScreen() {
     else if (n.type === 'chat_reminder' || n.type === 'chat_message') navigate('/chat')
     else if (n.type === 'support_user_msg') navigate('/admin/support')
     else if (n.type === 'support_reply') navigate('/support')
-    // Game-related notifications carry the invite code in body → /play/CODE.
-    else if ((n.type === 'game_invite' || n.type === 'game_join' || n.type === 'game_waiting') && n.body) {
-      navigate(`/play/${n.body}`)
+    // Games live inside a chat now (§8), so a game notification opens the
+    // conversation. `game_join` / `game_waiting` are leftovers from the
+    // real-time lobby — they can still exist on old rows, so they route too.
+    else if (
+      (n.type === 'game_invite' || n.type === 'game_round' ||
+       n.type === 'game_join' || n.type === 'game_waiting') &&
+      n.conversation_id
+    ) {
+      navigate(`/chat/${n.conversation_id}`)
     }
   }
 
@@ -143,6 +149,7 @@ function message(n: AppNotification): React.ReactNode {
     case 'support_user_msg': return <>{who} messaged live support: <span className="text-ink-2">“{n.body}”</span></>
     case 'support_reply': return <>Support replied{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : ''} 🛟</>
     case 'game_invite': return <>{who} invited you to play a game 🎮 Tap to join.</>
+    case 'game_round': return <>{who} made a move. Your turn.</>
     case 'game_join': return <>{who} joined your game 🎮 Tap to open the lobby.</>
     case 'game_waiting': return <>⏰ It's your turn — your opponent is waiting. Tap to play.</>
     // Transactional / system notifications carry their full text in body.
@@ -178,6 +185,7 @@ function glyph(type: AppNotification['type']): string {
     case 'follow': return '👤'
     case 'profile_viewed': return '👀'
     case 'game_invite': return '🎮'
+    case 'game_round': return '🎲'
     case 'game_join': return '🎮'
     case 'game_waiting': return '⏰'
     default: return '🔔'
