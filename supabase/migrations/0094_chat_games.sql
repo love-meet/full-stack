@@ -183,7 +183,11 @@ begin
   if row.status <> 'invited' then return row; end if;
 
   update public.chat_games
-     set status       = case when p_accept then 'active' else 'declined' end,
+     -- Cast required: a CASE yields text, and Postgres will not implicitly
+     -- coerce text into an enum column. Without it every accept fails with
+     -- "column status is of type chat_game_status but expression is of type
+     -- text" — at runtime, so the migration itself applies cleanly.
+     set status       = (case when p_accept then 'active' else 'declined' end)::public.chat_game_status,
          turn_user_id = case when p_accept then player_a else null end,
          updated_at   = now(),
          finished_at  = case when p_accept then null else now() end
@@ -254,7 +258,7 @@ begin
      set state          = p_state,
          move_count     = move_count + 1,
          turn_user_id   = case when p_finished then null else next_uid end,
-         status         = case when p_finished then 'finished' else 'active' end,
+         status         = (case when p_finished then 'finished' else 'active' end)::public.chat_game_status,
          winner_user_id = case when p_finished then win_uid else null end,
          is_draw        = case when p_finished and win_uid is null then true else false end,
          updated_at     = now(),
