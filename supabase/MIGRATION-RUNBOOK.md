@@ -1,11 +1,47 @@
-# Migration runbook — 0089 → 0097
+# Migration runbook — 0088 → 0097
 
-**Nothing in this range has ever run against a database.** Seven migrations,
-written and reviewed by reading only. One of them rewrites every user's
-balance. Treat this as a one-shot operation with a rehearsal.
+**Status: both rehearsals have now been run and pass.**
+
+Rehearsal 1 (clean build, all 97 from scratch) and Rehearsal 2 (over a restored
+copy of the live database, 170 profiles) both complete, and the verification
+queries below all return zero rows.
+
+Between them they found **eight bugs**, every one invisible to review:
+
+| # | Found by | Bug |
+|---|---|---|
+| 1 | clean build | `0089` dropped `withdrawal_requests` while `admin_dashboard` still selected from it |
+| 2 | clean build | `0090` named a plpgsql variable `next`, so `return next;` parsed as `RETURN NEXT` |
+| 3 | clean build | `0096` dropped `tg_notify_deposit` / `tg_bump_wallet` with triggers still attached |
+| 4 | clean build | same again for `tg_notify_gift_response` |
+| 5 | clean build | `0096` defined `profile_social`; the real function is `get_profile_social`, so the fix was never called |
+| 6 | **prod copy** | `0089` rebuilt `admin_dashboard` selecting `public.deposits` — which does not exist on the live database |
+| 7 | **prod copy** | `0089` re-created `subscribe()` returning `public.user_subscriptions` — also absent |
+| 8 | **prod copy** | the balance backfill left the ledger short, so `sum(delta) <> coins` for **all 170 users** |
+
+Bugs 6–8 could not have been caught by a clean build: they exist only because
+the live schema has drifted from the migration files. Bug 8 is the one that
+mattered most — balances were all correct, but the credit ledger would not have
+reconciled for a single user, for ever.
 
 Victor, 19 Sep: *"A migration that rewrites every user's balance gets one
 chance."*
+
+## The live database is not what the migration history claims
+
+`supabase migration list` reports `0001`–`0087` applied. Reality differs:
+
+- `0088` was applied **by hand and never recorded** — `profiles.coins` and
+  `coin_ledger` exist, with 9 rows in the ledger
+- `profiles.gallery_urls`, and the `matches` / `gallery_views` /
+  `gallery_interests` tables, come from **no migration in this repo**
+- `wallets`, `ledger_entries`, `deposits`, `withdrawal_requests`, `fx_rates`,
+  `subscription_plans`, `user_subscriptions` are **gone**, though their
+  migrations are recorded as applied
+
+Migrations `0089`–`0097` are now written to tolerate all of that —
+`to_regclass()` guards, `cascade` on trigger functions, and no assumption that
+a recorded migration actually ran. **Do not remove those guards.**
 
 ---
 
@@ -64,8 +100,41 @@ Proves the migrations are internally consistent from nothing.
 
 ## Rehearsal 2 — over a copy of production
 
-This is the one that matters. The clean build cannot tell you what the
-backfill does to real rows.
+This is the one that matters, and it is the one that found bugs 6, 7 and 8.
+The clean build cannot tell you what the backfill does to real rows.
+
+It needs no cloud project — Docker and the local stack are enough:
+
+```bash
+# 1. Back up production (schema + data). Keep it OUT of the repo: it is PII.
+npx supabase db dump --linked -f backup/prod-schema.sql
+npx supabase db dump --linked --data-only -f backup/prod-data.sql
+
+# 2. Make the local database look exactly like production
+npx supabase start
+docker exec -i supabase_db_full-stack psql -U postgres -d postgres <<'EOF'
+drop schema if exists public cascade; create schema public;
+grant usage on schema public to postgres, anon, authenticated, service_role;
+set session_replication_role = replica;
+delete from auth.identities; delete from auth.sessions; delete from auth.users;
+reset session_replication_role;
+delete from supabase_migrations.schema_migrations;
+insert into supabase_migrations.schema_migrations (version)
+select lpad(g::text,4,'0') from generate_series(1,87) g;   -- prod reports 0001..0087
+EOF
+docker exec -i supabase_db_full-stack psql -U postgres -d postgres -q < backup/prod-schema.sql
+{ echo "set session_replication_role = replica;"; cat backup/prod-data.sql; } \
+  | docker exec -i supabase_db_full-stack psql -U postgres -d postgres -q
+
+# 3. Apply 0088..0097 over the real rows
+npx supabase migration up --local
+```
+
+`session_replication_role = replica` disables FK checks and triggers during the
+load, so row order does not matter and no app trigger fires on restored data.
+
+Then run the verification queries below. The old cloud-staging steps follow for
+reference if a hosted rehearsal is ever wanted:
 
 1. **Take a production backup first and verify you can restore it.**
    ```bash

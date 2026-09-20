@@ -141,12 +141,39 @@ create trigger grant_signup_credits_on_profile
 -- 4. Backfill — 1,000 to every existing profile, exactly once.
 --
 -- The 100 coins 0088 handed out belong to an economy that no longer exists,
--- so they are reversed first and everyone lands on exactly 1,000. Both moves
--- leave a ledger row. Guarded by the signup_grant row, so re-running this
--- migration grants nobody a second time.
+-- so they are reversed and everyone lands on exactly 1,000.
+--
+-- The subtlety, found by running this over a copy of the live database:
+-- 0088 granted its 100 via a COLUMN DEFAULT, which wrote no ledger row. So
+-- the opening balance was never recorded. Reversing it with a ledgered -100
+-- left every user with balance 1000 but a ledger summing to 900 — an
+-- imbalance that would make sum(delta) <> coins for all 170 users, for ever,
+-- and flag in any audit of the credit system.
+--
+-- So the UNLEDGERED portion of the balance is written into the ledger first,
+-- as a plain insert (not apply_coins, which would move the balance as well as
+-- record it). The rows then read as the whole story and reconcile exactly:
+--
+--     +100   opening balance carried from the pre-credit economy
+--     -100   reset, that economy is gone
+--   +1,000   welcome grant
+--   ------
+--    1,000   = profiles.coins
+--
+-- "Unledgered portion", not "current balance". Users who actually spent coins
+-- under 0088 already have ledger rows for those spends. Recording their
+-- current balance as the opening figure double-counts the spend and leaves
+-- them off by exactly what they spent — four users on the live database, each
+-- out by 1 to 4 credits. coins - sum(existing deltas) is the amount the
+-- ledger never accounted for, which is the original grant in every case.
+--
+-- Guarded by the signup_grant row, so re-running grants nobody twice.
 -- -------------------------------------------------------------------------
 do $$
-declare r record;
+declare
+  r        record;
+  ledgered int;
+  opening  int;
 begin
   for r in
     select p.id, p.coins
@@ -156,10 +183,23 @@ begin
         where cl.user_id = p.id and cl.kind = 'signup_grant'
      )
   loop
+    select coalesce(sum(cl.delta), 0) into ledgered
+      from public.coin_ledger cl where cl.user_id = r.id;
+
+    opening := r.coins - ledgered;
+
+    if opening <> 0 then
+      insert into public.coin_ledger (user_id, kind, delta, balance_after, note)
+           values (r.id, 'admin_adjust', opening, r.coins,
+                   'Opening balance carried from the pre-credit economy '
+                   '(0088 granted it via a column default and wrote no ledger row)');
+    end if;
+
     if r.coins <> 0 then
       perform public.apply_coins(r.id, -r.coins, 'admin_adjust', null, null,
                                  'Reset from the pre-credit coin balance');
     end if;
+
     perform public.grant_signup_credits(r.id);
   end loop;
 end $$;

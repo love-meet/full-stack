@@ -65,14 +65,19 @@ drop table if exists public.fx_rates;
 drop type if exists public.withdrawal_status;
 
 -- -------------------------------------------------------------------------
--- 4. Admin dashboard — rebuilt without pending_payouts, which counted rows
---    in the table just dropped. Pending deposits stay: ALATPay still runs.
+-- 4. Admin dashboard — rebuilt without pending_payouts (the table went in
+--    step 3) and without pending_deposits.
+--
+--    The first draft kept pending_deposits, reasoning that ALATPay still
+--    runs. Wrong twice over: the deposits table does not exist on the live
+--    database at all — dropped by hand long before this migration — so the
+--    view failed to create with "relation public.deposits does not exist";
+--    and 0096 removes the USD deposit rail entirely anyway. The admin
+--    console no longer reads the column either.
 -- -------------------------------------------------------------------------
-drop view if exists public.admin_dashboard;
 create view public.admin_dashboard as
 select
   (select count(*) from public.post_reports where status = 'open')                 as open_reports,
-  (select count(*) from public.deposits where status = 'pending')                  as pending_deposits,
   (select count(*) from public.user_bans where lifted_at is null
      and (expires_at is null or expires_at > now()))                               as active_bans,
   (select count(*) from public.support_tickets where status = 'open')              as open_tickets,
@@ -84,61 +89,17 @@ alter view public.admin_dashboard set (security_invoker = on);
 grant select on public.admin_dashboard to authenticated;
 
 -- -------------------------------------------------------------------------
--- 5. subscribe() — same behaviour, minus the affiliate 5% credit. Replaces
---    the 0045 definition (which replaced 0035's).
+-- 5. subscribe() is NOT rewritten here.
+--
+-- The first draft re-created it minus the affiliate 5% credit. That fails on
+-- any database where the subscription tables are absent — the live one, where
+-- they were dropped by hand — because the function's own signature,
+-- "returns public.user_subscriptions", is resolved at creation time.
+--
+-- It is also pointless work: 0096 removes subscriptions wholesale, so the
+-- affiliate credit disappears with the function itself a few migrations
+-- later. Nothing in 0089..0097 can call it in between.
 -- -------------------------------------------------------------------------
-create or replace function public.subscribe(plan_id text, months int default 1)
-returns public.user_subscriptions
-language plpgsql security definer set search_path = public
-as $$
-declare
-  me uuid := auth.uid();
-  pl public.subscription_plans;
-  n  int := greatest(1, coalesce(months, 1));
-  total numeric;
-  balance numeric;
-  base_at timestamptz;
-  row public.user_subscriptions;
-begin
-  if me is null then raise exception 'not authenticated'; end if;
-
-  select * into pl from public.subscription_plans p where p.id = subscribe.plan_id and p.active;
-  if pl.id is null then raise exception 'plan not found'; end if;
-  if pl.coming_soon then raise exception 'this plan is coming soon'; end if;
-
-  total := pl.price_usdt * n;
-
-  select coalesce(balance_usdt, 0) into balance from public.wallets where user_id = me;
-  if balance is null or balance < total then
-    raise exception 'insufficient balance';
-  end if;
-
-  -- If renewing the same plan before it lapses, stack on top of the time left.
-  select us.expires_at into base_at
-    from public.user_subscriptions us
-   where us.user_id = me and us.status = 'active'
-     and us.plan_id = pl.id and us.expires_at > now()
-   order by us.expires_at desc limit 1;
-  base_at := greatest(coalesce(base_at, now()), now());
-
-  -- Only one active row per user — retire any current one first.
-  update public.user_subscriptions
-     set status = 'cancelled'
-   where user_id = me and status = 'active';
-
-  insert into public.user_subscriptions (user_id, plan_id, expires_at)
-       values (me, pl.id, base_at + (pl.duration_days * n || ' days')::interval)
-    returning * into row;
-
-  insert into public.ledger_entries (user_id, kind, direction, amount_usdt, ref_table, ref_id, note)
-       values (me, 'adjustment', 'debit', total, 'user_subscriptions', row.id,
-               concat('Subscribed to ', pl.name, ' (', n, ' month',
-                      case when n = 1 then '' else 's' end, ')'));
-
-  return row;
-end $$;
-
-grant execute on function public.subscribe(text, int) to authenticated;
 
 -- -------------------------------------------------------------------------
 -- 6. apply_referral() — attribution only. Replaces the 0051 definition,
@@ -206,43 +167,39 @@ drop function if exists public.tg_notify_withdrawal_status();
 --    my_transactions selects ledger_entries.kind, so it is dropped and
 --    rebuilt around the column retype.
 -- -------------------------------------------------------------------------
-update public.ledger_entries
-   set note = concat('[', kind::text, '] ', coalesce(note, ''))
- where kind in ('withdrawal', 'tip_sent', 'tip_received', 'referral_bonus');
+do $do$
+begin
+  -- The USD ledger is absent on databases where it was removed by hand
+  -- (including production). Nothing to rebuild there; 0096 tidies the type
+  -- away if it lingers without its table.
+  if to_regclass('public.ledger_entries') is null then
+    return;
+  end if;
 
-drop view if exists public.my_transactions;
+  execute $q$update public.ledger_entries
+                set note = concat('[', kind::text, '] ', coalesce(note, ''))
+              where kind in ('withdrawal','tip_sent','tip_received','referral_bonus')$q$;
 
-alter type public.ledger_kind rename to ledger_kind_old;
+  execute 'drop view if exists public.my_transactions';
+  execute 'alter type public.ledger_kind rename to ledger_kind_old';
+  execute $q$create type public.ledger_kind as enum ('gift_sent','gift_received','deposit','adjustment')$q$;
+  execute $q$alter table public.ledger_entries
+               alter column kind type public.ledger_kind
+               using (case when kind::text in ('gift_sent','gift_received','deposit')
+                           then kind::text else 'adjustment' end)::public.ledger_kind$q$;
+  execute 'drop type public.ledger_kind_old';
 
-create type public.ledger_kind as enum (
-  'gift_sent',
-  'gift_received',
-  'deposit',
-  'adjustment'
-);
+  execute $q$create view public.my_transactions as
+              select le.id, le.user_id, le.kind, le.direction, le.amount_usdt,
+                     le.ref_table, le.ref_id, le.note, le.created_at,
+                     pg.status as gift_status
+                from public.ledger_entries le
+                left join public.post_gifts pg
+                  on le.ref_table = 'post_gifts' and le.ref_id = pg.id
+               where le.user_id = auth.uid()$q$;
 
-alter table public.ledger_entries
-  alter column kind type public.ledger_kind
-  using (
-    case
-      when kind::text in ('gift_sent', 'gift_received', 'deposit') then kind::text
-      else 'adjustment'
-    end
-  )::public.ledger_kind;
-
-drop type public.ledger_kind_old;
-
-create view public.my_transactions as
-select
-  le.id, le.user_id, le.kind, le.direction, le.amount_usdt,
-  le.ref_table, le.ref_id, le.note, le.created_at,
-  pg.status as gift_status
-from public.ledger_entries le
-left join public.post_gifts pg
-  on le.ref_table = 'post_gifts' and le.ref_id = pg.id
-where le.user_id = auth.uid();
-
-grant select on public.my_transactions to authenticated;
+  execute 'grant select on public.my_transactions to authenticated';
+end $do$;
 
 -- -------------------------------------------------------------------------
 -- 9. Crypto rail.
