@@ -46,7 +46,15 @@ drop function if exists public.has_active_subscription(uuid);
 
 -- -------------------------------------------------------------------------
 -- 3. Payout + withdrawal + fx tables.
+--
+-- admin_dashboard is dropped FIRST. It selects from withdrawal_requests and
+-- deposits, so dropping the tables while the view still exists fails with
+-- "cannot drop table ... because other objects depend on it". `if exists`
+-- does not help — the dependency is real, not a missing-object problem. The
+-- view is re-created without the payout columns in step 4.
 -- -------------------------------------------------------------------------
+drop view if exists public.admin_dashboard;
+
 drop trigger if exists payout_accounts_cooldown on public.payout_accounts;
 drop function if exists public.tg_payout_cooldown();
 

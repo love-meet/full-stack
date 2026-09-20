@@ -56,7 +56,11 @@ as $$
   where p.id = any(ids);
 $$;
 
-create or replace function public.profile_social(target uuid)
+-- NOTE the name: get_profile_social, not profile_social. That is what 0052
+-- defines and what useFollow.ts calls. An earlier draft of this migration
+-- created a correctly-written function under the wrong name, which fixed
+-- nothing — the real one stayed broken and the new one was never called.
+create or replace function public.get_profile_social(target uuid)
 returns table (followers int, following int, is_following boolean, is_subscriber boolean)
 language sql stable security definer set search_path = public
 as $$
@@ -68,11 +72,20 @@ as $$
     coalesce((select p.is_verified from public.profiles p where p.id = target), false);
 $$;
 
+grant execute on function public.get_profile_social(uuid) to authenticated;
+
 -- The old ranked post feed. The public post feed went in Phase 0 and the
 -- people feed (0091) replaced it; this only survived as a broken reference.
 drop function if exists public.ranked_feed(int, timestamptz);
 drop function if exists public.ranked_feed(int, int);
 drop function if exists public.ranked_feed();
+
+-- The real-time lobby's game-creation RPCs. Phase 0 removed every route into
+-- them and Phase 5 replaced them with chat_games, but they survived here
+-- still calling has_active_subscription() — so they were both dead AND
+-- broken. Both overloads go.
+drop function if exists public.create_game(text, integer);
+drop function if exists public.create_game(text, integer, text);
 
 -- -------------------------------------------------------------------------
 -- 3. Subscriptions.
@@ -118,11 +131,18 @@ drop function if exists public.create_deposit(numeric, text, numeric, text);
 drop function if exists public.mark_deposit_paid(uuid, text, jsonb);
 drop function if exists public.record_alatpay_deposit(text, numeric, numeric, text, boolean, jsonb);
 drop function if exists public.credit_alatpay_deposit(uuid);
-drop function if exists public.tg_notify_deposit();
 drop function if exists public._settle_alatpay(uuid);
 
-drop trigger if exists bump_wallet on public.ledger_entries;
-drop function if exists public.tg_bump_wallet();
+-- CASCADE on the two trigger functions, because their triggers still hang off
+-- deposits and ledger_entries. `drop function if exists` guards a missing
+-- FUNCTION, not a dependent trigger, so without CASCADE this fails with
+-- "cannot drop function ... because other objects depend on it".
+--
+-- Dropping the triggers with it is exactly the intent — the whole deposit and
+-- USD-wallet feature is going — and CASCADE also spares us naming triggers on
+-- tables that may not exist on every database this runs against.
+drop function if exists public.tg_notify_deposit() cascade;
+drop function if exists public.tg_bump_wallet() cascade;
 
 drop view if exists public.my_transactions;
 
@@ -175,7 +195,7 @@ end $$;
 -- -------------------------------------------------------------------------
 drop function if exists public.respond_gift(uuid, boolean);
 drop function if exists public.respond_gift(uuid, text);
-drop function if exists public.tg_notify_gift_response();
+drop function if exists public.tg_notify_gift_response() cascade;   -- its trigger on post_gifts goes with it
 
 alter table public.post_gifts
   drop column if exists amount_cents;

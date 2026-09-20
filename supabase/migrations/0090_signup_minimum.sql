@@ -47,27 +47,27 @@ language plpgsql security definer set search_path = public
 as $$
 declare
   me   uuid := auth.uid();
-  next text[];
+  urls text[];
   n    int;
 begin
   if me is null then raise exception 'not authenticated'; end if;
   if url is null or btrim(url) = '' then raise exception 'url required'; end if;
 
   select coalesce(gallery_urls, '{}') || btrim(url)
-    into next
+    into urls
     from public.profiles
    where id = me
      for update;
 
-  if next is null then raise exception 'profile not found'; end if;
+  if urls is null then raise exception 'profile not found'; end if;
 
-  n := coalesce(array_length(next, 1), 0);
+  n := coalesce(array_length(urls, 1), 0);
   if n > 5 then
-    next := next[n - 4 : n];          -- drop the oldest, keep the newest 5
+    urls := urls[n - 4 : n];          -- drop the oldest, keep the newest 5
   end if;
 
-  update public.profiles set gallery_urls = next where id = me;
-  return next;
+  update public.profiles set gallery_urls = urls where id = me;
+  return urls;
 end $$;
 
 grant execute on function public.add_gallery_photo(text) to authenticated;
@@ -78,20 +78,20 @@ language plpgsql security definer set search_path = public
 as $$
 declare
   me   uuid := auth.uid();
-  next text[];
+  urls text[];
 begin
   if me is null then raise exception 'not authenticated'; end if;
 
   select coalesce(array_remove(gallery_urls, btrim(url)), '{}')
-    into next
+    into urls
     from public.profiles
    where id = me
      for update;
 
-  if next is null then raise exception 'profile not found'; end if;
+  if urls is null then raise exception 'profile not found'; end if;
 
-  update public.profiles set gallery_urls = next where id = me;
-  return next;
+  update public.profiles set gallery_urls = urls where id = me;
+  return urls;
 end $$;
 
 grant execute on function public.remove_gallery_photo(text) to authenticated;
