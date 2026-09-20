@@ -85,16 +85,28 @@ drop function if exists public.subscribe(text, int);
 drop function if exists public.subscribe(uuid, int);
 drop function if exists public.expire_subscriptions();
 
-revoke all on public.subscription_plans   from authenticated, anon;
-revoke all on public.user_subscriptions   from authenticated, anon;
+-- Guarded on existence. `drop policy if exists ... on public.foo` guards the
+-- POLICY, not the table — if the table is missing the statement still errors
+-- and takes the whole migration with it. The schema these run against is not
+-- guaranteed to match a clean 0001→0088 build, so every reference to a
+-- pre-existing money table is checked first.
+do $$
+begin
+  if to_regclass('public.subscription_plans') is not null then
+    execute 'revoke all on public.subscription_plans from authenticated, anon';
+    execute 'alter table public.subscription_plans enable row level security';
+    execute 'drop policy if exists "subscription_plans_read" on public.subscription_plans';
+    execute 'drop policy if exists "subscription_plans_public" on public.subscription_plans';
+  end if;
 
-alter table if exists public.subscription_plans enable row level security;
-alter table if exists public.user_subscriptions enable row level security;
-
-drop policy if exists "subscription_plans_read"  on public.subscription_plans;
-drop policy if exists "user_subscriptions_read"  on public.user_subscriptions;
-drop policy if exists "subscription_plans_public" on public.subscription_plans;
-drop policy if exists "subs_self_read"           on public.user_subscriptions;
+  if to_regclass('public.user_subscriptions') is not null then
+    execute 'revoke all on public.user_subscriptions from authenticated, anon';
+    execute 'alter table public.user_subscriptions enable row level security';
+    execute 'drop policy if exists "user_subscriptions_read" on public.user_subscriptions';
+    execute 'drop policy if exists "subs_self_read" on public.user_subscriptions';
+    execute 'comment on table public.user_subscriptions is ''ARCHIVE (0096). Paid tiers, discontinued. No client access. Retain for refunds/disputes; export before dropping.''';
+  end if;
+end $$;
 
 -- -------------------------------------------------------------------------
 -- 4. The USD wallet: deposits, balances, ledger.
@@ -114,13 +126,27 @@ drop function if exists public.tg_bump_wallet();
 
 drop view if exists public.my_transactions;
 
-revoke all on public.wallets        from authenticated, anon;
-revoke all on public.ledger_entries from authenticated, anon;
-revoke all on public.deposits       from authenticated, anon;
+-- Same existence guard as above.
+do $$
+begin
+  if to_regclass('public.wallets') is not null then
+    execute 'revoke all on public.wallets from authenticated, anon';
+    execute 'drop policy if exists "wallets_self_read" on public.wallets';
+    execute 'comment on table public.wallets is ''ARCHIVE (0096). USD wallet from the pre-credit economy. No client access. Retain for refunds/disputes/accounting; export before dropping.''';
+  end if;
 
-drop policy if exists "wallets_self_read"        on public.wallets;
-drop policy if exists "ledger_self_read"         on public.ledger_entries;
-drop policy if exists "deposits_self_read"       on public.deposits;
+  if to_regclass('public.ledger_entries') is not null then
+    execute 'revoke all on public.ledger_entries from authenticated, anon';
+    execute 'drop policy if exists "ledger_self_read" on public.ledger_entries';
+    execute 'comment on table public.ledger_entries is ''ARCHIVE (0096). USD ledger from the pre-credit economy. No client access. Retain for refunds/disputes/accounting; export before dropping.''';
+  end if;
+
+  if to_regclass('public.deposits') is not null then
+    execute 'revoke all on public.deposits from authenticated, anon';
+    execute 'drop policy if exists "deposits_self_read" on public.deposits';
+    execute 'comment on table public.deposits is ''ARCHIVE (0096). USD deposits from the pre-credit economy. No client access. Retain for refunds/disputes/accounting; export before dropping.''';
+  end if;
+end $$;
 
 -- -------------------------------------------------------------------------
 -- 5. Why the money tables are retained rather than dropped.
@@ -135,15 +161,11 @@ drop policy if exists "deposits_self_read"       on public.deposits;
 -- Export them and drop them as a deliberate, separate step once finance has
 -- what it needs. That is a decision with a paper trail, not a side effect of
 -- a restructure.
+--
+-- The ARCHIVE comments that mark them are set in the guarded blocks above,
+-- alongside the revokes — a table that does not exist here cannot be
+-- commented on either.
 -- -------------------------------------------------------------------------
-comment on table public.wallets is
-  'ARCHIVE (0096). USD wallet from the pre-credit economy. No client access. Retain for refunds/disputes/accounting; export before dropping.';
-comment on table public.ledger_entries is
-  'ARCHIVE (0096). USD ledger from the pre-credit economy. No client access. Retain for refunds/disputes/accounting; export before dropping.';
-comment on table public.deposits is
-  'ARCHIVE (0096). USD deposits from the pre-credit economy. No client access. Retain for refunds/disputes/accounting; export before dropping.';
-comment on table public.user_subscriptions is
-  'ARCHIVE (0096). Paid tiers, discontinued. No client access. Retain for refunds/disputes; export before dropping.';
 
 -- -------------------------------------------------------------------------
 -- 6. Gifts: free, cosmetic, and they grant nothing.
