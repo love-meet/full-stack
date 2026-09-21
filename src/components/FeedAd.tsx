@@ -1,126 +1,114 @@
-import { useEffect, useState } from 'react'
-import { useMySubscription } from '../hooks/usePayments'
+import { useEffect, useRef } from 'react'
+import { AD_PROVIDER, useAdsEnabled } from '../hooks/useAds'
 
-// Adsterra ad units. Each ad renders in its own sandboxed iframe so multiple
-// instances don't collide (the invoke script targets the document it runs in).
-// Keys are PUBLIC client values (they ship in the ad script), so they're safe
-// to embed. Each size is a separate unit/key from the Adsterra dashboard;
-// override via Netlify env vars without code changes.
-//
-// TODO: paste the 728x90 and 160x600 keys (GET CODE → the 'key' string) below
-// or set VITE_ADSTERRA_728x90 / VITE_ADSTERRA_160x600 in Netlify.
+/**
+ * Ads (§7).
+ *
+ * Google AdSense on web and inside Telegram; AdMob on the native app when it
+ * ships. Adsterra was ruled out deliberately — it places scam creatives next
+ * to the product, and that is not the reputation to carry into an App Store
+ * review for a dating app.
+ *
+ * AdMob has no web SDK, so it cannot serve these two surfaces at all. When
+ * the native shell ships with VITE_AD_PROVIDER=admob, AdSlot below is the one
+ * place its banner view plugs in.
+ *
+ * If AdSense approval is slow: leave VITE_ADSENSE_CLIENT unset. Every slot
+ * renders nothing and the app ships without ads, which blocks nothing.
+ */
 
-const KEY_320x50  = (import.meta.env.VITE_ADSTERRA_320x50 as string | undefined)  || '1eeb5db8e869a87a5cd959b0d4402b18'
-const KEY_728x90  = (import.meta.env.VITE_ADSTERRA_728x90 as string | undefined)  || '9e485555f453c6799fffa62edb74ec80'
-const KEY_160x600 = (import.meta.env.VITE_ADSTERRA_160x600 as string | undefined) || 'd31ff0d7fba6180ea5c3c316f2165700'
-// Medium Rectangle (300x250) — fills a mobile feed card far better than the
-// thin 320x50. Create this unit in Adsterra and paste its key (or set
-// VITE_ADSTERRA_300x250). Until then, mobile falls back to the 320x50.
-const KEY_300x250 = (import.meta.env.VITE_ADSTERRA_300x250 as string | undefined) || ''
+const ADSENSE_CLIENT = (import.meta.env.VITE_ADSENSE_CLIENT as string | undefined) || ''
+const SLOT_FEED    = (import.meta.env.VITE_ADSENSE_SLOT_FEED as string | undefined) || ''
+const SLOT_INLINE  = (import.meta.env.VITE_ADSENSE_SLOT_INLINE as string | undefined) || ''
+const SLOT_SIDEBAR = (import.meta.env.VITE_ADSENSE_SLOT_SIDEBAR as string | undefined) || ''
 
-/** A single Adsterra banner of a given size, sandboxed in an iframe. */
-function AdsterraBanner({ unitKey, w, h }: { unitKey: string; w: number; h: number }) {
-  if (!unitKey) return null
-  const srcDoc = `<!doctype html><html><head><meta charset="utf-8">
-<style>html,body{margin:0;padding:0;background:transparent;display:grid;place-items:center;height:100%;overflow:hidden}</style>
-</head><body>
-<script type="text/javascript">
-  atOptions = { 'key' : '${unitKey}', 'format' : 'iframe', 'height' : ${h}, 'width' : ${w}, 'params' : {} };
-</script>
-<script type="text/javascript" src="//www.highperformanceformat.com/${unitKey}/invoke.js"></script>
-</body></html>`
+/** Load the AdSense library once per page-load, only if it's configured. */
+function useAdSenseScript(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled || !ADSENSE_CLIENT) return
+    const w = window as unknown as Record<string, boolean>
+    if (w.__lm_adsense) return
+    const s = document.createElement('script')
+    s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`
+    s.async = true
+    s.crossOrigin = 'anonymous'
+    document.head.appendChild(s)
+    w.__lm_adsense = true
+  }, [enabled])
+}
+
+type AdsByGoogle = { push: (o: object) => void }
+
+/**
+ * One AdSense unit.
+ *
+ * Each <ins> must be pushed exactly once; pushing twice throws
+ * "adsbygoogle.push() error: All ins elements ... already have ads". The ref
+ * guard is what makes this safe inside a feed that re-renders on every scroll.
+ */
+function AdSenseUnit({ slot, format = 'auto', style }: {
+  slot: string
+  format?: string
+  style?: React.CSSProperties
+}) {
+  const pushed = useRef(false)
+  const adsOn = useAdsEnabled()
+  useAdSenseScript(adsOn)
+
+  useEffect(() => {
+    if (!adsOn || !ADSENSE_CLIENT || !slot || pushed.current) return
+    try {
+      const w = window as unknown as { adsbygoogle?: AdsByGoogle }
+      w.adsbygoogle = w.adsbygoogle ?? ([] as unknown as AdsByGoogle)
+      w.adsbygoogle.push({})
+      pushed.current = true
+    } catch {
+      // A blocked or failed ad must never take a screen down with it.
+    }
+  }, [adsOn, slot])
+
+  if (!adsOn || !ADSENSE_CLIENT || !slot) return null
+
   return (
-    <iframe
-      title="Sponsored"
-      srcDoc={srcDoc}
-      width={w}
-      height={h}
-      style={{ border: 0, width: w, height: h, maxWidth: '100%', background: 'transparent' }}
-      sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+    <ins
+      className="adsbygoogle"
+      style={style ?? { display: 'block', width: '100%' }}
+      data-ad-client={ADSENSE_CLIENT}
+      data-ad-slot={slot}
+      data-ad-format={format}
+      data-full-width-responsive="true"
     />
   )
 }
 
-/** True once the viewport is at least `px` wide (re-evaluates on resize). */
-function useMinWidth(px: number): boolean {
-  const [match, setMatch] = useState(
-    typeof window !== 'undefined' ? window.matchMedia(`(min-width:${px}px)`).matches : false,
-  )
-  useEffect(() => {
-    const mq = window.matchMedia(`(min-width:${px}px)`)
-    const on = () => setMatch(mq.matches)
-    mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
-  }, [px])
-  return match
-}
-
-/** In-feed sponsored banner: a wide leaderboard on desktop, a small banner on
- *  mobile (falls back to the mobile unit if the desktop key isn't set yet). */
-export default function FeedAd() {
-  const wide = useMinWidth(768)
-  if (wide && KEY_728x90) return <AdsterraBanner unitKey={KEY_728x90} w={728} h={90} />
-  // Mobile: prefer the 300x250 rectangle (fills the card); else the 320x50.
-  if (KEY_300x250) return <AdsterraBanner unitKey={KEY_300x250} w={300} h={250} />
-  return <AdsterraBanner unitKey={KEY_320x50} w={320} h={50} />
-}
-
-/** Desktop sidebar skyscraper (160x600). Renders nothing until its key is set. */
-export function SidebarAd() {
-  if (!KEY_160x600) return null
-  return <AdsterraBanner unitKey={KEY_160x600} w={160} h={600} />
-}
-
 /**
- * A framed "Sponsored" banner for inline placement (comment lists, threads).
- * Free users only — subscribers see nothing. Uses the same responsive unit
- * as the feed.
+ * In-feed sponsored banner. Shown to everyone the switch allows — no
+ * subscription check, no credit check. §7: ads are not a reward and they
+ * unlock nothing.
  */
+export default function FeedAd() {
+  const adsOn = useAdsEnabled()
+  if (!adsOn || AD_PROVIDER !== 'adsense') return null
+  return <AdSenseUnit slot={SLOT_FEED} format="rectangle" style={{ display: 'block', minHeight: 250, width: '100%' }} />
+}
+
+/** Desktop sidebar unit. Renders nothing until its slot id is configured. */
+export function SidebarAd() {
+  const adsOn = useAdsEnabled()
+  if (!adsOn || AD_PROVIDER !== 'adsense') return null
+  return <AdSenseUnit slot={SLOT_SIDEBAR} format="vertical" style={{ display: 'block', width: 160, minHeight: 600 }} />
+}
+
+/** A framed "Sponsored" banner for inline placement. Same rule: everyone. */
 export function InlineAd() {
-  const isSubscriber = !!useMySubscription().data
-  if (isSubscriber) return null
+  const adsOn = useAdsEnabled()
+  if (!adsOn || AD_PROVIDER !== 'adsense') return null
   return (
     <div className="my-3 glass rounded-2xl px-3 py-3 flex flex-col items-center gap-2">
       <span className="self-start text-[10px] font-bold uppercase tracking-[0.18em] text-ink-muted">
         Sponsored
       </span>
-      <FeedAd />
+      <AdSenseUnit slot={SLOT_INLINE} />
     </div>
   )
 }
-
-// ── Whole-page script ads (Popunder, Social Bar) ─────────────────────────
-// Adsterra "Popunder" and "Social Bar" units are single <script src> tags
-// that hook the whole page (popunder triggers on the next click, social bar
-// renders its own floating widget). We inject them ONCE per page-load for
-// non-subscribers, and leave them mounted across route changes.
-
-// TODO: paste the Popunder unit's "Get Code" src here, or set
-// VITE_ADSTERRA_POPUNDER_SRC in Netlify. Leaving it empty no-ops the popunder.
-const POPUNDER_SRC =
-  (import.meta.env.VITE_ADSTERRA_POPUNDER_SRC as string | undefined) || ''
-
-function useScriptAd(src: string, flagKey: string, enabled: boolean) {
-  useEffect(() => {
-    if (!enabled || !src) return
-    const w = window as unknown as Record<string, boolean>
-    if (w[flagKey]) return
-    const s = document.createElement('script')
-    s.src = src
-    s.async = true
-    s.dataset.adsterra = flagKey
-    document.body.appendChild(s)
-    w[flagKey] = true
-    // These scripts mount global page widgets — leaving them across route
-    // changes is fine and avoids duplicate loads.
-  }, [enabled, src, flagKey])
-}
-
-/** Adsterra Popunder — fires on the user's next click anywhere on the page.
- *  Mount it on screens where popunder is allowed (games). Non-subscribers only. */
-export function PopunderAd() {
-  const isSubscriber = !!useMySubscription().data
-  useScriptAd(POPUNDER_SRC, '__lm_popunder', !isSubscriber)
-  return null
-}
-

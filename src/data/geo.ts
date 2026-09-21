@@ -107,3 +107,57 @@ export const STATES: Record<string, string[]> = {
   IN: ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry', 'Chandigarh'],
   AU: ['Australian Capital Territory', 'New South Wales', 'Northern Territory', 'Queensland', 'South Australia', 'Tasmania', 'Victoria', 'Western Australia'],
 }
+
+/**
+ * Reconcile a geocoder's free-text region with our fixed state list.
+ *
+ * The state field is a <select>, so a value only shows up if it matches an
+ * option exactly. Geocoders don't cooperate: Nominatim returns "Lagos State"
+ * where the list has "Lagos", and "Federal Capital Territory" where the list
+ * has "FCT (Abuja)". Without this, detection filled in the country and left
+ * the state blank.
+ *
+ * Returns the canonical option, or '' when nothing matches — better an empty
+ * select the user can set themselves than a wrong state silently chosen.
+ */
+export function matchRegion(countryCode: string, detected: string | null | undefined): string {
+  const raw = (detected ?? '').trim()
+  if (!raw) return ''
+
+  const states = STATES[countryCode]
+  // No list for this country: the field is free text, so pass it straight on.
+  if (!states) return raw
+
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/\(.*?\)/g, ' ')                                   // "FCT (Abuja)" -> "fct"
+      .replace(/\b(state|province|region|territory|county|district|governorate|prefecture)\b/g, ' ')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+
+  const target = norm(raw)
+  if (!target) return ''
+
+  // Exact match on the normalised form.
+  const exact = states.find((s) => norm(s) === target)
+  if (exact) return exact
+
+  // Common aliases the normaliser can't reach on its own.
+  const ALIASES: Record<string, Record<string, string>> = {
+    NG: {
+      'federal capital': 'FCT (Abuja)',
+      'abuja': 'FCT (Abuja)',
+      'abuja federal capital': 'FCT (Abuja)',
+    },
+  }
+  const alias = ALIASES[countryCode]?.[target]
+  if (alias) return alias
+
+  // Deliberately NO substring fallback. Candidates include parts of the
+  // geocoder's display_name, and "Nigeria" contains "Niger" — a real state.
+  // A loose match would confidently set the wrong one. Normalisation already
+  // covers the cases that matter ("Lagos State", "Greater Accra Region",
+  // "Nairobi County"); anything it can't reach is better left blank.
+  return ''
+}

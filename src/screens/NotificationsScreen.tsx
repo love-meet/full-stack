@@ -34,19 +34,21 @@ export default function NotificationsScreen() {
       navigate(`/chat/${n.conversation_id}`)
     } else if (n.post_id) navigate(`/p/${n.post_id}`)
     else if (n.type === 'welcome' || n.type === 'welcome_signup') navigate('/guide')
-    else if (n.type === 'launch_bonus') navigate('/wallet')
-    else if (n.type === 'subscription_expired') navigate('/subscription')
-    else if (n.type === 'referral_joined') navigate('/affiliate')
-    else if (n.type === 'follow' && n.actor_id) navigate(`/profile/${n.actor_id}`)
-    else if (n.type === 'deposit') navigate('/wallet')
-    else if (n.type.startsWith('withdrawal')) navigate('/earnings')
+    else if (n.type === 'launch_bonus') navigate('/credits')
+    else if ((n.type === 'follow' || n.type === 'profile_viewed') && n.actor_id) navigate(`/profile/${n.actor_id}`)
     else if (n.type === 'password_changed') navigate('/security')
     else if (n.type === 'chat_reminder' || n.type === 'chat_message') navigate('/chat')
     else if (n.type === 'support_user_msg') navigate('/admin/support')
     else if (n.type === 'support_reply') navigate('/support')
-    // Game-related notifications carry the invite code in body → /play/CODE.
-    else if ((n.type === 'game_invite' || n.type === 'game_join' || n.type === 'game_waiting') && n.body) {
-      navigate(`/play/${n.body}`)
+    // Games live inside a chat now (§8), so a game notification opens the
+    // conversation. `game_join` / `game_waiting` are leftovers from the
+    // real-time lobby — they can still exist on old rows, so they route too.
+    else if (
+      (n.type === 'game_invite' || n.type === 'game_round' ||
+       n.type === 'game_join' || n.type === 'game_waiting') &&
+      n.conversation_id
+    ) {
+      navigate(`/chat/${n.conversation_id}`)
     }
   }
 
@@ -136,25 +138,20 @@ function message(n: AppNotification): React.ReactNode {
     case 'reply': return <>{who} replied: <span className="text-ink-2">“{n.body}”</span></>
     case 'comment_like': return <>{who} liked your comment.</>
     case 'reply_like': return <>{who} liked your reply.</>
-    case 'gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁 Tap to accept or decline.</>
+    case 'gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁</>
     case 'chat_message': return <>{who} sent you a message{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : '.'}</>
-    case 'referral_joined': return <>{who} joined using your invite 🎉 You'll earn 5% of their subscriptions for life.</>
     case 'follow': return <>{who} started following you.</>
-    case 'gift_accepted': return <>{who} accepted your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎉</>
-    case 'gift_rejected': return <>{who} declined your gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''}.</>
+    case 'profile_viewed': return <>{who} looked at your profile.</>
     case 'match_post': return <>{who} — who matches your preferences — just posted. ✨</>
     case 'support_user_msg': return <>{who} messaged live support: <span className="text-ink-2">“{n.body}”</span></>
     case 'support_reply': return <>Support replied{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : ''} 🛟</>
     case 'game_invite': return <>{who} invited you to play a game 🎮 Tap to join.</>
-    case 'game_join': return <>{who} joined your game 🎮 Tap to open the lobby.</>
+    case 'game_round': return <>{who} made a move. Your turn.</>
+    case 'game_join': return <>{who} joined your game 🎮</>
     case 'game_waiting': return <>⏰ It's your turn — your opponent is waiting. Tap to play.</>
     // Transactional / system notifications carry their full text in body.
     case 'welcome':
     case 'welcome_signup':
-    case 'deposit':
-    case 'withdrawal':
-    case 'withdrawal_sent':
-    case 'withdrawal_rejected':
     case 'password_changed':
     case 'chat_reminder':
       return <>{n.body}</>
@@ -175,10 +172,6 @@ function glyph(type: AppNotification['type']): string {
     case 'match_post': return '✨'
     case 'welcome': return '💕'
     case 'welcome_signup': return '💘'
-    case 'deposit': return '✅'
-    case 'withdrawal': return '⏳'
-    case 'withdrawal_sent': return '💸'
-    case 'withdrawal_rejected': return '⚠️'
     case 'password_changed': return '🔒'
     case 'chat_reminder': return '💬'
     case 'chat_message': return '✉️'
@@ -186,9 +179,10 @@ function glyph(type: AppNotification['type']): string {
     case 'support_reply': return '🛟'
     case 'launch_bonus': return '🎁'
     case 'subscription_expired': return '💔'
-    case 'referral_joined': return '🤝'
     case 'follow': return '👤'
+    case 'profile_viewed': return '👀'
     case 'game_invite': return '🎮'
+    case 'game_round': return '🎲'
     case 'game_join': return '🎮'
     case 'game_waiting': return '⏰'
     default: return '🔔'

@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useConversation } from '../hooks/useConversations'
-import ReturnToGameBanner from '../components/ReturnToGameBanner'
 import { useMessages, type Message } from '../hooks/useMessages'
 import { useSendMessage } from '../hooks/useSendMessage'
 import { useEditMessage } from '../hooks/useMessageMutations'
@@ -14,11 +13,15 @@ import { useAuth } from '../stores/auth'
 import { useRelations } from '../hooks/useFollow'
 import { avatarUrlOr } from '../lib/avatar'
 import { detectOffPlatformContact, violationLabel } from '../lib/chatGate'
+import { isInsufficientCredits, DAILY_MESSAGE_COST } from '../hooks/useCredits'
 import BlueTick from '../components/BlueTick'
 import ChatBubble from '../components/chat/ChatBubble'
 import TypingIndicatorBubble from '../components/chat/TypingIndicatorBubble'
 import MessageActionsSheet from '../components/chat/MessageActionsSheet'
 import ChatOptionsSheet from '../components/chat/ChatOptionsSheet'
+import ChatGameCard from '../components/chat/ChatGameCard'
+import GamePickerSheet from '../components/chat/GamePickerSheet'
+import { useChatGames, useChatGamesRealtime } from '../hooks/useChatGames'
 import { useUploadChatMedia, type ChatMediaUpload } from '../hooks/useUploadChatMedia'
 
 type ComposerMode =
@@ -58,6 +61,17 @@ export function ChatPane({
   const otherVerified = !!(conv.data?.other_id && relations.data?.get(conv.data.other_id)?.is_subscriber)
 
   const [actionsFor, setActionsFor] = useState<Message | null>(null)
+  const [needCredits, setNeedCredits] = useState(false)
+  const [gamePickerOpen, setGamePickerOpen] = useState(false)
+
+  // Games in this chat. Realtime keeps the board in step without anyone
+  // needing to be present — that is the whole point of turn-based (§8).
+  const gamesQ = useChatGames(conversationId)
+  useChatGamesRealtime(conversationId)
+  const liveGames = useMemo(
+    () => (gamesQ.data ?? []).filter((g) => g.status === 'invited' || g.status === 'active'),
+    [gamesQ.data],
+  )
   const [mode, setMode] = useState<ComposerMode>({ kind: 'idle' })
   const [chatMenuOpen, setChatMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -108,7 +122,6 @@ export function ChatPane({
     /* bounded flex column so the messages list (overflow-y-auto) scrolls.
        className sets the height: h-screen on mobile, h-full in the rail. */
     <div className={`${className} flex flex-col text-ink min-h-0`}>
-      <ReturnToGameBanner />
       <header
         className="shrink-0 glass border-b border-white/5 px-4 py-3 flex items-center gap-3"
         style={{ paddingTop: 'calc(var(--lm-top-inset) + 0.75rem)' }}
@@ -147,6 +160,15 @@ export function ChatPane({
             verified={otherVerified}
           />
         )}
+        {conversationId && (
+          <button
+            onClick={() => setGamePickerOpen(true)}
+            aria-label="Play a game"
+            className="text-ink-2 hover:text-ink text-xl leading-none px-2 py-2"
+          >
+            🎲
+          </button>
+        )}
         {conv.data?.other_id && (
           <button
             onClick={() => setChatMenuOpen(true)}
@@ -157,6 +179,15 @@ export function ChatPane({
           </button>
         )}
       </header>
+
+      {/* Live games sit above the messages: turn-based and asynchronous, so a
+          board is a thing you come back to, not something you have to be
+          present for. Finished games drop out of the list on next load. */}
+      {liveGames.length > 0 && (
+        <div className="shrink-0 px-3 pt-2 border-b border-white/5 max-h-[60vh] overflow-y-auto no-scrollbar">
+          {liveGames.map((g) => <ChatGameCard key={g.id} game={g} />)}
+        </div>
+      )}
 
       {/* In-chat search bar — toggled from the chat ⋯ menu. */}
       {searchOpen && (
@@ -196,7 +227,13 @@ export function ChatPane({
       <Composer
         disabled={!conversationId}
         sending={send.isPending || edit.isPending}
-        error={send.error ? (send.error as Error).message : null}
+        // The credits case gets a sheet with a way out, not a red line of
+        // Postgres error text under the composer.
+        error={
+          send.error && !isInsufficientCredits(send.error)
+            ? (send.error as Error).message
+            : null
+        }
         mode={mode}
         replyTarget={replyTarget}
         myId={myId}
@@ -227,11 +264,27 @@ export function ChatPane({
             })
             setMode({ kind: 'idle' })
             notifyStopped()
-          } catch {
-            // useSendMessage flips the optimistic row to error state.
+          } catch (e) {
+            // useSendMessage flips the optimistic row to error state. Out of
+            // credits is the one failure with an obvious next step, so it gets
+            // an offer rather than an error.
+            if (isInsufficientCredits(e)) setNeedCredits(true)
           }
         }}
       />
+
+      <AnimatePresence>
+        {needCredits && <OutOfCreditsSheet onClose={() => setNeedCredits(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {gamePickerOpen && conversationId && (
+          <GamePickerSheet
+            conversationId={conversationId}
+            onClose={() => setGamePickerOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {actionsFor && conversationId && (
@@ -874,4 +927,56 @@ function fmtRec(secs: number): string {
   const m = Math.floor(secs / 60)
   const s = secs % 60
   return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+/**
+ * Out of credits.
+ *
+ * §6: handle insufficient_credits with a clear prompt to buy, not a dead end.
+ * So it says plainly what messaging costs, that it is once a day rather than
+ * per message, and gives one button that goes somewhere useful.
+ */
+function OutOfCreditsSheet({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate()
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/60 grid place-items-end sm:place-items-center"
+      onClick={onClose}
+      role="dialog"
+      aria-label="Out of credits"
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full sm:max-w-sm glass rounded-t-3xl sm:rounded-3xl p-6 text-center"
+        style={{ paddingBottom: 'calc(1.5rem + var(--lm-bottom-inset))' }}
+      >
+        <div className="text-4xl mb-3">💬</div>
+        <h2 className="text-lg font-extrabold text-ink">You're out of credits</h2>
+        <p className="mt-2 text-sm text-ink-2">
+          Messaging costs {DAILY_MESSAGE_COST} credits for the whole day — the first
+          message you send. After that, message as much as you like, in every
+          chat, until tomorrow.
+        </p>
+        <button
+          onClick={() => { onClose(); navigate('/credits') }}
+          className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-extrabold text-sm glow-rose"
+        >
+          Get credits
+        </button>
+        <button
+          onClick={onClose}
+          className="mt-2 w-full rounded-full py-2.5 text-sm font-semibold text-ink-muted hover:text-ink"
+        >
+          Not now
+        </button>
+      </motion.div>
+    </motion.div>
+  )
 }

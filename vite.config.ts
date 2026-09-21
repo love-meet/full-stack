@@ -7,6 +7,9 @@ import tailwindcss from '@tailwindcss/vite'
 // a version that supports Vite 8, or pin Vite to ^7 and uncomment.
 
 export default defineConfig({
+  server: {
+    host: '127.0.0.1',
+  },
   plugins: [
     react(),
     tailwindcss(),

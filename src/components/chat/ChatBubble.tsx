@@ -3,7 +3,6 @@ import { motion } from 'framer-motion'
 import type { Message } from '../../hooks/useMessages'
 import { cloudinaryPlaceholderUrl } from '../../lib/cloudinary'
 import { Linkify } from '../../lib/linkify'
-import GameInviteCard, { playCodeFromText } from './GameInviteCard'
 
 type Props = {
   message: Message
@@ -114,12 +113,10 @@ export default function ChatBubble({
                 pending={!!message.pending}
               />
             ) : null}
-            {message.body && (() => {
-              const code = playCodeFromText(message.body)
-              return code
-                ? <GameInviteCard code={code} />
-                : <span><Linkify text={message.body} /></span>
-            })()}
+            {/* A /play/CODE link used to render as a game invite card. That
+                lobby is gone — games live in the chat itself now (§8), and an
+                invite is a chat_games row, not a link in a message. */}
+            {message.body && <span><Linkify text={message.body} /></span>}
           </>
         )}
 

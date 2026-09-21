@@ -7,14 +7,21 @@ import { useAuth } from '../../stores/auth'
 import { supabase } from '../../lib/supabase'
 import LoadingShell from '../../shell/LoadingShell'
 
-import NameStep from './steps/NameStep'
-import DetailsStep from './steps/DetailsStep'
-import AboutStep from './steps/AboutStep'
-import PreferencesStep from './steps/PreferencesStep'
-import LocationStep from './steps/LocationStep'
+import YouStep from './steps/YouStep'
+import WhereStep from './steps/WhereStep'
+import PictureStep from './steps/PictureStep'
 
-const STEP_COMPONENTS = [NameStep, DetailsStep, AboutStep, PreferencesStep, LocationStep]
+const STEP_COMPONENTS = [YouStep, WhereStep, PictureStep]
 
+/**
+ * Signup — three steps, all of them required, nothing else asked.
+ *
+ * §4: gender, country/state/city, language, username, profile picture. Date of
+ * birth rides along in step 1 because the app is 18+. Bio, relationship
+ * intent, interests, the age range and the privacy toggles used to be steps 3
+ * and 4; they are optional now and live in Profile, where the user adds them
+ * whenever they feel like it and is never blocked on them.
+ */
 export default function OnboardingScreen() {
   const navigate = useNavigate()
   const update = useUpdateProfile()
@@ -24,7 +31,7 @@ export default function OnboardingScreen() {
   // Pre-fill the avatar from the OAuth provider's picture if available.
   // Google populates `picture` in user_metadata; our Telegram Edge Function
   // populates `avatar_url`. Either is a fine starting value the user can
-  // override with their own upload.
+  // override on the picture step.
   const [data, setData] = useState<FormData>(() => {
     const meta = session?.user.user_metadata as
       | { picture?: string; avatar_url?: string }
@@ -39,37 +46,36 @@ export default function OnboardingScreen() {
   //      already but if there's any stale-cache window we don't want them
   //      to see the wizard again. Cheap sanity guard.
   //   2. `onboarded_at` is null BUT the profile has the load-bearing
-  //      onboarding fields filled (display_name + dob + gender). This
+  //      onboarding fields filled (handle + gender + country). This
   //      backfills returning users whose timestamp didn't persist for
   //      whatever reason — they did the work, they shouldn't have to do
   //      it twice. We set onboarded_at = now() in the background and
   //      navigate them through.
-  const backfillRef = useRef(false)
+  // The ref guards against a second backfill firing while the first is in
+  // flight; the state is what render reads, so the wizard can hold a spinner
+  // instead of flashing step 1 behind the redirect.
+  const backfillStarted = useRef(false)
+  const [backfilling, setBackfilling] = useState(false)
   useEffect(() => {
     const p = profileQuery.data
     if (!p) return
     if (p.onboarded_at) {
-      // Sanity guard: RequireProfile would normally route them away, but if
-      // we're somehow on /onboarding with a completed profile, leave.
       navigate('/feed', { replace: true })
       return
     }
-    const looksOnboarded =
-      !!(p.display_name || p.first_name) && !!p.dob && !!p.gender
-    if (looksOnboarded && !backfillRef.current && !update.isPending) {
-      backfillRef.current = true
+    const looksOnboarded = !!p.handle && !!p.gender && !!p.country_code
+    if (looksOnboarded && !backfillStarted.current && !update.isPending) {
+      backfillStarted.current = true
+      setBackfilling(true)
       void update.mutateAsync({ onboarded_at: new Date().toISOString() })
         .then(() => { navigate('/feed', { replace: true }) })
-        .catch(() => { /* fall through to wizard */ backfillRef.current = false })
+        .catch(() => {
+          // Fall through to the wizard rather than trapping them on a spinner.
+          backfillStarted.current = false
+          setBackfilling(false)
+        })
     }
   }, [profileQuery.data, navigate, update])
-
-  // Block the wizard from painting while we still have any of the above to
-  // resolve: profile is loading, profile is already onboarded, or we're
-  // backfilling.
-  if (profileQuery.isLoading) return <LoadingShell />
-  if (profileQuery.data?.onboarded_at) return <Navigate to="/feed" replace />
-  if (backfillRef.current) return <LoadingShell />
 
   const set = useCallback(
     (patch: Partial<FormData>) => setData((d) => ({ ...d, ...patch })),
@@ -108,7 +114,7 @@ export default function OnboardingScreen() {
   // Enter advances the wizard (except while typing in a textarea/select,
   // where Enter has its own meaning). Mirrors a polished web form.
   const nextRef = useRef(next)
-  nextRef.current = next
+  useEffect(() => { nextRef.current = next }, [next])
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== 'Enter' || e.shiftKey) return
@@ -121,6 +127,13 @@ export default function OnboardingScreen() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // Block the wizard from painting while we still have any of the above to
+  // resolve: profile is loading, profile is already onboarded, or we're
+  // backfilling. Placed after every hook so the hook order never changes.
+  if (profileQuery.isLoading) return <LoadingShell />
+  if (profileQuery.data?.onboarded_at) return <Navigate to="/feed" replace />
+  if (backfilling) return <LoadingShell />
 
   const StepBody = STEP_COMPONENTS[step]
   const meta = STEPS[step]
@@ -154,17 +167,11 @@ type StepStatus = { valid: boolean; hint: string | null }
 function stepStatus(step: number, d: FormData): StepStatus {
   switch (step) {
     case 0: {
-      if (!d.firstName.trim() || !d.lastName.trim()) {
-        return { valid: false, hint: 'Enter your first and last name.' }
-      }
       if (!/^[a-z0-9_]{3,20}$/.test(d.username)) {
         return { valid: false, hint: 'Pick a username — 3+ chars, a–z, 0–9 or _.' }
       }
       if (d.usernameAvailable === null) return { valid: false, hint: 'Checking that username…' }
       if (d.usernameAvailable === false) return { valid: false, hint: 'That username is taken — try another.' }
-      return { valid: true, hint: null }
-    }
-    case 1: {
       if (!d.gender) return { valid: false, hint: 'Select how you identify.' }
       if (!d.dobDay || !d.dobMonth || !d.dobYear) {
         return { valid: false, hint: 'Enter your full date of birth.' }
@@ -174,22 +181,18 @@ function stepStatus(step: number, d: FormData): StepStatus {
       if (dob.age < 18) return { valid: false, hint: 'You must be 18 or older to join.' }
       return { valid: true, hint: null }
     }
-    case 2: {
-      if (d.bio.trim().length < 3) return { valid: false, hint: 'Add a short bio about you.' }
-      if (!d.lookingFor) return { valid: false, hint: "Tell us what you're looking for." }
-      if (d.hobbies.length < 3) return { valid: false, hint: 'Pick at least 3 interests.' }
-      return { valid: true, hint: null }
-    }
-    case 3: {
-      if (!(d.ageMin >= 18 && d.ageMax >= d.ageMin && d.ageMax <= 100)) {
-        return { valid: false, hint: 'Set a valid age range (18–100).' }
+    case 1: {
+      if (!d.countryCode || !d.countryName.trim()) {
+        return { valid: false, hint: 'Select your country.' }
       }
+      if (!d.region.trim()) return { valid: false, hint: 'Add your state or region.' }
+      if (!d.city.trim()) return { valid: false, hint: 'Add your city.' }
+      if (!d.language) return { valid: false, hint: 'Select the language you speak.' }
       return { valid: true, hint: null }
     }
-    case 4: {
-      // Require a successful detection: coords present + a country resolved.
-      if (d.lat === null || d.lon === null || d.countryName.trim().length === 0) {
-        return { valid: false, hint: 'Tap "Add location" to set your location.' }
+    case 2: {
+      if (!d.avatar.trim()) {
+        return { valid: false, hint: 'Add a photo, or pick one of the suggested images.' }
       }
       return { valid: true, hint: null }
     }
@@ -216,28 +219,19 @@ function parseDob(d: FormData): { validDate: boolean; age: number } {
 
 function toProfileUpdate(d: FormData): ProfileUpdate {
   const dob = `${d.dobYear}-${String(d.dobMonth).padStart(2, '0')}-${String(d.dobDay).padStart(2, '0')}`
-  const displayName = `${d.firstName.trim()} ${d.lastName.trim()}`.trim() || null
   return {
     handle: d.username,
-    display_name: displayName,
+    // No real-name step any more — the handle is the display name until the
+    // user sets something else in Profile.
+    display_name: d.username,
     avatar_url: d.avatar.trim() || null,
-    first_name: d.firstName.trim() || null,
-    last_name: d.lastName.trim() || null,
     gender: (d.gender || null) as ProfileUpdate['gender'],
     dob,
-    bio: d.bio.trim() || null,
-    looking_for: (d.lookingFor || null) as ProfileUpdate['looking_for'],
-    interests: d.hobbies,
-    age_min: d.ageMin,
-    age_max: d.ageMax,
-    show_online_status: d.showOnlineStatus,
-    show_distance: d.showDistance,
-    city: d.address.trim() || null,
-    region: d.region.trim() || null,
     country_code: d.countryCode.trim() || null,
     country_name: d.countryName.trim() || null,
-    lat: d.lat,
-    lon: d.lon,
+    region: d.region.trim() || null,
+    city: d.city.trim() || null,
+    language: d.language || null,
     onboarded_at: new Date().toISOString(),
   }
 }

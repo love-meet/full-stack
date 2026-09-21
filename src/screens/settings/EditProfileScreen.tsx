@@ -8,7 +8,9 @@ import {
   type ProfileUpdate,
 } from '../../hooks/useProfile'
 import { useUploadAvatar } from '../../hooks/useUploadAvatar'
+import { useAddGalleryPhoto, useRemoveGalleryPhoto, GALLERY_MAX } from '../../hooks/useGallery'
 import { avatarFor } from '../../lib/avatar'
+import { LANGUAGES } from '../../data/languages'
 
 const GENDERS: Profile['gender'][] = ['female', 'male', 'nonbinary', 'other', 'prefer_not_to_say']
 const LOOKING: NonNullable<Profile['looking_for']>[] = ['serious', 'casual', 'friends']
@@ -23,7 +25,10 @@ type Form = {
   looking_for: Profile['looking_for']
   interests: string
   country_name: string
+  region: string
   city: string
+  language: string
+  interested_in: string[]
   age_min: string
   age_max: string
   show_online_status: boolean
@@ -41,7 +46,10 @@ function fromProfile(p: Profile): Form {
     looking_for: p.looking_for,
     interests: (p.interests ?? []).join(', '),
     country_name: p.country_name ?? '',
+    region: p.region ?? '',
     city: p.city ?? '',
+    language: p.language ?? '',
+    interested_in: p.interested_in ?? [],
     age_min: p.age_min != null ? String(p.age_min) : '',
     age_max: p.age_max != null ? String(p.age_max) : '',
     show_online_status: p.show_online_status,
@@ -66,7 +74,12 @@ function toPatch(form: Form, original: Profile): ProfileUpdate {
     patch.interests = nextInterests
   }
   if (form.country_name !== (original.country_name ?? '')) patch.country_name = form.country_name.trim() || null
+  if (form.region !== (original.region ?? '')) patch.region = form.region.trim() || null
   if (form.city !== (original.city ?? '')) patch.city = form.city.trim() || null
+  if (form.language !== (original.language ?? '')) patch.language = form.language || null
+  if (JSON.stringify([...form.interested_in].sort()) !== JSON.stringify([...(original.interested_in ?? [])].sort())) {
+    patch.interested_in = form.interested_in
+  }
   const ageMin = form.age_min === '' ? null : Number(form.age_min)
   if (ageMin !== original.age_min) patch.age_min = ageMin
   const ageMax = form.age_max === '' ? null : Number(form.age_max)
@@ -303,6 +316,25 @@ export default function EditProfileScreen() {
 
         {/* --- Preferences --- */}
         <Section title="Preferences">
+          <Field label="Show me" hint="Who appears in your feed">
+            <div className="flex flex-wrap gap-2">
+              {GENDERS.filter((g) => g === 'female' || g === 'male' || g === 'nonbinary').map((g) => {
+                const on = form.interested_in.includes(g as string)
+                return (
+                  <Chip
+                    key={g}
+                    active={on}
+                    onClick={() => set('interested_in',
+                      on ? form.interested_in.filter((x) => x !== g)
+                         : [...form.interested_in, g as string])}
+                  >
+                    {labelGender(g)}
+                  </Chip>
+                )
+              })}
+            </div>
+          </Field>
+
           <Field label="Looking for">
             <div className="flex flex-wrap gap-2">
               {LOOKING.map((l) => (
@@ -354,6 +386,11 @@ export default function EditProfileScreen() {
           </Field>
         </Section>
 
+        {/* --- Gallery --- */}
+        <Section title="Gallery">
+          <GalleryEditor urls={profile.gallery_urls ?? []} />
+        </Section>
+
         {/* --- Location --- */}
         <Section title="Location">
           <Field label="Country">
@@ -365,6 +402,15 @@ export default function EditProfileScreen() {
               placeholder="Nigeria"
             />
           </Field>
+          <Field label="State / region">
+            <input
+              type="text"
+              value={form.region}
+              onChange={(e) => set('region', e.target.value)}
+              className="lm-input"
+              placeholder="Lagos"
+            />
+          </Field>
           <Field label="City">
             <input
               type="text"
@@ -373,6 +419,16 @@ export default function EditProfileScreen() {
               className="lm-input"
               placeholder="Lagos"
             />
+          </Field>
+          <Field label="Language">
+            <select
+              value={form.language}
+              onChange={(e) => set('language', e.target.value)}
+              className="lm-input w-full"
+            >
+              <option value="">Not set</option>
+              {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+            </select>
           </Field>
         </Section>
 
@@ -392,6 +448,74 @@ export default function EditProfileScreen() {
           />
         </Section>
       </main>
+    </div>
+  )
+}
+
+/**
+ * Gallery photos — optional, and saved the moment they're picked rather than
+ * on "Save", because they're not part of the form patch. Max 5; adding a
+ * sixth drops the oldest, which the RPC does server-side.
+ */
+function GalleryEditor({ urls }: { urls: string[] }) {
+  const fileRef = useRef<HTMLInputElement | null>(null)
+  const add = useAddGalleryPhoto()
+  const remove = useRemoveGalleryPhoto()
+  const [error, setError] = useState<string | null>(null)
+  const full = urls.length >= GALLERY_MAX
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setError(null)
+    try {
+      await add.mutateAsync(f)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {urls.map((url) => (
+          <div key={url} className="relative">
+            <img src={url} alt="" className="w-20 h-20 rounded-xl object-cover ring-1 ring-white/10" />
+            <button
+              type="button"
+              onClick={() => { setError(null); remove.mutate(url) }}
+              disabled={remove.isPending}
+              aria-label="Remove photo"
+              className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-danger text-white text-xs font-bold grid place-items-center ring-2 ring-surface disabled:opacity-60"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={add.isPending}
+          className="w-20 h-20 rounded-xl glass grid place-items-center text-2xl text-ink-muted hover:text-ink transition-colors disabled:opacity-60"
+          aria-label="Add gallery photo"
+        >
+          {add.isPending ? '…' : '+'}
+        </button>
+      </div>
+
+      <p className="text-xs text-ink-muted">
+        {urls.length}/{GALLERY_MAX} photos.{' '}
+        {full
+          ? 'Adding another replaces the oldest one.'
+          : 'People see these when they tap your picture in the feed.'}
+      </p>
+
+      {error && <p className="text-xs text-danger">{error}</p>}
+
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
     </div>
   )
 }

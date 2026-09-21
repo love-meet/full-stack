@@ -1,8 +1,6 @@
-import { useState } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useGift, useRespondGift } from '../hooks/useGift'
-import { useUserCurrency } from '../hooks/useFx'
+import { useGift } from '../hooks/useGift'
 import { useAuth } from '../stores/auth'
 
 export default function GiftDetailScreen() {
@@ -10,27 +8,12 @@ export default function GiftDetailScreen() {
   const navigate = useNavigate()
   const myId = useAuth((s) => s.session?.user.id ?? null)
   const gift = useGift(giftId)
-  const respond = useRespondGift()
-  const cur = useUserCurrency()
-  const [error, setError] = useState<string | null>(null)
 
   const g = gift.data
-  const amountUsd = g ? g.amount_cents / 100 : 0
-  const price = cur.ready || cur.code === 'USD' ? cur.format(amountUsd) : `$${amountUsd}`
   const iAmRecipient = !!g && g.recipient_id === myId
   const iAmSender = !!g && g.sender_id === myId
   const senderLabel = g?.sender?.handle ? `@${g.sender.handle}` : g?.sender?.display_name ?? 'Someone'
   const recipientLabel = g?.recipient?.handle ? `@${g.recipient.handle}` : g?.recipient?.display_name ?? 'them'
-
-  async function act(accept: boolean) {
-    if (!giftId) return
-    setError(null)
-    try {
-      await respond.mutateAsync({ giftId, accept })
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  }
 
   return (
     <div className="min-h-screen text-ink pb-24">
@@ -65,7 +48,6 @@ export default function GiftDetailScreen() {
               {g.gift_image && <img src={g.gift_image} alt={g.gift_name} className="w-full h-full object-cover" />}
             </div>
             <h1 className="mt-5 text-2xl font-extrabold text-gradient-warm">{g.gift_name}</h1>
-            <div className="mt-1 text-lg font-bold text-ink">{price}</div>
 
             <p className="mt-3 text-sm text-ink-2">
               {iAmRecipient ? (
@@ -79,42 +61,6 @@ export default function GiftDetailScreen() {
 
             <StatusPill status={g.status} />
 
-            {error && <p className="mt-3 text-sm text-danger">{error}</p>}
-
-            {/* Recipient action: accept / decline a pending gift. */}
-            {iAmRecipient && g.status === 'pending' && (
-              <div className="mt-6 space-y-3">
-                <button
-                  onClick={() => act(true)}
-                  disabled={respond.isPending}
-                  className="w-full rounded-full py-3 text-sm font-bold bg-gradient-brand text-white glow-rose disabled:opacity-60"
-                >
-                  {respond.isPending ? 'Working…' : `Accept gift (${price})`}
-                </button>
-                <button
-                  onClick={() => act(false)}
-                  disabled={respond.isPending}
-                  className="w-full rounded-full py-3 text-sm font-semibold glass text-ink-2 hover:text-ink disabled:opacity-60"
-                >
-                  Decline
-                </button>
-                <p className="text-[11px] text-ink-muted">
-                  Accept and it's added to your earnings. Decline and {senderLabel} is refunded.
-                </p>
-              </div>
-            )}
-
-            {iAmRecipient && g.status === 'accepted' && (
-              <Link to="/earnings" className="mt-6 inline-flex rounded-full px-6 py-3 bg-gradient-brand text-white text-sm font-bold glow-rose">
-                View in earnings
-              </Link>
-            )}
-
-            {iAmSender && (
-              <Link to="/wallet" className="mt-6 inline-flex rounded-full px-6 py-3 glass text-ink-2 hover:text-ink text-sm font-semibold">
-                View transaction
-              </Link>
-            )}
           </motion.div>
         )}
       </main>
@@ -124,12 +70,11 @@ export default function GiftDetailScreen() {
 
 function StatusPill({ status }: { status: GiftDetailStatus }) {
   const map = {
-    pending:  { label: 'Pending',  cls: 'bg-gold/15 text-gold' },
-    accepted: { label: 'Accepted 🎉', cls: 'bg-success/15 text-success' },
+    sent:     { label: 'Sent 🎁',  cls: 'bg-success/15 text-success' },
     rejected: { label: 'Declined', cls: 'bg-rose/15 text-rose' },
-    failed:   { label: 'Failed',   cls: 'bg-rose/15 text-rose' },
   } as const
   const m = map[status]
+  if (!m) return null
   return (
     <div className="mt-4">
       <span className={`inline-block text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${m.cls}`}>
@@ -139,4 +84,4 @@ function StatusPill({ status }: { status: GiftDetailStatus }) {
   )
 }
 
-type GiftDetailStatus = 'pending' | 'accepted' | 'rejected' | 'failed'
+type GiftDetailStatus = 'sent' | 'rejected'

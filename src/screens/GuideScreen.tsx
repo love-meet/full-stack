@@ -29,28 +29,21 @@ const STEPS: Step[] = [
   {
     emoji: '🎁',
     title: 'Send & receive gifts',
-    body: 'Show someone you care by sending a gift on their post. When you receive one, accept it and it becomes real earnings you can withdraw.',
+    body: 'Show someone you care by sending a gift. Gifts stay inside the app — they are never cashed out.',
   },
   {
-    emoji: '💸',
-    title: 'Earn while you connect',
-    body: 'Gifts you receive turn into withdrawable earnings. Invite friends with your link and earn 5% of what they spend — for life.',
-    to: '/affiliate',
+    emoji: '🎉',
+    title: 'Invite your friends',
+    body: 'Share your invite link and bring the people you want to talk to onto the app.',
+    to: '/invite',
     cta: 'Get my invite link',
   },
   {
-    emoji: '👑',
-    title: 'Go premium to stand out',
-    body: 'Premium boosts your visibility, unlocks groups, games and unlimited posts, and gives you the blue verified tick.',
-    to: '/subscription',
-    cta: 'See plans',
-  },
-  {
-    emoji: '💰',
-    title: 'Top up your wallet',
-    body: 'Add funds in your local currency to send gifts and subscribe. Withdraw your earnings to your local bank anytime.',
-    to: '/wallet/deposit',
-    cta: 'Add funds',
+    emoji: '💬',
+    title: 'Credits are for messaging',
+    body: "100 credits covers the first message you send on any day — after that, message as much as you like until tomorrow. Games are free.",
+    to: '/credits',
+    cta: 'See credits',
   },
 ]
 

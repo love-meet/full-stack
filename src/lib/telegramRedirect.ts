@@ -85,8 +85,8 @@ function buildDeepLinks(
   // start_param spec (Bot API): 1–64 chars, ONLY [A-Z a-z 0-9 _ -]. Anything
   // else (a `%`-escaped path, a `/`, a `?`, an `&`) makes Telegram reject the
   // deep link with a vague "Something went wrong" inside the client. The only
-  // payload we actually need to carry across the handoff is the affiliate
-  // referral code (`?ref=LM-XXXX`) — any other in-app routing happens after
+  // payload we actually need to carry across the handoff is the referral
+  // code (`?ref=LM-XXXX`) — any other in-app routing happens after
   // launch via the SPA router, so it's safer to omit `startapp` entirely when
   // there's nothing valid to pass.
   let startParam: string | null = null

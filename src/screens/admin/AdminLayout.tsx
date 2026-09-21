@@ -7,8 +7,6 @@ const TABS = [
   { to: '/admin/moderation',   label: 'Moderation' },
   { to: '/admin/support',      label: 'Support' },
   { to: '/admin/users',        label: 'Users' },
-  { to: '/admin/payouts',      label: 'Payouts' },
-  { to: '/admin/transactions', label: 'Transactions' },
 ] as const
 
 /**
@@ -28,7 +26,7 @@ export default function AdminLayout() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-3">
           <h1 className="text-2xl font-extrabold text-gradient-warm">Admin</h1>
           <p className="text-xs text-ink-muted">
-            Moderation, user management, payouts.
+            Moderation, users, support.
           </p>
         </div>
 

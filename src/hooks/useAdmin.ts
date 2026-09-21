@@ -2,15 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useProfile } from './useProfile'
 import type { GroupPost } from './useGroupPosts'
-import type {
-  Deposit,
-  WithdrawalRequest,
-} from './usePayments'
 
 export type AdminStats = {
   open_reports: number
-  pending_payouts: number
-  pending_deposits: number
   active_bans: number
   open_tickets: number
   admin_count: number
@@ -265,137 +259,6 @@ export function useActiveBans() {
         .limit(50)
       if (error) throw error
       return (data ?? []) as UserBan[]
-    },
-  })
-}
-
-// ============================================================================
-// Payouts (withdrawals + deposits oversight)
-// ============================================================================
-
-export function usePendingDeposits() {
-  return useQuery<Deposit[]>({
-    queryKey: ['admin:deposits', 'pending'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('deposits')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(50)
-      if (error) throw error
-      return (data ?? []) as Deposit[]
-    },
-  })
-}
-
-export function useMarkDepositPaid() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (vars: { depositId: string; providerRef?: string }) => {
-      const { data, error } = await supabase
-        .rpc('mark_deposit_paid', {
-          deposit_id: vars.depositId,
-          ref: vars.providerRef ?? null,
-          payload: null,
-        })
-        .select('*')
-        .single()
-      if (error) throw error
-      return data as Deposit
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin:deposits'] })
-      qc.invalidateQueries({ queryKey: ['admin:stats'] })
-    },
-  })
-}
-
-export function usePendingWithdrawals() {
-  return useQuery<WithdrawalRequest[]>({
-    queryKey: ['admin:withdrawals', 'pending'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('withdrawal_requests')
-        .select('*')
-        .in('status', ['pending', 'approved'])
-        .order('created_at', { ascending: false })
-        .limit(50)
-      if (error) throw error
-      return (data ?? []) as WithdrawalRequest[]
-    },
-  })
-}
-
-export function useApproveWithdrawal() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (reqId: string) => {
-      const { data, error } = await supabase
-        .rpc('approve_withdrawal', { req_id: reqId })
-        .select('*')
-        .single()
-      if (error) throw error
-      return data as WithdrawalRequest
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin:withdrawals'] })
-      qc.invalidateQueries({ queryKey: ['admin:stats'] })
-    },
-  })
-}
-
-export function useMarkWithdrawalSent() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (vars: { reqId: string; txHash: string }) => {
-      const { data, error } = await supabase
-        .rpc('mark_withdrawal_sent', { req_id: vars.reqId, tx_hash: vars.txHash })
-        .select('*')
-        .single()
-      if (error) throw error
-      return data as WithdrawalRequest
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin:withdrawals'] })
-      qc.invalidateQueries({ queryKey: ['admin:stats'] })
-    },
-  })
-}
-
-export function useRejectWithdrawal() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (vars: { reqId: string; reason: string }) => {
-      const { data, error } = await supabase
-        .rpc('reject_withdrawal', { req_id: vars.reqId, reason: vars.reason })
-        .select('*')
-        .single()
-      if (error) throw error
-      return data as WithdrawalRequest
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin:withdrawals'] })
-      qc.invalidateQueries({ queryKey: ['admin:stats'] })
-    },
-  })
-}
-
-// ============================================================================
-// All ledger entries (admin transactions view)
-// ============================================================================
-
-export function useAdminLedger() {
-  return useQuery({
-    queryKey: ['admin:ledger'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('ledger_entries')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100)
-      if (error) throw error
-      return data ?? []
     },
   })
 }

@@ -156,7 +156,6 @@ export default function InterviewScreen() {
   const [step, setStep] = useState(0)
   const [partner, setPartner] = useState<Record<string, string>>({})
   const [self, setSelf] = useState<Record<string, string>>({})
-  const [plan, setPlan] = useState<'free' | 'premium' | 'vip' | null>(null)
 
   const pron = useMemo(() => pronounsFor(profile.data?.gender), [profile.data?.gender])
 
@@ -169,21 +168,16 @@ export default function InterviewScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existing.data?.user_id])
 
-  const total = QUESTIONS.length + 1 // +1 for the final plan question
+  const total = QUESTIONS.length + 1 // +1 for the closing step
   const isFinal = step === QUESTIONS.length
 
-  async function finish(picked: 'free' | 'premium' | 'vip') {
-    setPlan(picked)
-    // Map the interview choice to the actual DB plan id.
-    const planRoute = picked === 'premium' ? '/plans/sweetheart'
-      : picked === 'vip' ? '/plans/soulmate'
-      : '/feed'
+  async function finish() {
     try {
-      await save.mutateAsync({ partner, self, planGoal: picked, completed: true })
+      await save.mutateAsync({ partner, self, completed: true })
     } catch {
       // best-effort: even on save error we still let the user move on
     }
-    navigate(planRoute, { replace: true })
+    navigate('/feed', { replace: true })
   }
 
   return (
@@ -229,8 +223,8 @@ export default function InterviewScreen() {
             <FinalStep
               key="final"
               pron={pron}
-              onPick={finish}
-              busy={save.isPending && plan != null}
+              onDone={finish}
+              busy={save.isPending}
             />
           )}
         </AnimatePresence>
@@ -362,131 +356,36 @@ function Picker({
   )
 }
 
-function FinalStep({
-  pron, onPick, busy,
-}: {
-  pron: Pron
-  onPick: (p: 'free' | 'premium' | 'vip') => void
-  busy: boolean
-}) {
+/**
+ * The last step.
+ *
+ * This used to be a plan upsell — Free / Premium / VIP, with the free option
+ * listed as "✖ Can't message Premium / VIP members". There are no plans any
+ * more and no tier can buy visibility, so the questionnaire simply ends.
+ */
+function FinalStep({ pron, onDone, busy }: { pron: Pron; onDone: () => void; busy: boolean }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="text-center"
+      key="final"
+      initial={{ opacity: 0, x: 24 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -24 }}
+      transition={{ duration: 0.2 }}
+      className="text-center py-6"
     >
-      <div className="text-5xl">🎉</div>
-      <h2 className="mt-2 text-2xl font-extrabold text-gradient-warm">You're good to go!</h2>
-      <p className="mt-1 text-sm text-ink-2">One last question:</p>
-      <p className="mt-1 text-lg font-bold text-ink">What kind of {pron.person} do you want?</p>
-
-      <div className="mt-6 space-y-3 text-left">
-        <PlanChoice
-          tone="gold"
-          icon="💎"
-          title="A rich one"
-          highlight="The rich only meet the rich"
-          tagline="Unlock VIP — you'll be surfaced exclusively to other verified VIP members. Rich-to-rich, premium-to-premium."
-          benefits={[
-            'Everything in Premium',
-            'Nationality verification',
-            'Face verification',
-            'Surfaced ONLY to other VIP-verified members',
-            'Top priority with the most genuine, verified matches',
-          ]}
-          cta="Unlock VIP"
-          onPick={() => onPick('vip')}
-          disabled={busy}
-        />
-        <PlanChoice
-          tone="rose"
-          icon="🤝"
-          title="A middle-class one"
-          tagline="Premium — be seen, be heard, be unmissable."
-          benefits={[
-            'Boosted visibility — recommended to people matching your vibe, location & closeness',
-            'Create & host any game',
-            'Create your own groups',
-            'Start threads inside groups',
-            'Unlimited posts (Free is 3 a week)',
-            'Choose exactly who can message you',
-            '10 chat settings & toggles',
-            '8 privacy settings & toggles',
-            'Get recommended to people who already like you',
-            'No ads',
-            'Blue verified tick on your profile everywhere',
-          ]}
-          cta="Get Premium"
-          onPick={() => onPick('premium')}
-          disabled={busy}
-        />
-        <PlanChoice
-          tone="muted"
-          icon="😌"
-          title="I'm just there for the ride"
-          tagline="Free — limited visibility, but you can still join games and meet people."
-          benefits={[
-            '3 posts a week',
-            'Default chat & privacy settings',
-            'Join groups & games others host',
-            "✖ Can't create or host games (members only)",
-            "✖ Can't message Premium / VIP members",
-          ]}
-          cta="Stay on Free"
-          onPick={() => onPick('free')}
-          disabled={busy}
-        />
-      </div>
-    </motion.div>
-  )
-}
-
-function PlanChoice({
-  tone, icon, title, tagline, benefits, cta, onPick, disabled, highlight,
-}: {
-  tone: 'gold' | 'rose' | 'muted'
-  icon: string
-  title: string
-  tagline: string
-  benefits: string[]
-  cta: string
-  onPick: () => void
-  disabled: boolean
-  highlight?: string
-}) {
-  const ring = tone === 'gold' ? 'ring-gold/50'
-    : tone === 'rose' ? 'ring-rose/40' : 'ring-white/10'
-  const btn = tone === 'muted'
-    ? 'glass text-ink-2 hover:text-ink'
-    : 'bg-gradient-brand text-white glow-rose'
-  return (
-    <div className={`relative glass rounded-2xl p-4 ring-1 ${ring}`}>
-      {highlight && (
-        <div className="-mt-1 mb-2 inline-block rounded-full px-2.5 py-0.5 bg-gold/15 ring-1 ring-gold/40 text-[10px] uppercase tracking-wider font-extrabold text-gold">
-          👑 {highlight}
-        </div>
-      )}
-      <div className="flex items-start gap-3">
-        <span className="text-2xl shrink-0">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="font-extrabold text-ink">{title}</div>
-          <p className="text-[12px] text-ink-2 mt-0.5">{tagline}</p>
-        </div>
-      </div>
-      <ul className="mt-2.5 space-y-1">
-        {benefits.map((b) => (
-          <li key={b} className="text-[12px] text-ink-2 flex items-start gap-1.5">
-            <span className="text-rose mt-0.5">✓</span><span>{b}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="text-5xl mb-3">✨</div>
+      <h2 className="text-xl font-extrabold text-ink">That's everything</h2>
+      <p className="mt-2 text-sm text-ink-2 max-w-xs mx-auto">
+        We'll keep an eye out for the right {pron.person}. You can change any of
+        these answers later in your profile.
+      </p>
       <button
-        onClick={onPick}
-        disabled={disabled}
-        className={`mt-3 w-full rounded-full py-2.5 text-sm font-bold transition-opacity disabled:opacity-50 ${btn}`}
+        onClick={onDone}
+        disabled={busy}
+        className="mt-6 w-full rounded-full py-3 bg-gradient-brand text-white text-sm font-bold glow-rose disabled:opacity-60"
       >
-        {cta}
+        {busy ? 'Saving…' : 'Done'}
       </button>
-    </div>
+    </motion.div>
   )
 }

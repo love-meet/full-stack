@@ -1,9 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../stores/auth'
-import { walletKey } from './useWallet'
 
-export type GiftStatus = 'pending' | 'accepted' | 'rejected' | 'failed'
+export type GiftStatus = 'sent' | 'rejected'
 
 export type GiftDetail = {
   id: string
@@ -13,7 +12,6 @@ export type GiftDetail = {
   gift_id: string
   gift_name: string
   gift_image: string | null
-  amount_cents: number
   status: GiftStatus
   created_at: string
   responded_at: string | null
@@ -60,30 +58,6 @@ export function useReceivedGifts(userId: string | null | undefined) {
         .limit(100)
       if (error) throw error
       return (data ?? []) as GiftDetail[]
-    },
-  })
-}
-
-/** Recipient accepts (they're credited) or declines (sender refunded). */
-export function useRespondGift() {
-  const qc = useQueryClient()
-  const session = useAuth((s) => s.session)
-  return useMutation({
-    mutationFn: async (vars: { giftId: string; accept: boolean }) => {
-      const { data, error } = await supabase
-        .rpc('respond_gift', { p_gift_id: vars.giftId, p_accept: vars.accept })
-        .select()
-        .single()
-      if (error) throw error
-      return data as GiftDetail
-    },
-    onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: giftKey(vars.giftId) })
-      qc.invalidateQueries({ queryKey: ['gifts:received'] })
-      if (session) qc.invalidateQueries({ queryKey: walletKey(session.user.id) })
-      qc.invalidateQueries({ queryKey: ['ledger'] })
-      qc.invalidateQueries({ queryKey: ['earnings_summary'] })
-      qc.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }
