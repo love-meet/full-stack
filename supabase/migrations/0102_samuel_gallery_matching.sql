@@ -249,6 +249,16 @@ create trigger gallery_interests_check_match
 -- =========================================================================
 -- Bots ARE included here (unlike searchable_profiles) — populating this
 -- feed with lively-looking activity is the entire point of the bot roster.
+-- Dropped before creating.
+--
+-- On the live database get_gallery_feed already exists with an EXTRA
+-- avatar_url column, because Samuel's later migration (his 0098, our 0103)
+-- was hand-applied there ahead of this one. create or replace cannot change
+-- a function's return type — "cannot change return type of existing
+-- function" — so this failed on production while passing on a clean build.
+-- 0103 re-creates it with avatar_url a moment later either way.
+drop function if exists public.get_gallery_feed(int);
+
 create or replace function public.get_gallery_feed(p_limit int default 10)
 returns table (
   id            uuid,
