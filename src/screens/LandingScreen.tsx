@@ -5,6 +5,7 @@ import { useAuth } from '../stores/auth'
 import { getSurface } from '../lib/surface'
 import { signInWithGoogle, signInWithTelegram } from '../lib/signIn'
 import LoadingShell from '../shell/LoadingShell'
+import GetTheApp from '../components/GetTheApp'
 
 // Deterministic heart positions so re-renders don't reshuffle them. Kept
 // light (10 total) so the landing paints fast.
@@ -89,6 +90,7 @@ export default function LandingScreen() {
   }
 
   return (
+    <>
     <section className="relative min-h-screen overflow-hidden grid place-items-center px-6 py-12">
       {/* Ambient drifting orbs — pure CSS transforms, cheap */}
       <div aria-hidden className="pointer-events-none absolute inset-0 z-0">
@@ -205,6 +207,11 @@ export default function LandingScreen() {
         </motion.div>
       </motion.div>
     </section>
+
+    {/* Where to get it. Telegram is live; the phone apps are honestly marked
+        coming soon rather than given store badges that lead nowhere. */}
+    <GetTheApp />
+    </>
   )
 }
 

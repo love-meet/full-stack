@@ -11,11 +11,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://lovemeetapp.com/games</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://lovemeetapp.com/blog</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
