@@ -26,13 +26,20 @@ comment on column public.profiles.language is
 comment on column public.profiles.gallery_urls is
   'Up to 5 gallery photos, oldest first. Maintained by add_gallery_photo(); never written directly by the client.';
 
--- Belt-and-braces: the cap is enforced by the RPC, but a constraint means a
--- stray direct write can't blow past it either.
-alter table public.profiles
-  drop constraint if exists profiles_gallery_max_5;
-alter table public.profiles
-  add constraint profiles_gallery_max_5
-  check (coalesce(array_length(gallery_urls, 1), 0) <= 5);
+-- The cap is enforced by add_gallery_photo(); this is belt-and-braces so a
+-- stray direct write cannot blow past it either.
+--
+-- Named profiles_gallery_max_check to match what already exists on the live
+-- database (Samuel's). Esther, 21 Sep: keep his, drop mine — two equivalent
+-- constraints with different names on the same column is just confusion. The
+-- guarded add means production is a no-op and a clean build still gets one.
+do $$ begin
+  alter table public.profiles
+    add constraint profiles_gallery_max_check
+    check (array_length(gallery_urls, 1) is null or array_length(gallery_urls, 1) <= 5);
+exception when duplicate_object then null; end $$;
+
+alter table public.profiles drop constraint if exists profiles_gallery_max_5;
 
 -- -------------------------------------------------------------------------
 -- 2. Gallery: newest replaces oldest.

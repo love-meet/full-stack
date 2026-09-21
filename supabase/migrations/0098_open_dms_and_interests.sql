@@ -47,7 +47,25 @@ comment on column public.conversations.created_by is
 -- -------------------------------------------------------------------------
 alter table public.profiles
   add column if not exists interested_in text[]  not null default '{}'::text[],
-  add column if not exists is_bot        boolean not null default false;
+  add column if not exists is_bot        boolean not null default false,
+  add column if not exists bot_kind      text;
+
+do $$ begin
+  alter table public.profiles
+    add constraint profiles_bot_kind_check
+    check (bot_kind = any (array['persona', 'liker']));
+exception when duplicate_object then null; end $$;
+
+-- A bot is anything carrying EITHER marker.
+--
+-- Samuel's personas set bot_kind; is_bot is a separate, older flag. Checking
+-- only is_bot let a persona with bot_kind='persona' and is_bot=false walk
+-- into the feed, into search and into the inbox — 19 of them reply in DMs and
+-- 5 have AI-generated galleries, which is the catfishing case Apple rejects
+-- dating apps for. One helper so the rule cannot drift between call sites.
+create or replace function public.is_bot_profile(p_is_bot boolean, p_bot_kind text)
+returns boolean language sql immutable
+as $fn$ select coalesce(p_is_bot, false) or p_bot_kind is not null $fn$;
 
 do $$ begin
   alter table public.profiles
@@ -116,7 +134,7 @@ as $$
      -- Bots never appear. We charge credits to send a message; letting
      -- someone pay to message an account they believe is a person, which
      -- isn't, is the one thing this app must not do.
-     and coalesce(p.is_bot, false) = false
+     and not public.is_bot_profile(p.is_bot, p.bot_kind)
      -- They are what I am looking for ...
      and p.gender = any(
        case when coalesce(array_length(me.interested_in, 1), 0) = 0
@@ -161,7 +179,7 @@ begin
   if my_id is null then raise exception 'not authenticated'; end if;
   if other_user_id = my_id then raise exception 'cannot dm yourself'; end if;
 
-  select p.is_bot into target_is_bot
+  select public.is_bot_profile(p.is_bot, p.bot_kind) into target_is_bot
     from public.profiles p
    where p.id = other_user_id and p.deleted_at is null;
 
@@ -225,7 +243,7 @@ begin
        where p.onboarded_at is not null
          and p.deleted_at is null
          and p.id <> auth.uid()
-         and coalesce(p.is_bot, false) = false
+         and not public.is_bot_profile(p.is_bot, p.bot_kind)
          and not exists (
            select 1 from public.user_blocks ub
             where (ub.blocker_id = auth.uid() and ub.blocked_id = p.id)
