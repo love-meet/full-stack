@@ -18,6 +18,9 @@ export type Profile = {
   interests: string[]
   language: string | null
   gallery_urls: string[]
+  /** Genders this user wants to see. Defaults to the opposite gender (0098). */
+  interested_in: string[]
+  is_bot: boolean
   age_min: number | null
   age_max: number | null
   show_online_status: boolean
@@ -70,6 +73,7 @@ export type ProfileUpdate = Partial<
     | 'looking_for'
     | 'interests'
     | 'language'
+    | 'interested_in'
     | 'age_min'
     | 'age_max'
     | 'show_online_status'

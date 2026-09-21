@@ -8,6 +8,9 @@ type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: 'female', label: 'Woman' },
   { value: 'male', label: 'Man' },
+  { value: 'nonbinary', label: 'Nonbinary' },
+  { value: 'other', label: 'Other' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ]
 
 const MONTHS = [
@@ -22,8 +25,9 @@ const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 /**
  * Username, gender and date of birth.
  *
- * Gender is here because the feed cannot sort anyone without it (§4) — men
- * see women, women see men. Date of birth is here because the app is 18+.
+ * Gender is here because the feed cannot sort anyone without it (§4). It
+ * seeds interested_in to the opposite gender, which is what the feed pairs
+ * on — changeable later in Profile. Date of birth is here because 18+.
  * Real name, bio and interests are gone from signup; they live in Profile.
  */
 export default function YouStep({ data, set }: StepProps) {

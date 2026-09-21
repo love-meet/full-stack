@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import TopIcons from '../shell/TopIcons'
 import FeedAd from '../components/FeedAd'
 import { usePeopleFeed, useAdvanceFeed, ageFrom, type FeedPerson } from '../hooks/usePeopleFeed'
-import { useStartDM } from '../hooks/useStartDM'
+import { useStartDM, isDailyChatLimit } from '../hooks/useStartDM'
 import { avatarUrlOr } from '../lib/avatar'
 import { languageName } from '../data/languages'
 
@@ -12,9 +12,9 @@ import { languageName } from '../data/languages'
  * The feed is people (§5).
  *
  * Profile pictures only — one per screen, tap to open that person's gallery.
- * Eligibility and ordering both live in the `people_feed` RPC: men see women,
- * women see men, ordered by a hash of (profile_id, viewer_seed) so the order
- * is different for everyone and stable across sessions.
+ * Eligibility and ordering both live in the `people_feed` RPC: it pairs on
+ * profiles.interested_in (defaulted to the opposite gender), ordered by a
+ * hash of (profile_id, viewer_seed) so it differs per viewer and is stable.
  *
  * This screen owns one thing the server can't see: which cards were actually
  * *consumed*. A card counts as consumed once it has been on screen, and the
@@ -158,6 +158,7 @@ function PersonCard({
   const ref = useRef<HTMLElement>(null)
   const navigate = useNavigate()
   const startDM = useStartDM()
+  const [chatError, setChatError] = useState<string | null>(null)
 
   // Consumed once it has actually been on screen — not merely rendered, or
   // the whole page would count as seen the moment it loads.
@@ -179,12 +180,18 @@ function PersonCard({
   const extra = person.gallery_urls.length
 
   async function message() {
+    setChatError(null)
     try {
       const id = await startDM.mutateAsync(person.id)
       navigate(`/chat/${id}`)
-    } catch {
-      // The chat screen surfaces a real error; a failed tap shouldn't
-      // interrupt browsing.
+    } catch (e) {
+      // Out of new chats for today is a real answer, not a failure — say so
+      // rather than letting the button appear broken.
+      setChatError(
+        isDailyChatLimit(e)
+          ? "That's 20 new chats today — the limit resets tomorrow. You can still reply to anyone."
+          : null,
+      )
     }
   }
 
@@ -244,6 +251,10 @@ function PersonCard({
                 Photos
               </button>
             </div>
+
+            {chatError && (
+              <p className="mt-2 text-center text-xs text-white/80 drop-shadow">{chatError}</p>
+            )}
           </div>
         </div>
       </section>

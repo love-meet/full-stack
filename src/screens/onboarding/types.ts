@@ -12,17 +12,15 @@
 // user is an adult, which is the test §4 sets.
 
 /**
- * Signup gender is male or female only.
+ * Signup gender.
  *
- * Victor, 19 Sep: the entire feed depends on it. Under a strict
- * men-see-women rule a nonbinary user appears in nobody's feed at all —
- * invisible, which is a worse bug than not offering the option. A proper
- * show_me preference gets designed later rather than bolted on here.
- *
- * profiles.gender still accepts the wider set, so existing rows are
- * untouched; this narrows the signup surface only.
+ * Victor, 20 Sep: profiles.interested_in already exists and works, so the
+ * feed pairs on a real preference instead of a hardcoded men<->women rule.
+ * It defaults to the opposite gender (migration 0098), so anyone who never
+ * touches it gets exactly that — and nobody is invisible, which is what
+ * restricting signup to male/female was working around.
  */
-export type Gender = 'male' | 'female'
+export type Gender = 'male' | 'female' | 'nonbinary' | 'other' | 'prefer_not_to_say'
 
 export type FormData = {
   // Step 1 — You

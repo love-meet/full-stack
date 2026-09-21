@@ -12,10 +12,7 @@ import { useAddGalleryPhoto, useRemoveGalleryPhoto, GALLERY_MAX } from '../../ho
 import { avatarFor } from '../../lib/avatar'
 import { LANGUAGES } from '../../data/languages'
 
-// Male/female only, same as signup. The feed pairs on this field, so a
-// profile set to anything else appears in nobody's feed — offering the choice
-// here would just be a quieter way to make someone invisible.
-const GENDERS: Profile['gender'][] = ['female', 'male']
+const GENDERS: Profile['gender'][] = ['female', 'male', 'nonbinary', 'other', 'prefer_not_to_say']
 const LOOKING: NonNullable<Profile['looking_for']>[] = ['serious', 'casual', 'friends']
 
 type Form = {
@@ -31,6 +28,7 @@ type Form = {
   region: string
   city: string
   language: string
+  interested_in: string[]
   age_min: string
   age_max: string
   show_online_status: boolean
@@ -51,6 +49,7 @@ function fromProfile(p: Profile): Form {
     region: p.region ?? '',
     city: p.city ?? '',
     language: p.language ?? '',
+    interested_in: p.interested_in ?? [],
     age_min: p.age_min != null ? String(p.age_min) : '',
     age_max: p.age_max != null ? String(p.age_max) : '',
     show_online_status: p.show_online_status,
@@ -78,6 +77,9 @@ function toPatch(form: Form, original: Profile): ProfileUpdate {
   if (form.region !== (original.region ?? '')) patch.region = form.region.trim() || null
   if (form.city !== (original.city ?? '')) patch.city = form.city.trim() || null
   if (form.language !== (original.language ?? '')) patch.language = form.language || null
+  if (JSON.stringify([...form.interested_in].sort()) !== JSON.stringify([...(original.interested_in ?? [])].sort())) {
+    patch.interested_in = form.interested_in
+  }
   const ageMin = form.age_min === '' ? null : Number(form.age_min)
   if (ageMin !== original.age_min) patch.age_min = ageMin
   const ageMax = form.age_max === '' ? null : Number(form.age_max)
@@ -314,6 +316,25 @@ export default function EditProfileScreen() {
 
         {/* --- Preferences --- */}
         <Section title="Preferences">
+          <Field label="Show me" hint="Who appears in your feed">
+            <div className="flex flex-wrap gap-2">
+              {GENDERS.filter((g) => g === 'female' || g === 'male' || g === 'nonbinary').map((g) => {
+                const on = form.interested_in.includes(g as string)
+                return (
+                  <Chip
+                    key={g}
+                    active={on}
+                    onClick={() => set('interested_in',
+                      on ? form.interested_in.filter((x) => x !== g)
+                         : [...form.interested_in, g as string])}
+                  >
+                    {labelGender(g)}
+                  </Chip>
+                )
+              })}
+            </div>
+          </Field>
+
           <Field label="Looking for">
             <div className="flex flex-wrap gap-2">
               {LOOKING.map((l) => (
