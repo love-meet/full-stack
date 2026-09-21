@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../stores/auth'
 import { useProfile } from '../../hooks/useProfile'
+import { useTranslation } from 'react-i18next'
+import { SUPPORTED_LANGUAGES } from '../../i18n/languages'
 
 import { useIsAdmin } from '../../hooks/useAdmin'
 import ConfirmDialog from '../../components/ConfirmDialog'
@@ -21,6 +23,7 @@ type Item = {
  * Below: the reorganized menu.
  */
 export default function ProfileMenuScreen() {
+  const { i18n } = useTranslation()
   const navigate = useNavigate()
   const signOut = useAuth((s) => s.signOut)
   const profileQ = useProfile()
@@ -54,6 +57,12 @@ export default function ProfileMenuScreen() {
       items: [
         { icon: '✎', label: 'Edit profile', hint: 'Photo, handle, bio, interests', onClick: () => navigate('/profile/edit') },
         { icon: '🛡', label: 'Security', hint: 'PIN, password', onClick: () => navigate('/security') },
+        {
+          icon: '🌐',
+          label: 'Language',
+          hint: SUPPORTED_LANGUAGES.find((l) => l.code === i18n.language)?.nativeName,
+          onClick: () => navigate('/language'),
+        },
       ],
     },
     {
