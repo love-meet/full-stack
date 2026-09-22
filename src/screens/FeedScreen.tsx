@@ -13,6 +13,11 @@ import {
 } from '../hooks/useProfileActions'
 import ProfileCommentSheet from '../components/ProfileCommentSheet'
 import GiftSheet from '../components/GiftSheet'
+import {
+  HeartIcon, CommentIcon, BookmarkIcon, ShareIcon, GiftIcon, PhotosIcon,
+  MutedIcon, SoundIcon,
+} from '../components/FeedIcons'
+import { isVideoUrl, compactCount } from '../lib/media'
 import { avatarUrlOr } from '../lib/avatar'
 import { languageName } from '../data/languages'
 
@@ -176,6 +181,8 @@ function PersonCard({
   const decide = useRecordGalleryDecision()
   const bookmark = useToggleProfileBookmark()
   const [sheet, setSheet] = useState<null | 'comments' | 'gift'>(null)
+  const [muted, setMuted] = useState(true)
+  const media = avatarUrlOr(person.avatar_url, person.gender)
 
   // Optimistic overrides — null means "whatever the server last said". The
   // rail has to answer a tap instantly; the counts catch up on the next fetch.
@@ -261,8 +268,21 @@ function PersonCard({
             className="absolute inset-0 w-full h-full"
             aria-label={`Open ${name}'s gallery`}
           >
-            <Media src={avatarUrlOr(person.avatar_url, person.gender)} play />
+            <Media src={media} play muted={muted} />
           </button>
+
+          {/* Sound toggle, only when there is sound to toggle. Video always
+              starts muted — autoplay with sound is blocked by every browser,
+              and a feed that shouts when you open it is worse anyway. */}
+          {isVideoUrl(media) && (
+            <button
+              onClick={() => setMuted((m) => !m)}
+              aria-label={muted ? 'Unmute' : 'Mute'}
+              className="absolute top-20 right-4 z-10 w-11 h-11 rounded-full bg-black/45 backdrop-blur-sm text-white grid place-items-center"
+            >
+              {muted ? <MutedIcon className="w-5 h-5" /> : <SoundIcon className="w-5 h-5" />}
+            </button>
+          )}
 
           {/* Scrim so the name stays legible over any picture. */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/80 to-transparent" />
@@ -273,38 +293,60 @@ function PersonCard({
             </span>
           )}
 
-          {/* Action rail — beside the card, not underneath it, the way TikTok
-              and Facebook place them. Every one of these targets the person:
-              comments, saves and gifts used to need a post, and 0106 gave
-              profiles their own. Like is the gallery-interest decision, so it
-              feeds the Interested tab and can make a match. */}
-          <div className="absolute right-2 bottom-36 flex flex-col items-center gap-3.5 z-10">
+          {/* Action rail — beside the card, the way TikTok and Instagram place
+              them: outlined icon, count underneath, nothing else. Every one of
+              these targets the person; comments, saves and gifts used to need
+              a post, and 0106 gave profiles their own. Like is the
+              gallery-interest decision, so it feeds Interested and can match. */}
+          <div className="absolute right-2.5 bottom-32 flex flex-col items-center gap-4 z-10">
+            {/* Their face at the top of the rail, tappable through to the
+                profile — the same anchor TikTok puts above the heart. */}
+            <Link to={`/profile/${person.id}`} aria-label={`${name}'s profile`} className="mb-1">
+              <img
+                src={avatarUrlOr(person.avatar_url, person.gender)}
+                alt=""
+                className="w-11 h-11 rounded-full object-cover ring-2 ring-white shadow-lg"
+              />
+            </Link>
+
             <RailButton
-              label={likeCount > 0 ? String(likeCount) : 'Like'}
+              icon={<HeartIcon filled={liked} className="w-9 h-9" />}
+              count={likeCount}
+              label={liked ? 'Liked' : 'Like'}
               active={liked}
               onClick={like}
               disabled={decide.isPending}
-            >
-              {liked ? '❤️' : '🤍'}
-            </RailButton>
+            />
             <RailButton
-              label={state?.comment_count ? String(state.comment_count) : 'Comment'}
+              icon={<CommentIcon className="w-9 h-9" />}
+              count={state?.comment_count}
+              label="Comments"
               onClick={() => setSheet('comments')}
-            >
-              💬
-            </RailButton>
+            />
             <RailButton
-              label={state?.gift_count ? String(state.gift_count) : 'Gift'}
+              icon={<GiftIcon filled={state?.gifted_by_me} className="w-8 h-8" />}
+              count={state?.gift_count}
+              label="Send a gift"
               active={state?.gifted_by_me}
               onClick={() => setSheet('gift')}
-            >
-              🎁
-            </RailButton>
-            <RailButton label="Share" onClick={share}>↗</RailButton>
-            <RailButton label={saved ? 'Saved' : 'Save'} active={saved} onClick={save}>
-              {saved ? '🔖' : '📑'}
-            </RailButton>
-            <RailButton label={extra > 0 ? `${extra + 1}` : 'Photos'} onClick={onOpenGallery}>🖼</RailButton>
+            />
+            <RailButton
+              icon={<BookmarkIcon filled={saved} className="w-8 h-8" />}
+              label={saved ? 'Saved' : 'Save'}
+              active={saved}
+              onClick={save}
+            />
+            <RailButton
+              icon={<ShareIcon className="w-8 h-8" />}
+              label="Share"
+              onClick={share}
+            />
+            <RailButton
+              icon={<PhotosIcon className="w-8 h-8" />}
+              count={extra > 0 ? extra + 1 : undefined}
+              label="Photos"
+              onClick={onOpenGallery}
+            />
           </div>
 
           <div className="absolute left-0 right-0 bottom-0 p-5 pb-6">
@@ -361,11 +403,21 @@ function PersonCard({
   )
 }
 
-/** One icon in the right-hand rail, with its label underneath. */
+/**
+ * One control in the right-hand rail: a big outlined icon with its count
+ * directly underneath, and nothing else.
+ *
+ * No pill, no capsule, no word label — TikTok and Instagram both dropped
+ * those years ago because the icon has to read against a photograph, and a
+ * background plate fights the photo instead of sitting on it. A drop shadow
+ * does the same job at a fraction of the visual weight. `count` is omitted
+ * when it would be zero: "0" on a like button reads as failure.
+ */
 function RailButton({
-  children, label, onClick, active, disabled,
+  icon, count, label, onClick, active, disabled,
 }: {
-  children: React.ReactNode
+  icon: React.ReactNode
+  count?: number
   label: string
   onClick: () => void
   active?: boolean
@@ -375,19 +427,23 @@ function RailButton({
     <motion.button
       onClick={onClick}
       disabled={disabled}
-      whileTap={{ scale: 0.85 }}
+      whileTap={{ scale: 0.82 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 22 }}
       aria-label={label}
-      className="flex flex-col items-center gap-1 drop-shadow disabled:opacity-60"
+      className={[
+        'flex flex-col items-center gap-1 disabled:opacity-60',
+        // The shadow is what keeps a white outline legible over a bright
+        // photo; without it the icon disappears on pale backgrounds.
+        '[filter:drop-shadow(0_1px_3px_rgba(0,0,0,0.55))]',
+        active ? 'text-rose' : 'text-white',
+      ].join(' ')}
     >
-      <span
-        className={[
-          'w-11 h-11 rounded-full grid place-items-center text-xl backdrop-blur-sm',
-          active ? 'bg-rose/25 ring-1 ring-rose/60' : 'bg-black/35',
-        ].join(' ')}
-      >
-        {children}
-      </span>
-      <span className="text-[10px] font-semibold text-white/90">{label}</span>
+      {icon}
+      {count != null && count > 0 && (
+        <span className="text-[13px] font-bold tabular-nums leading-none text-white">
+          {compactCount(count)}
+        </span>
+      )}
     </motion.button>
   )
 }
@@ -403,18 +459,17 @@ function RailButton({
  * play is driven by an IntersectionObserver rather than the `autoplay`
  * attribute: a feed of twenty videos all decoding at once stalls the scroll.
  */
-const VIDEO_RE = /\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i
-
 function Media({
-  src, fit = 'cover', play = false, controls = false,
+  src, fit = 'cover', play = false, controls = false, muted = true,
 }: {
   src: string
   fit?: 'cover' | 'contain'
   play?: boolean
   controls?: boolean
+  muted?: boolean
 }) {
   const vid = useRef<HTMLVideoElement>(null)
-  const isVideo = VIDEO_RE.test(src)
+  const isVideo = isVideoUrl(src)
 
   useEffect(() => {
     const el = vid.current
@@ -439,7 +494,7 @@ function Media({
       ref={vid}
       src={src}
       className={cls}
-      muted
+      muted={muted}
       loop
       playsInline
       preload="metadata"
