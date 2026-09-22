@@ -171,7 +171,14 @@ export function useRecordCreditPurchase() {
 }
 
 /** Human label for a ledger row. Credits only — no money language. */
-export function creditLabel(kind: CreditKind): string {
+export function creditLabel(kind: CreditKind, note?: string | null): string {
+  // The two migration rows every existing user has are both admin_adjust, so
+  // the kind alone renders them as a pair of mysterious "Adjustment" entries
+  // that net to zero. The note says what actually happened — use it.
+  if (kind === 'admin_adjust' && note) {
+    if (note.startsWith('Opening balance')) return 'Your old coins'
+    if (note.startsWith('Reset from'))      return 'Old coins cleared'
+  }
   switch (kind) {
     case 'signup_grant':  return 'Welcome credits'
     case 'message_day':   return "A day's messaging"
@@ -179,6 +186,18 @@ export function creditLabel(kind: CreditKind): string {
     case 'gift_received': return 'Gift received'
     case 'admin_adjust':  return 'Adjustment'
   }
+}
+
+/** One line of plain explanation, where a row needs one. */
+export function creditNote(kind: CreditKind, note?: string | null): string | null {
+  if (kind !== 'admin_adjust' || !note) return null
+  if (note.startsWith('Opening balance')) {
+    return 'Carried over when credits replaced the old coins'
+  }
+  if (note.startsWith('Reset from')) {
+    return 'Replaced by your 1,000 welcome credits'
+  }
+  return null
 }
 
 export function creditGlyph(kind: CreditKind): string {

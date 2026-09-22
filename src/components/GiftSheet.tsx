@@ -4,9 +4,17 @@ import { Drawer } from 'vaul'
 import { useDrawerLock } from '../stores/ui'
 import { GIFT_CATALOGUE, type CatalogueGift } from '../lib/gifts'
 import { useSendGift } from '../hooks/useSendGift'
+import { useSendProfileGift } from '../hooks/useProfileActions'
 
+/**
+ * A gift can be sent on a post or straight to a person.
+ *
+ * The sheet is identical either way — same catalogue, same free gift, same
+ * confirm step — so it takes whichever target it was given and picks the
+ * matching RPC. `postId` for the post feed, nothing for a feed card.
+ */
 type Props = {
-  postId: string
+  postId?: string
   recipientId: string
   recipientLabel: string
   onClose: () => void
@@ -16,7 +24,9 @@ type Phase = 'pick' | 'confirm' | 'sent'
 
 export default function GiftSheet({ postId, recipientId, recipientLabel, onClose }: Props) {
   useDrawerLock()
-  const send = useSendGift()
+  const sendOnPost = useSendGift()
+  const sendToPerson = useSendProfileGift()
+  const send = postId ? sendOnPost : sendToPerson
   const [phase, setPhase] = useState<Phase>('pick')
   const [selected, setSelected] = useState<CatalogueGift | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +40,16 @@ export default function GiftSheet({ postId, recipientId, recipientLabel, onClose
     if (!selected) return
     setError(null)
     try {
-      await send.mutateAsync({ postId, recipientId, gift: selected })
+      if (postId) {
+        await sendOnPost.mutateAsync({ postId, recipientId, gift: selected })
+      } else {
+        await sendToPerson.mutateAsync({
+          profileId: recipientId,
+          giftId: selected.giftId,
+          giftName: selected.name,
+          giftImage: selected.image,
+        })
+      }
       setPhase('sent')
     } catch (e) {
       setError((e as Error).message)

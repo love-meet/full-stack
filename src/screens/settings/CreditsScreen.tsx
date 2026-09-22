@@ -7,6 +7,7 @@ import {
   useCreditsRealtime,
   useRecordCreditPurchase,
   creditLabel,
+  creditNote,
   creditGlyph,
   CREDITS_PER_USD,
   DAILY_MESSAGE_COST,
@@ -208,9 +209,11 @@ export default function CreditsScreen() {
                   {creditGlyph(e.kind)}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-ink truncate">{creditLabel(e.kind)}</div>
+                  <div className="text-sm font-semibold text-ink truncate">
+                    {creditLabel(e.kind, e.note)}
+                  </div>
                   <div className="text-[11px] text-ink-muted truncate">
-                    {new Date(e.created_at).toLocaleString()}
+                    {creditNote(e.kind, e.note) ?? new Date(e.created_at).toLocaleString()}
                   </div>
                 </div>
                 <div

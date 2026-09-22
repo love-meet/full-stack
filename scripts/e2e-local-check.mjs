@@ -126,5 +126,59 @@ ok('NEW chats capped at 20 a day', capped && opened === 20, `opened ${opened} be
 let again = await rpc('start_dm', { other_user_id: bob.id }, alice.token)
 ok('existing chats stay reachable past the cap', typeof again.json === 'string' || !!again.json?.id)
 
+console.log('\n=== 9. FRIENDS TAB (mutual matches only) ===')
+// Alice likes Bob: one-sided, so nobody is anybody's friend yet.
+await rpc('record_gallery_decision', { p_target_id: bob.id, p_decision: 'interested' }, alice.token)
+let fr = await rpc('get_my_friends', {}, alice.token)
+ok('a one-sided like is not a friend', Array.isArray(fr.json) && fr.json.length === 0, JSON.stringify(fr.json).slice(0, 120))
+
+// Bob likes back — now it is a match, and each sees the other.
+await rpc('record_gallery_decision', { p_target_id: alice.id, p_decision: 'interested' }, bob.token)
+fr = await rpc('get_my_friends', {}, alice.token)
+ok('A MUTUAL LIKE SHOWS UP AS A FRIEND', (fr.json || []).some(f => f.id === bob.id), JSON.stringify(fr.json).slice(0, 120))
+let frB = await rpc('get_my_friends', {}, bob.token)
+ok('the friendship reads from both sides', (frB.json || []).some(f => f.id === alice.id))
+ok('friend row carries enough to draw a card',
+  !!(fr.json || []).find(f => f.id === bob.id && 'avatar_url' in f && 'gallery_urls' in f && 'matched_at' in f))
+ok('nobody is their own friend', !(fr.json || []).some(f => f.id === alice.id))
+
+console.log('\n=== 10. PROFILE ACTIONS — comment / save / gift (0106) ===')
+let pc1 = await rpc('add_profile_comment', { p_profile_id: bob.id, p_body: 'nice photo' }, alice.token)
+ok('COMMENT ON A PERSON', !!pc1.json?.id, JSON.stringify(pc1.json).slice(0, 120))
+let cs = await rpc('get_profile_comments', { p_profile_id: bob.id }, bob.token)
+ok('the comment reads back on their profile', (cs.json || []).some(x => x.body === 'nice photo'))
+ok('the profile owner can delete it', (cs.json || []).every(x => x.can_delete === true))
+let cl = await rpc('toggle_profile_comment_like', { p_comment_id: pc1.json.id }, bob.token)
+ok('a comment can be liked', cl.json === true)
+let cn = await rest(`notifications?select=type,body&user_id=eq.${bob.id}&type=eq.profile_comment`, { key: SRK })
+ok('the comment notifies them', (cn.json || []).length === 1, JSON.stringify(cn.json).slice(0, 100))
+
+let sv = await rpc('toggle_profile_bookmark', { p_profile_id: bob.id }, alice.token)
+ok('SAVE A PERSON', sv.json === true)
+let sl = await rpc('get_saved_profiles', {}, alice.token)
+ok('the saved list has them', (sl.json || []).some(x => x.id === bob.id))
+let svn = await rest(`notifications?select=id&user_id=eq.${bob.id}&type=eq.profile_bookmark`, { key: SRK })
+ok('SAVING IS PRIVATE — they are never told', (svn.json || []).length === 0)
+await rpc('toggle_profile_bookmark', { p_profile_id: bob.id }, alice.token)
+sl = await rpc('get_saved_profiles', {}, alice.token)
+ok('saving again unsaves', !(sl.json || []).some(x => x.id === bob.id))
+let svSelf = await rpc('toggle_profile_bookmark', { p_profile_id: alice.id }, alice.token)
+ok('you cannot save yourself', JSON.stringify(svSelf.json).includes('cannot save yourself'))
+
+let before = (await rest(`profiles?select=coins&id=eq.${bob.id}`, { key: SRK })).json?.[0]?.coins
+let g = await rpc('send_profile_gift', { p_profile_id: bob.id, p_gift_id: 'rose', p_gift_name: 'Rose' }, alice.token)
+ok('GIFT A PERSON', !!g.json?.id, JSON.stringify(g.json).slice(0, 120))
+let after = (await rest(`profiles?select=coins&id=eq.${bob.id}`, { key: SRK })).json?.[0]?.coins
+ok('A GIFT GRANTS NO CREDITS', before === after, `${before} → ${after}`)
+let gcols = Object.keys(g.json || {})
+ok('profile_gifts has no price column at all', !gcols.some(k => /amount|cents|price|usd/i.test(k)), gcols.join(','))
+let gSelf = await rpc('send_profile_gift', { p_profile_id: alice.id, p_gift_id: 'rose', p_gift_name: 'Rose' }, alice.token)
+ok('you cannot gift yourself', JSON.stringify(gSelf.json).includes('cannot gift yourself'))
+
+let st = await rpc('profile_action_state', { p_ids: [bob.id] }, alice.token)
+let row = (st.json || [])[0]
+ok('the card rail reads counts in one call', !!row && row.comment_count === 1 && row.gift_count === 1, JSON.stringify(row))
+ok('"liked" is the gallery interest, not a second signal', row?.liked_by_me === true)
+
 console.log(`\n${'='.repeat(52)}\n  ${pass} passed, ${fail} failed\n${'='.repeat(52)}`)
 process.exit(fail ? 1 : 0)

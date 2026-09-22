@@ -15,6 +15,8 @@ import CreateGroupScreen from './screens/settings/CreateGroupScreen'
 import ChatScreen from './screens/ChatScreen'
 import ChatDetailScreen from './screens/ChatDetailScreen'
 import SearchScreen from './screens/SearchScreen'
+import FriendsScreen from './screens/FriendsScreen'
+import SavedScreen from './screens/SavedScreen'
 import InterviewScreen from './screens/InterviewScreen'
 import GiftDetailScreen from './screens/GiftDetailScreen'
 import GuideScreen from './screens/GuideScreen'
@@ -85,6 +87,7 @@ export const router = createBrowserRouter([
               { path: 'gift/:giftId',          element: <GiftDetailScreen /> },
               { path: 'guide',                 element: <GuideScreen /> },
               { path: 'chat',                  element: <ChatScreen /> },
+              { path: 'friends',               element: <FriendsScreen /> },
               { path: 'search',                element: <SearchScreen /> }, // header-link, not a bottom-nav tab
               { path: 'notifications',         element: <NotificationsScreen /> },
               { path: 'profile',               element: <ProfileScreen /> },
@@ -94,7 +97,8 @@ export const router = createBrowserRouter([
               { path: 'credits',               element: <CreditsScreen /> },
               { path: 'language',              element: <LanguageScreen /> },
               { path: 'security',              element: <SecurityScreen /> },
-              { path: 'saved',                 element: <SavedPostsScreen /> },
+              { path: 'saved',                 element: <SavedScreen /> },
+              { path: 'saved/posts',           element: <SavedPostsScreen /> },
               { path: 'support',               element: <SupportScreen /> },
               { path: 'invite',                element: <InviteFriendsScreen /> },
               { path: 'blocked',               element: <BlockedUsersScreen /> },
