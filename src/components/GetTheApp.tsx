@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { openInTelegramNow } from '../lib/telegramRedirect'
+import { TelegramLogo, AppleLogo, PlayLogo, TELEGRAM_BLUE } from './BrandIcons'
 
 /**
  * "Get the app" — the three surfaces, honestly labelled.
@@ -41,8 +42,8 @@ export default function GetTheApp() {
             Get it on <span className="text-gradient-warm">your phone</span>
           </h2>
           <p className="mt-3 text-sm sm:text-base text-ink-2 max-w-md mx-auto leading-relaxed">
-            Love meet runs in your browser right now, and inside Telegram.
-            The phone apps are on the way.
+            Love meet runs inside Telegram today — nothing to install. The
+            phone apps are on the way.
           </p>
         </motion.div>
 
@@ -70,11 +71,12 @@ export default function GetTheApp() {
               style={{ background: 'radial-gradient(circle, var(--color-rose), transparent 70%)' }}
             />
             <span className="relative flex items-center gap-2.5">
+              {/* Telegram blue, not our gradient — it is their mark. */}
               <span
-                className="w-12 h-12 rounded-2xl grid place-items-center text-2xl shrink-0 bg-gradient-brand text-white"
-                aria-hidden
+                className="w-12 h-12 rounded-2xl grid place-items-center shrink-0 text-white"
+                style={{ background: TELEGRAM_BLUE }}
               >
-                ✈
+                <TelegramLogo className="w-7 h-7" />
               </span>
               <span className="min-w-0">
                 <span className="block text-[10px] uppercase tracking-[0.18em] text-rose font-bold">
@@ -97,8 +99,18 @@ export default function GetTheApp() {
 
           {/* ── iOS / Android: honest placeholders ── */}
           {[
-            { key: 'ios', glyph: '', name: 'iOS', store: 'App Store' },
-            { key: 'android', glyph: '▶', name: 'Android', store: 'Google Play' },
+            // Each platform in its own colour: Apple's mark is white on black
+            // (their guidelines allow solid black or solid white and nothing
+            // else), Google Play keeps its four colours. Tinting either to
+            // match our palette would be using someone's logo wrong.
+            {
+              key: 'ios', Logo: AppleLogo, name: 'iOS', store: 'App Store',
+              tile: 'bg-black text-white',
+            },
+            {
+              key: 'android', Logo: PlayLogo, name: 'Android', store: 'Google Play',
+              tile: 'bg-white',
+            },
           ].map((s, i) => (
             <motion.div
               key={s.key}
@@ -109,11 +121,8 @@ export default function GetTheApp() {
               className="relative rounded-3xl p-6 glass border border-dashed border-white/12"
             >
               <span className="flex items-center gap-2.5">
-                <span
-                  className="w-12 h-12 rounded-2xl grid place-items-center text-2xl shrink-0 bg-white/6 text-ink-muted"
-                  aria-hidden
-                >
-                  {s.glyph}
+                <span className={`w-12 h-12 rounded-2xl grid place-items-center shrink-0 ring-1 ring-white/10 ${s.tile}`}>
+                  <s.Logo className="w-6 h-6" />
                 </span>
                 <span className="min-w-0">
                   <span className="block text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">
@@ -123,11 +132,11 @@ export default function GetTheApp() {
                 </span>
               </span>
               <p className="mt-4 text-sm text-ink-muted leading-relaxed">
-                On the {s.store} soon. Use the web app or Telegram in the
-                meantime — it's the same account either way.
+                On the {s.store} soon. Use Telegram in the meantime — when the
+                app lands it's the same account.
               </p>
               <span className="mt-5 inline-block rounded-full px-5 py-2.5 bg-white/5 text-ink-muted text-sm font-bold ring-1 ring-white/10">
-                Not yet available
+                Coming soon
               </span>
             </motion.div>
           ))}

@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom'
 import Shell from './shell/Shell'
 import RequireSession from './shell/RequireSession'
+import RequireAppSurface from './shell/RequireAppSurface'
 import RequireProfile from './shell/RequireProfile'
 import LandingScreen from './screens/LandingScreen'
 import BlogScreen from './screens/blog/BlogScreen'
@@ -51,6 +52,13 @@ export const router = createBrowserRouter([
   { path: '/blog/:slug', element: <ArticleScreen /> },
 
 
+  // Everything below is Telegram-only. The website is a brochure: it describes
+  // the app and points at Telegram, it does not run it. A bookmark or a shared
+  // link opened in a desktop browser lands on the landing page instead of a
+  // half-working app nobody can sign in to.
+  {
+    element: <RequireAppSurface />,
+    children: [
   // Signed-in but not-yet-onboarded users can reach /onboarding.
   {
     element: <RequireSession />,
@@ -123,6 +131,8 @@ export const router = createBrowserRouter([
           },
         ],
       },
+    ],
+  },
     ],
   },
 ])

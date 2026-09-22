@@ -4,15 +4,24 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { RouterProvider } from 'react-router-dom'
 import { queryClient } from './lib/queryClient'
 import { router } from './routes'
-import TelegramSuggestionBanner from './shell/TelegramSuggestionBanner'
 import { getStoredLanguage } from './i18n'
 import LanguageGateScreen from './screens/LanguageGateScreen'
 import { supabaseConfigured } from './lib/supabase'
+import { appRunsHere } from './lib/surface'
 
 export default function App() {
-  // Asked before anything else opens — including the landing page — on first
-  // visit. Persists in localStorage so it only shows once per device.
-  const [languageChosen, setLanguageChosen] = useState(() => getStoredLanguage() !== null)
+  // Asked once per device, before the app opens — but only where the app
+  // actually runs.
+  //
+  // The public website is a brochure. Stopping a visitor on "Choose your
+  // language" before they have seen a single word about the product asks them
+  // to make a decision about something they know nothing about yet, and it is
+  // the first thing their eye lands on. The browser already states its
+  // language; the site takes it and gets out of the way. The gate still runs
+  // inside Telegram, where the next screen is the actual app.
+  const [languageChosen, setLanguageChosen] = useState(
+    () => !appRunsHere() || getStoredLanguage() !== null,
+  )
 
   // Deliberately English-only and unstyled-plain: this is an operator error
   // (env vars missing from the build), not a user-facing state — without it a
@@ -39,7 +48,6 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TelegramSuggestionBanner />
       <RouterProvider router={router} />
       <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
     </QueryClientProvider>

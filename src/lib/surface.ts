@@ -44,3 +44,24 @@ export function getSurface(): Surface {
   }
   return 'web'
 }
+
+/**
+ * Does the app itself run on this surface?
+ *
+ * The website is a brochure — it describes Love meet and points at Telegram,
+ * it does not run it. There is no sign-in on the web and no feed, chat, games
+ * or credits. Everything behind RequireAppSurface is gated on this.
+ *
+ * Read once, at module load, rather than per render: the Telegram SDK is a
+ * synchronous <script> in <head>, so this is already settled by the time any
+ * module runs, and a value that cannot change mid-session cannot flip a
+ * signed-in user out of the app.
+ *
+ * `import.meta.env.DEV` keeps `npm run dev` usable on a laptop. Vite compiles
+ * it to a literal `false` in production builds, so a visitor cannot reach it.
+ */
+const APP_RUNS_HERE = import.meta.env.DEV || getSurface() === 'telegram'
+
+export function appRunsHere(): boolean {
+  return APP_RUNS_HERE
+}

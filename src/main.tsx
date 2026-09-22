@@ -4,8 +4,6 @@ import './index.css'
 import App from './App.tsx'
 import { initTelegram } from './lib/telegram'
 import { initAuth } from './stores/auth'
-import { attemptTelegramRedirect, canShowTelegramBanner } from './lib/telegramRedirect'
-import { useTelegramBanner } from './stores/telegramBanner'
 import { supabase } from './lib/supabase'
 import { getSurface } from './lib/surface'
 
@@ -57,16 +55,17 @@ async function bootstrap() {
   initTelegram()
   initAuth()
 
-  // Telegram-first handoff: try to switch the user into the Telegram Mini App
-  // on first visit. If Telegram isn't installed (or the browser refuses the
-  // scheme — common on iOS Safari without a user gesture), fall through to the
-  // web app and surface the fallback banner that does the handoff under a tap.
-  // Web app keeps loading in parallel — users never get stuck on a blank page.
-  void attemptTelegramRedirect().then((switched) => {
-    if (!switched && canShowTelegramBanner()) {
-      useTelegramBanner.getState().show()
-    }
-  })
+  // No automatic handoff into Telegram any more.
+  //
+  // This used to try to bounce every web visitor straight into the Mini App on
+  // arrival, with a banner as the fallback. That made sense when the website
+  // was a second way into the same app. It is now a brochure: its job is to
+  // let someone read about Love meet and decide. Yanking them into Telegram
+  // before they have read a word is the opposite of that, and the banner's
+  // "continue on web" offered something that no longer exists.
+  //
+  // The landing page has an explicit "Open in Telegram" button. That is the
+  // handoff, under a tap, where it belongs.
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

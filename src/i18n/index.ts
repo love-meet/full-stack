@@ -39,10 +39,34 @@ void i18next.use(initReactI18next).init({
     es: { translation: es },
     hi: { translation: hi },
   },
-  lng: getStoredLanguage() ?? DEFAULT_LANGUAGE,
+  lng: getStoredLanguage() ?? systemLanguage(),
   fallbackLng: DEFAULT_LANGUAGE,
   interpolation: { escapeValue: false },
 })
+
+/**
+ * The device's own language, if we speak it.
+ *
+ * The website never asks — it takes what the browser already states and gets
+ * out of the way. Matching is on the base tag only: `pt-BR`, `pt-PT` and `pt`
+ * all resolve to `pt`, because our locales are per-language, not per-region.
+ * `navigator.languages` is preferred over `navigator.language` since it is the
+ * user's ordered preference list — someone whose first choice we don't carry
+ * may well have a second we do.
+ */
+export function systemLanguage(): LanguageCode {
+  try {
+    const wanted = navigator.languages?.length
+      ? navigator.languages
+      : [navigator.language]
+    for (const tag of wanted) {
+      const base = String(tag).toLowerCase().split('-')[0]
+      const hit = SUPPORTED_LANGUAGES.find((l) => l.code === base)
+      if (hit) return hit.code
+    }
+  } catch { /* no navigator (SSR, odd webview) — fall through */ }
+  return DEFAULT_LANGUAGE
+}
 
 export function setLanguage(code: LanguageCode) {
   try {
