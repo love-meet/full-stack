@@ -116,23 +116,34 @@ export default function LandingScreen() {
         animate="show"
         className="relative z-10 w-full max-w-5xl grid lg:grid-cols-2 gap-10 lg:gap-12 items-center"
       >
-        {/* Copy + auth */}
+        {/* Copy */}
         <div className="text-center lg:text-left order-2 lg:order-1">
+          {/* "Welcome to Love meet" sits above the line rather than inside it:
+              at hero size the whole sentence would wrap to four lines and the
+              part worth reading — "where hearts actually meet" — would be
+              buried in the middle of it. */}
+          <motion.span
+            variants={rise}
+            className="flex items-center justify-center lg:justify-start gap-2 text-[11px] uppercase tracking-[0.22em] text-rose font-bold"
+          >
+            <HeartIcon filled className="w-3.5 h-3.5" />
+            Welcome to Love meet
+          </motion.span>
+
           <motion.h1
             variants={rise}
-            className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight text-ink"
+            className="mt-3 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight text-ink"
           >
-            Find your{' '}
-            <span className="text-gradient-warm">person</span>.
+            Where hearts{' '}
+            <span className="text-gradient-warm">actually meet</span>.
           </motion.h1>
 
           <motion.p
             variants={rise}
             className="mt-4 text-base sm:text-lg text-ink-2 max-w-md mx-auto lg:mx-0 leading-relaxed"
           >
-            Love meet is the free dating app to meet new people, find your love
-            match, chat in real time and play games together — right inside
-            Telegram.
+            Meet people near you, match with someone who gets you, chat, send
+            gifts, and maybe find the one. It only takes a hello.
           </motion.p>
 
           {/* One destination, because there is only one. The app runs in
