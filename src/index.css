@@ -179,6 +179,24 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Kill the ~300ms double-tap-zoom wait on anything tappable.
+ *
+ * The viewport allows zoom (deliberately — pinching a profile photo should
+ * work), so mobile browsers hold every tap for ~300ms to see whether a second
+ * one is coming. `manipulation` keeps pinch-zoom and scrolling but drops
+ * double-tap zoom, which is what buys the delay back. Without this, every
+ * button in the app feels like it needs pressing twice — and because the tap
+ * highlight above is transparent, those 300ms are completely silent. */
+button,
+a,
+[role='button'],
+input,
+select,
+textarea,
+label {
+  touch-action: manipulation;
+}
+
 /* Smooth scroll inside the app. */
 html {
   scroll-behavior: smooth;

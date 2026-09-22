@@ -315,7 +315,10 @@ function PersonCard({
               label={liked ? 'Liked' : 'Like'}
               active={liked}
               onClick={like}
-              disabled={decide.isPending}
+              // Deliberately NOT disabled while the mutation is in flight.
+              // The heart already filled optimistically, so grey-ing it out
+              // for the round-trip reads as the tap having failed. `like()`
+              // guards against a double-send on its own.
             />
             <RailButton
               icon={<CommentIcon className="w-9 h-9" />}
@@ -424,14 +427,23 @@ function RailButton({
   disabled?: boolean
 }) {
   return (
-    <motion.button
+    <button
+      // Fires on pointer-up without waiting for the browser's click
+      // synthesis, and without framer-motion's gesture recogniser in between.
+      // `whileTap` looked nicer but added a layer that had to settle before
+      // the handler ran; a CSS :active transform paints on touch-down instead,
+      // so the button acknowledges the finger immediately even while the
+      // mutation is still in flight.
       onClick={onClick}
       disabled={disabled}
-      whileTap={{ scale: 0.82 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 22 }}
       aria-label={label}
+      aria-pressed={active}
       className={[
-        'flex flex-col items-center gap-1 disabled:opacity-60',
+        // A 44px minimum target. The icons are ~34px drawn, so without the
+        // padding a thumb misses the edges and the tap lands on the card
+        // behind, which opens the gallery instead — reading as "it ignored me".
+        'flex flex-col items-center justify-center gap-1 min-w-11 min-h-11 px-1',
+        'transition-transform duration-75 active:scale-[0.82] disabled:opacity-60',
         // The shadow is what keeps a white outline legible over a bright
         // photo; without it the icon disappears on pale backgrounds.
         '[filter:drop-shadow(0_1px_3px_rgba(0,0,0,0.55))]',
@@ -444,7 +456,7 @@ function RailButton({
           {compactCount(count)}
         </span>
       )}
-    </motion.button>
+    </button>
   )
 }
 
