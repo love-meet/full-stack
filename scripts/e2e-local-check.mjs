@@ -160,6 +160,30 @@ ok('friends_posts is callable and scoped', Array.isArray(fp.json), JSON.stringif
 let fpStranger = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, bot.token ?? alice.token)
 ok('friends_posts never returns a stranger', Array.isArray(fpStranger.json))
 
+console.log('\n=== 9b. POSTING (the New tab) ===')
+// The composer writes straight to public.posts under RLS — this is the exact
+// insert PostScreen performs after the Cloudinary upload returns.
+let np = await rest('posts', {
+  token: alice.token, method: 'POST', prefer: 'return=representation',
+  body: { author_id: alice.id, kind: 'image', media_url: 'https://example.test/new.jpg', caption: 'hello world' },
+})
+ok('A USER CAN POST', np.status === 201, JSON.stringify(np.json).slice(0, 110))
+let npVid = await rest('posts', {
+  token: alice.token, method: 'POST', prefer: 'return=representation',
+  body: { author_id: alice.id, kind: 'short_video', media_url: 'https://example.test/new.mp4' },
+})
+ok('and can post a video', npVid.status === 201, JSON.stringify(npVid.json).slice(0, 110))
+let forged = await rest('posts', {
+  token: bob.token, method: 'POST',
+  body: { author_id: alice.id, kind: 'image', media_url: 'https://example.test/forged.jpg' },
+})
+ok('CANNOT POST AS SOMEONE ELSE (RLS)', forged.status !== 201, `status ${forged.status}`)
+// alice and bob follow each other by now, so her post lands in his Friends tab.
+let fpNow = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, bob.token)
+ok("A FRIEND'S POST SHOWS IN THE FRIENDS TAB", (fpNow.json || []).some(x => x.caption === 'hello world'), JSON.stringify(fpNow.json).slice(0, 110))
+let fpStrangerNow = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, bot.token)
+ok('a stranger sees none of it', (fpStrangerNow.json || []).length === 0, JSON.stringify(fpStrangerNow.json).slice(0, 110))
+
 console.log('\n=== 10. PROFILE ACTIONS — comment / save / gift (0106) ===')
 let pc1 = await rpc('add_profile_comment', { p_profile_id: bob.id, p_body: 'nice photo' }, alice.token)
 ok('COMMENT ON A PERSON', !!pc1.json?.id, JSON.stringify(pc1.json).slice(0, 120))

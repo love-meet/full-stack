@@ -14,7 +14,7 @@ import {
 import GiftSheet from '../components/GiftSheet'
 import { useToggleFollow } from '../hooks/useFollow'
 import {
-  HeartIcon, BookmarkIcon, ShareIcon, GiftIcon, PhotosIcon,
+  HeartIcon, BookmarkIcon, ShareIcon, GiftIcon,
   MutedIcon, SoundIcon,
 } from '../components/FeedIcons'
 import { isVideoUrl, compactCount } from '../lib/media'
@@ -358,16 +358,13 @@ function PersonCard({
               active={saved}
               onClick={save}
             />
+            {/* No Photos button: tapping the picture already opens the
+                gallery, so a second control for it was the same action twice.
+                The "1 / N" badge at the top-left says there is more to see. */}
             <RailButton
               icon={<ShareIcon className="w-8 h-8" />}
               label="Share"
               onClick={share}
-            />
-            <RailButton
-              icon={<PhotosIcon className="w-8 h-8" />}
-              count={extra > 0 ? extra + 1 : undefined}
-              label="Photos"
-              onClick={onOpenGallery}
             />
           </div>
 

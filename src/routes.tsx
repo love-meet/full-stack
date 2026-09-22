@@ -7,6 +7,7 @@ import BlogScreen from './screens/blog/BlogScreen'
 import ArticleScreen from './screens/blog/ArticleScreen'
 import OnboardingScreen from './screens/onboarding/OnboardingScreen'
 import FeedScreen from './screens/FeedScreen'
+import PostScreen from './screens/post/PostScreen'
 import ExploreScreen from './screens/ExploreScreen'
 import GroupScreen from './screens/GroupScreen'
 import GroupPostDetailScreen from './screens/GroupPostDetailScreen'
@@ -72,6 +73,9 @@ export const router = createBrowserRouter([
 
           // Match-preferences interview — full-screen, no bottom nav.
           { path: 'interview',            element: <InterviewScreen /> },
+
+          // Post composer — full-screen, no bottom nav, its own cancel.
+          { path: 'post',                 element: <PostScreen /> },
 
 
           // Shell-wrapped main app.

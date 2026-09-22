@@ -31,6 +31,7 @@ export default function BottomNav() {
                 if (item.kind === 'profile') {
                   return <ProfileButton active={isActive} avatarUrl={avatarUrl} />
                 }
+                if (item.kind === 'new') return <NewButton active={isActive} />
                 return <TabIcon item={item} active={isActive} />
               }}
             </NavLink>
@@ -59,6 +60,41 @@ function TabIcon({ item, active }: { item: typeof NAV_ITEMS[number]; active: boo
           active ? 'bg-rose opacity-100' : 'opacity-0',
         ].join(' ')}
       />
+    </motion.span>
+  )
+}
+
+/**
+ * The composer button — a filled gradient tile rather than another outline
+ * glyph, because it is the only tab that creates something instead of
+ * navigating somewhere. Instagram, TikTok and X all make this one look
+ * different for the same reason: people scan the bar for "where do I post"
+ * and a uniform row of five icons gives them nothing to land on.
+ */
+function NewButton({ active }: { active: boolean }) {
+  return (
+    <motion.span
+      animate={{ scale: active ? 1.06 : 1 }}
+      transition={{ type: 'spring', stiffness: 360, damping: 22 }}
+      className="flex flex-col items-center gap-0.5"
+    >
+      <span
+        className={[
+          'w-11 h-8 rounded-xl grid place-items-center bg-gradient-brand text-white',
+          'text-xl font-bold leading-none',
+          active ? 'glow-rose' : '',
+        ].join(' ')}
+      >
+        +
+      </span>
+      <span
+        className={[
+          'text-[10px] font-semibold uppercase tracking-wider',
+          active ? 'text-rose' : 'text-ink-muted',
+        ].join(' ')}
+      >
+        New
+      </span>
     </motion.span>
   )
 }
