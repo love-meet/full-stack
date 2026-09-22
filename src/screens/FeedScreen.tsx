@@ -5,6 +5,7 @@ import TopIcons from '../shell/TopIcons'
 import FeedAd from '../components/FeedAd'
 import { usePeopleFeed, useAdvanceFeed, ageFrom, type FeedPerson } from '../hooks/usePeopleFeed'
 import { useStartDM, isDailyChatLimit } from '../hooks/useStartDM'
+import { useRecordGalleryDecision } from '../hooks/useGalleryFeed'
 import { avatarUrlOr } from '../lib/avatar'
 import { languageName } from '../data/languages'
 
@@ -159,6 +160,29 @@ function PersonCard({
   const navigate = useNavigate()
   const startDM = useStartDM()
   const [chatError, setChatError] = useState<string | null>(null)
+  const [liked, setLiked] = useState(false)
+  const decide = useRecordGalleryDecision()
+
+  // "Like" is the gallery-interest decision — it puts them in your Interested
+  // tab and creates a match if they have liked you too.
+  function like() {
+    if (liked || decide.isPending) return
+    setLiked(true)
+    decide.mutate({ targetId: person.id, decision: 'interested' }, {
+      onError: () => setLiked(false),
+    })
+  }
+
+  async function share() {
+    const url = `${window.location.origin}/profile/${person.id}`
+    const text = `${name} on Love meet`
+    try {
+      if (navigator.share) { await navigator.share({ url, text }); return }
+      await navigator.clipboard.writeText(url)
+      setChatError('Link copied')
+      window.setTimeout(() => setChatError(null), 1500)
+    } catch { /* user dismissed the share sheet — nothing to report */ }
+  }
 
   // Consumed once it has actually been on screen — not merely rendered, or
   // the whole page would count as seen the moment it loads.
@@ -204,21 +228,28 @@ function PersonCard({
             className="absolute inset-0 w-full h-full"
             aria-label={`Open ${name}'s gallery`}
           >
-            <img
-              src={avatarUrlOr(person.avatar_url, person.gender)}
-              alt=""
-              className="w-full h-full object-cover"
-            />
+            <Media src={avatarUrlOr(person.avatar_url, person.gender)} play />
           </button>
 
           {/* Scrim so the name stays legible over any picture. */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/80 to-transparent" />
 
           {extra > 0 && (
-            <span className="pointer-events-none absolute top-20 right-4 rounded-full px-2.5 py-1 bg-black/45 text-white text-[11px] font-bold">
+            <span className="pointer-events-none absolute top-20 left-4 rounded-full px-2.5 py-1 bg-black/45 text-white text-[11px] font-bold">
               1 / {extra + 1}
             </span>
           )}
+
+          {/* Action rail — beside the card, not underneath it, the way TikTok
+              and Facebook place them. Like is the gallery-interest decision
+              underneath, so it feeds the Interested tab and can make a match. */}
+          <div className="absolute right-2 bottom-44 flex flex-col items-center gap-4 z-10">
+            <RailButton label={liked ? 'Liked' : 'Like'} active={liked} onClick={like} disabled={decide.isPending}>
+              {liked ? '❤️' : '🤍'}
+            </RailButton>
+            <RailButton label={extra > 0 ? `${extra + 1}` : 'Photos'} onClick={onOpenGallery}>🖼</RailButton>
+            <RailButton label="Share" onClick={share}>↗</RailButton>
+          </div>
 
           <div className="absolute left-0 right-0 bottom-0 p-5 pb-6">
             <Link to={`/profile/${person.id}`} className="block active:opacity-70">
@@ -236,21 +267,16 @@ function PersonCard({
               {lang && <Chip>💬 {lang}</Chip>}
             </div>
 
-            <div className="mt-4 flex items-center gap-2">
-              <button
-                onClick={message}
-                disabled={startDM.isPending}
-                className="flex-1 rounded-full py-3 bg-gradient-brand text-white font-extrabold text-sm glow-rose active:scale-[0.98] transition-transform disabled:opacity-60"
-              >
-                {startDM.isPending ? 'Opening…' : 'Message'}
-              </button>
-              <button
-                onClick={onOpenGallery}
-                className="rounded-full px-5 py-3 glass text-white font-bold text-sm"
-              >
-                Photos
-              </button>
-            </div>
+            {/* Message stays the one big commitment — it is the action that
+                costs a credit. Like / Photos / Share live in the rail beside
+                the card, where a thumb reaches them without covering the face. */}
+            <button
+              onClick={message}
+              disabled={startDM.isPending}
+              className="mt-4 w-full rounded-full py-3 bg-gradient-brand text-white font-extrabold text-sm glow-rose active:scale-[0.98] transition-transform disabled:opacity-60"
+            >
+              {startDM.isPending ? 'Opening…' : 'Message'}
+            </button>
 
             {chatError && (
               <p className="mt-2 text-center text-xs text-white/80 drop-shadow">{chatError}</p>
@@ -261,6 +287,93 @@ function PersonCard({
 
       {showAdAfter && <AdCard />}
     </>
+  )
+}
+
+/** One icon in the right-hand rail, with its label underneath. */
+function RailButton({
+  children, label, onClick, active, disabled,
+}: {
+  children: React.ReactNode
+  label: string
+  onClick: () => void
+  active?: boolean
+  disabled?: boolean
+}) {
+  return (
+    <motion.button
+      onClick={onClick}
+      disabled={disabled}
+      whileTap={{ scale: 0.85 }}
+      aria-label={label}
+      className="flex flex-col items-center gap-1 drop-shadow disabled:opacity-60"
+    >
+      <span
+        className={[
+          'w-11 h-11 rounded-full grid place-items-center text-xl backdrop-blur-sm',
+          active ? 'bg-rose/25 ring-1 ring-rose/60' : 'bg-black/35',
+        ].join(' ')}
+      >
+        {children}
+      </span>
+      <span className="text-[10px] font-semibold text-white/90">{label}</span>
+    </motion.button>
+  )
+}
+
+/**
+ * A picture or a video, whichever the URL actually is.
+ *
+ * Galleries hold both — `gallery_urls` is just text — but every surface was
+ * rendering an `<img>`, so a video showed as the browser's broken-image box or,
+ * worse, a frozen first frame that looked like a photo that would not move.
+ *
+ * Autoplay only works muted and only while the element is on screen, so the
+ * play is driven by an IntersectionObserver rather than the `autoplay`
+ * attribute: a feed of twenty videos all decoding at once stalls the scroll.
+ */
+const VIDEO_RE = /\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i
+
+function Media({
+  src, fit = 'cover', play = false, controls = false,
+}: {
+  src: string
+  fit?: 'cover' | 'contain'
+  play?: boolean
+  controls?: boolean
+}) {
+  const vid = useRef<HTMLVideoElement>(null)
+  const isVideo = VIDEO_RE.test(src)
+
+  useEffect(() => {
+    const el = vid.current
+    if (!el || !play) return
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.intersectionRatio >= 0.6) void el.play().catch(() => {})
+        else el.pause()
+      },
+      { threshold: [0, 0.6, 1] },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [play, src])
+
+  // Written out rather than interpolated — Tailwind scans source text, so a
+  // composed `object-${fit}` would never make it into the stylesheet.
+  const cls = fit === 'contain' ? 'w-full h-full object-contain' : 'w-full h-full object-cover'
+  if (!isVideo) return <img src={src} alt="" className={cls} />
+  return (
+    <video
+      ref={vid}
+      src={src}
+      className={cls}
+      muted
+      loop
+      playsInline
+      preload="metadata"
+      controls={controls}
+    />
   )
 }
 
@@ -329,15 +442,21 @@ function GalleryOverlay({ person, onClose }: { person: FeedPerson; onClose: () =
         ))}
       </div>
 
+      {/* Back, not a bare ✕ in a corner.
+          Inside the Telegram Mini-App this overlay covers the whole viewport,
+          so the only obvious way out was Telegram's own "Close" — which quits
+          the app entirely. This sits below Telegram's header (lm-top-inset),
+          is labelled, and is big enough to hit with a thumb. */}
       <button
         onClick={onClose}
-        aria-label="Close"
-        className="absolute top-14 right-4 z-20 w-9 h-9 rounded-full bg-black/50 text-white grid place-items-center text-lg"
+        aria-label="Back to the feed"
+        className="absolute left-3 z-20 flex items-center gap-1.5 rounded-full pl-2.5 pr-4 py-2 bg-black/60 backdrop-blur-sm text-white text-sm font-bold"
+        style={{ top: 'calc(var(--lm-top-inset) + 0.75rem)' }}
       >
-        ✕
+        <span className="text-lg leading-none">←</span> Back
       </button>
 
-      <img src={photos[index]} alt="" className="w-full h-full object-contain" />
+      <Media src={photos[index]} fit="contain" play controls />
 
       {/* Tap left third to go back, right two-thirds to go forward. */}
       <button onClick={() => go(-1)} aria-label="Previous photo" className="absolute inset-y-0 left-0 w-1/3" />

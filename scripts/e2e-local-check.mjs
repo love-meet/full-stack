@@ -126,5 +126,21 @@ ok('NEW chats capped at 20 a day', capped && opened === 20, `opened ${opened} be
 let again = await rpc('start_dm', { other_user_id: bob.id }, alice.token)
 ok('existing chats stay reachable past the cap', typeof again.json === 'string' || !!again.json?.id)
 
+console.log('\n=== 9. FRIENDS TAB (mutual matches only) ===')
+// Alice likes Bob: one-sided, so nobody is anybody's friend yet.
+await rpc('record_gallery_decision', { p_target_id: bob.id, p_decision: 'interested' }, alice.token)
+let fr = await rpc('get_my_friends', {}, alice.token)
+ok('a one-sided like is not a friend', Array.isArray(fr.json) && fr.json.length === 0, JSON.stringify(fr.json).slice(0, 120))
+
+// Bob likes back — now it is a match, and each sees the other.
+await rpc('record_gallery_decision', { p_target_id: alice.id, p_decision: 'interested' }, bob.token)
+fr = await rpc('get_my_friends', {}, alice.token)
+ok('A MUTUAL LIKE SHOWS UP AS A FRIEND', (fr.json || []).some(f => f.id === bob.id), JSON.stringify(fr.json).slice(0, 120))
+let frB = await rpc('get_my_friends', {}, bob.token)
+ok('the friendship reads from both sides', (frB.json || []).some(f => f.id === alice.id))
+ok('friend row carries enough to draw a card',
+  !!(fr.json || []).find(f => f.id === bob.id && 'avatar_url' in f && 'gallery_urls' in f && 'matched_at' in f))
+ok('nobody is their own friend', !(fr.json || []).some(f => f.id === alice.id))
+
 console.log(`\n${'='.repeat(52)}\n  ${pass} passed, ${fail} failed\n${'='.repeat(52)}`)
 process.exit(fail ? 1 : 0)
