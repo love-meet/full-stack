@@ -11,6 +11,8 @@ export type NotificationType =
   | 'support_user_msg' | 'support_reply'
   | 'launch_bonus' | 'subscription_expired' | 'follow' | 'profile_viewed'
   | 'game_invite' | 'game_round' | 'game_join' | 'game_waiting'
+  // Aimed at a profile rather than a post — see 0106_profile_actions.sql.
+  | 'profile_comment' | 'profile_gift'
 
 export type AppNotification = {
   id: string

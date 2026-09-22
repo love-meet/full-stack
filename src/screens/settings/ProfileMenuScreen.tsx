@@ -75,7 +75,10 @@ export default function ProfileMenuScreen() {
       title: 'Activity',
       items: [
         { icon: '👥', label: 'Create a group', hint: 'Start your own community', onClick: () => navigate('/groups/new') },
-        { icon: '🔖', label: 'Saved posts', hint: 'Your bookmarks', onClick: () => navigate('/saved') },
+        // "Saved" now means saved people — the Save on a feed card. Saved
+        // posts still exist for group threads, one level down.
+        { icon: '🔖', label: 'Saved', hint: 'People you saved from the feed', onClick: () => navigate('/saved') },
+        { icon: '📑', label: 'Saved posts', hint: 'Your bookmarked posts', onClick: () => navigate('/saved/posts') },
         { icon: '🎉', label: 'Invite friends', hint: 'Share your referral code', onClick: () => navigate('/invite') },
         { icon: '🚫', label: 'Blocked users', hint: 'Manage who you blocked', onClick: () => navigate('/blocked') },
         { icon: '🔕', label: 'Muted users', hint: 'Manage who you muted', onClick: () => navigate('/muted') },

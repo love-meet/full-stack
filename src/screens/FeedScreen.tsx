@@ -6,6 +6,13 @@ import FeedAd from '../components/FeedAd'
 import { usePeopleFeed, useAdvanceFeed, ageFrom, type FeedPerson } from '../hooks/usePeopleFeed'
 import { useStartDM, isDailyChatLimit } from '../hooks/useStartDM'
 import { useRecordGalleryDecision } from '../hooks/useGalleryFeed'
+import {
+  useProfileActionState,
+  useToggleProfileBookmark,
+  type ProfileActionState,
+} from '../hooks/useProfileActions'
+import ProfileCommentSheet from '../components/ProfileCommentSheet'
+import GiftSheet from '../components/GiftSheet'
 import { avatarUrlOr } from '../lib/avatar'
 import { languageName } from '../data/languages'
 
@@ -30,6 +37,10 @@ export default function FeedScreen() {
 
   const people = feed.data ?? []
   const isEmpty = feed.status === 'success' && people.length === 0
+
+  // Counts and my-state for every card on the page, in one request rather
+  // than one per card.
+  const actions = useProfileActionState(people.map((p) => p.id))
 
   // ── Consumption tracking ────────────────────────────────────────────────
   // `seen` is a set so a card scrolled past twice only counts once; `pending`
@@ -127,6 +138,7 @@ export default function FeedScreen() {
           <PersonCard
             key={person.id}
             person={person}
+            state={actions.data?.[person.id]}
             onSeen={markSeen}
             onOpenGallery={() => setGallery(person)}
             // A sponsored card every tenth profile (§7). Always on, for
@@ -149,9 +161,10 @@ export default function FeedScreen() {
 // One person, one screen. The picture is the card.
 // ---------------------------------------------------------------------------
 function PersonCard({
-  person, onSeen, onOpenGallery, showAdAfter,
+  person, state, onSeen, onOpenGallery, showAdAfter,
 }: {
   person: FeedPerson
+  state?: ProfileActionState
   onSeen: (id: string) => void
   onOpenGallery: () => void
   showAdAfter: boolean
@@ -160,16 +173,36 @@ function PersonCard({
   const navigate = useNavigate()
   const startDM = useStartDM()
   const [chatError, setChatError] = useState<string | null>(null)
-  const [liked, setLiked] = useState(false)
   const decide = useRecordGalleryDecision()
+  const bookmark = useToggleProfileBookmark()
+  const [sheet, setSheet] = useState<null | 'comments' | 'gift'>(null)
+
+  // Optimistic overrides — null means "whatever the server last said". The
+  // rail has to answer a tap instantly; the counts catch up on the next fetch.
+  const [likedNow, setLikedNow] = useState<boolean | null>(null)
+  const [savedNow, setSavedNow] = useState<boolean | null>(null)
+
+  const liked = likedNow ?? state?.liked_by_me ?? false
+  const saved = savedNow ?? state?.saved_by_me ?? false
+  const likeCount = (state?.like_count ?? 0) + (likedNow && !state?.liked_by_me ? 1 : 0)
 
   // "Like" is the gallery-interest decision — it puts them in your Interested
-  // tab and creates a match if they have liked you too.
+  // tab and creates a match if they have liked you too. Deliberately not a
+  // second, parallel like signal.
   function like() {
     if (liked || decide.isPending) return
-    setLiked(true)
+    setLikedNow(true)
     decide.mutate({ targetId: person.id, decision: 'interested' }, {
-      onError: () => setLiked(false),
+      onError: () => setLikedNow(null),
+    })
+  }
+
+  function save() {
+    const next = !saved
+    setSavedNow(next)
+    bookmark.mutate(person.id, {
+      onSuccess: (v) => setSavedNow(v),
+      onError: () => setSavedNow(null),
     })
   }
 
@@ -241,14 +274,37 @@ function PersonCard({
           )}
 
           {/* Action rail — beside the card, not underneath it, the way TikTok
-              and Facebook place them. Like is the gallery-interest decision
-              underneath, so it feeds the Interested tab and can make a match. */}
-          <div className="absolute right-2 bottom-44 flex flex-col items-center gap-4 z-10">
-            <RailButton label={liked ? 'Liked' : 'Like'} active={liked} onClick={like} disabled={decide.isPending}>
+              and Facebook place them. Every one of these targets the person:
+              comments, saves and gifts used to need a post, and 0106 gave
+              profiles their own. Like is the gallery-interest decision, so it
+              feeds the Interested tab and can make a match. */}
+          <div className="absolute right-2 bottom-36 flex flex-col items-center gap-3.5 z-10">
+            <RailButton
+              label={likeCount > 0 ? String(likeCount) : 'Like'}
+              active={liked}
+              onClick={like}
+              disabled={decide.isPending}
+            >
               {liked ? '❤️' : '🤍'}
             </RailButton>
-            <RailButton label={extra > 0 ? `${extra + 1}` : 'Photos'} onClick={onOpenGallery}>🖼</RailButton>
+            <RailButton
+              label={state?.comment_count ? String(state.comment_count) : 'Comment'}
+              onClick={() => setSheet('comments')}
+            >
+              💬
+            </RailButton>
+            <RailButton
+              label={state?.gift_count ? String(state.gift_count) : 'Gift'}
+              active={state?.gifted_by_me}
+              onClick={() => setSheet('gift')}
+            >
+              🎁
+            </RailButton>
             <RailButton label="Share" onClick={share}>↗</RailButton>
+            <RailButton label={saved ? 'Saved' : 'Save'} active={saved} onClick={save}>
+              {saved ? '🔖' : '📑'}
+            </RailButton>
+            <RailButton label={extra > 0 ? `${extra + 1}` : 'Photos'} onClick={onOpenGallery}>🖼</RailButton>
           </div>
 
           <div className="absolute left-0 right-0 bottom-0 p-5 pb-6">
@@ -284,6 +340,21 @@ function PersonCard({
           </div>
         </div>
       </section>
+
+      {sheet === 'comments' && (
+        <ProfileCommentSheet
+          profileId={person.id}
+          profileLabel={person.handle ?? name}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === 'gift' && (
+        <GiftSheet
+          recipientId={person.id}
+          recipientLabel={person.handle ?? name}
+          onClose={() => setSheet(null)}
+        />
+      )}
 
       {showAdAfter && <AdCard />}
     </>

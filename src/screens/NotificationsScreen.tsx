@@ -35,7 +35,10 @@ export default function NotificationsScreen() {
     } else if (n.post_id) navigate(`/p/${n.post_id}`)
     else if (n.type === 'welcome' || n.type === 'welcome_signup') navigate('/guide')
     else if (n.type === 'launch_bonus') navigate('/credits')
-    else if ((n.type === 'follow' || n.type === 'profile_viewed') && n.actor_id) navigate(`/profile/${n.actor_id}`)
+    else if ((n.type === 'follow' || n.type === 'profile_viewed' ||
+              n.type === 'profile_comment' || n.type === 'profile_gift') && n.actor_id) {
+      navigate(`/profile/${n.actor_id}`)
+    }
     else if (n.type === 'password_changed') navigate('/security')
     else if (n.type === 'chat_reminder' || n.type === 'chat_message') navigate('/chat')
     else if (n.type === 'support_user_msg') navigate('/admin/support')
@@ -142,6 +145,8 @@ function message(n: AppNotification): React.ReactNode {
     case 'chat_message': return <>{who} sent you a message{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : '.'}</>
     case 'follow': return <>{who} started following you.</>
     case 'profile_viewed': return <>{who} looked at your profile.</>
+    case 'profile_comment': return <>{who} commented on your profile: <span className="text-ink-2">“{n.body}”</span></>
+    case 'profile_gift': return <>{who} sent you a gift{n.body ? <> — <span className="text-ink-2">{n.body}</span></> : ''} 🎁</>
     case 'match_post': return <>{who} — who matches your preferences — just posted. ✨</>
     case 'support_user_msg': return <>{who} messaged live support: <span className="text-ink-2">“{n.body}”</span></>
     case 'support_reply': return <>Support replied{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : ''} 🛟</>
@@ -167,6 +172,8 @@ function glyph(type: AppNotification['type']): string {
     case 'comment_like': return '👍'
     case 'reply_like': return '👍'
     case 'gift': return '🎁'
+    case 'profile_gift': return '🎁'
+    case 'profile_comment': return '💬'
     case 'gift_accepted': return '🎉'
     case 'gift_rejected': return '🎁'
     case 'match_post': return '✨'
