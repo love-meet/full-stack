@@ -1,26 +1,30 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import TopIcons from '../shell/TopIcons'
-import { useFriends, type Friend } from '../hooks/useFriends'
-import { useStartDM, isDailyChatLimit } from '../hooks/useStartDM'
-import { ageFrom } from '../hooks/usePeopleFeed'
+import { useFriends, useFriendsPosts, type Friend } from '../hooks/useFriends'
 import { avatarUrlOr } from '../lib/avatar'
-import { useState } from 'react'
+import { isVideoUrl, compactCount } from '../lib/media'
+import type { FeedPost } from '../hooks/useFeed'
 
 /**
  * Friends — the second tab, where Search used to sit.
  *
- * This is your people only: mutual matches, nobody else. The main feed is for
- * meeting strangers; this is for the ones you already connected with, so it is
- * a scannable grid rather than one-face-per-screen — you come here knowing who
- * you are looking for.
+ * "Friend" means you follow each other: two rows in public.follows pointing
+ * back at one another. The tab shows what those people posted, with a strip of
+ * their faces across the top to jump into any one of them.
  *
- * Search is still reachable at /search (the empty state links to it); it just
- * no longer owns a tab.
+ * This is not the public post feed §1 removed — there is no discovery here and
+ * no ranking. Nobody appears unless you both chose each other.
+ *
+ * Search keeps its route (/search); it just no longer owns a tab.
  */
 export default function FriendsScreen() {
   const friends = useFriends()
+  const posts = useFriendsPosts()
+
   const list = friends.data ?? []
+  const feed = posts.data?.pages.flat() ?? []
+  const noFriends = friends.status === 'success' && list.length === 0
+  const noPosts = posts.status === 'success' && feed.length === 0
 
   return (
     <div className="min-h-screen text-ink pb-24">
@@ -36,95 +40,140 @@ export default function FriendsScreen() {
         </div>
       </header>
 
+      {/* The faces, across the top. Horizontal so it stays one row however
+          many friends you have, and never pushes their posts off screen. */}
+      {list.length > 0 && (
+        <div className="max-w-2xl mx-auto px-4 pt-4">
+          <div className="flex gap-3.5 overflow-x-auto no-scrollbar pb-1">
+            {list.map((f) => <FriendChip key={f.id} friend={f} />)}
+          </div>
+        </div>
+      )}
+
       <main className="max-w-2xl mx-auto px-4 py-5">
-        {friends.status === 'pending' && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="aspect-[3/4] rounded-2xl bg-white/8 animate-pulse" />
-            ))}
-          </div>
-        )}
-
-        {friends.status === 'error' && (
-          <div className="glass rounded-2xl p-5 text-sm text-danger text-center">
-            Couldn't load your friends: {(friends.error as Error).message}
-          </div>
-        )}
-
-        {friends.status === 'success' && list.length === 0 && (
+        {noFriends && (
           <div className="glass rounded-3xl p-8 text-center">
             <div className="text-5xl mb-3">🤝</div>
             <p className="font-semibold mb-1">No friends yet</p>
             <p className="text-sm text-ink-2 leading-relaxed">
-              Like someone in your{' '}
-              <Link to="/feed" className="text-rose font-semibold hover:underline">feed</Link>.
-              When they like you back, they land here.
+              Tap <b className="text-ink">+</b> on someone's picture in your{' '}
+              <Link to="/feed" className="text-rose font-semibold hover:underline">feed</Link>{' '}
+              to follow them. When they follow you back, you're friends and
+              their posts show up here.
             </p>
-            <Link
-              to="/search"
-              className="mt-5 inline-block rounded-full px-6 py-2.5 glass text-sm font-bold"
-            >
-              Search for someone
-            </Link>
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {list.map((f) => <FriendCard key={f.id} friend={f} />)}
+        {!noFriends && noPosts && (
+          <div className="glass rounded-3xl p-8 text-center">
+            <div className="text-4xl mb-3">🌱</div>
+            <p className="font-semibold mb-1">Nothing posted yet</p>
+            <p className="text-sm text-ink-2">
+              Your friends haven't posted anything. Tap one of them above to
+              open their profile.
+            </p>
+          </div>
+        )}
+
+        {posts.status === 'pending' && (
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-3xl h-72 bg-white/8 animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {posts.status === 'error' && (
+          <div className="glass rounded-2xl p-5 text-sm text-danger text-center">
+            {(posts.error as Error).message}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {feed.map((p) => <FriendPost key={p.id} post={p} />)}
         </div>
+
+        {posts.hasNextPage && (
+          <button
+            onClick={() => posts.fetchNextPage()}
+            disabled={posts.isFetchingNextPage}
+            className="mt-5 w-full glass rounded-full py-3 text-sm font-semibold text-ink-2 hover:text-ink"
+          >
+            {posts.isFetchingNextPage ? 'Loading…' : 'Show older'}
+          </button>
+        )}
       </main>
     </div>
   )
 }
 
-function FriendCard({ friend }: { friend: Friend }) {
-  const navigate = useNavigate()
-  const startDM = useStartDM()
-  const [error, setError] = useState<string | null>(null)
-  const name = friend.display_name ?? friend.handle ?? 'Someone'
-  const age = ageFrom(friend.dob)
-
-  async function message() {
-    setError(null)
-    // A friend usually already has a conversation from the match — jump
-    // straight into it and skip the round-trip.
-    if (friend.conversation_id) { navigate(`/chat/${friend.conversation_id}`); return }
-    try {
-      navigate(`/chat/${await startDM.mutateAsync(friend.id)}`)
-    } catch (e) {
-      setError(isDailyChatLimit(e) ? "That's 20 new chats today." : 'Could not open that chat.')
-    }
-  }
-
+function FriendChip({ friend: f }: { friend: Friend }) {
+  const name = f.display_name ?? f.handle ?? 'Someone'
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="relative rounded-2xl overflow-hidden bg-black/40"
-    >
-      <Link to={`/profile/${friend.id}`} className="block aspect-[3/4]">
-        <img
-          src={avatarUrlOr(friend.avatar_url, friend.gender)}
-          alt=""
-          className="w-full h-full object-cover"
-        />
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/85 to-transparent" />
-        <span className="absolute left-2.5 bottom-10 right-2.5 text-white font-bold text-sm truncate drop-shadow">
-          {name}{age != null && <span className="font-semibold text-white/75"> {age}</span>}
-        </span>
+    <Link to={`/profile/${f.id}`} className="shrink-0 w-16 text-center">
+      <img
+        src={avatarUrlOr(f.avatar_url, f.gender)}
+        alt=""
+        className="w-16 h-16 rounded-full object-cover ring-2 ring-rose/70 p-0.5"
+      />
+      <span className="mt-1 block text-[11px] font-semibold text-ink-2 truncate">{name}</span>
+    </Link>
+  )
+}
+
+function FriendPost({ post: p }: { post: FeedPost }) {
+  const name = p.author_display_name ?? p.author_handle ?? 'Someone'
+  return (
+    <article className="glass rounded-3xl overflow-hidden">
+      <header className="flex items-center gap-2.5 px-4 py-3">
+        <Link to={`/profile/${p.author_id}`}>
+          <img
+            src={avatarUrlOr(p.author_avatar_url, p.author_gender)}
+            alt=""
+            className="w-9 h-9 rounded-full object-cover"
+          />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <Link to={`/profile/${p.author_id}`} className="block text-sm font-bold truncate">
+            {name}
+          </Link>
+          <span className="block text-[11px] text-ink-muted">
+            {new Date(p.created_at).toLocaleDateString()}
+          </span>
+        </div>
+      </header>
+
+      <Link to={`/p/${p.id}`} className="block bg-black">
+        {isVideoUrl(p.media_url) || p.kind === 'short_video' ? (
+          <video
+            src={p.media_url}
+            className="w-full max-h-[70vh] object-contain"
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            controls
+          />
+        ) : (
+          <img
+            src={p.media_url}
+            alt={p.alt_text ?? ''}
+            className="w-full max-h-[70vh] object-contain"
+          />
+        )}
       </Link>
-      <button
-        onClick={message}
-        disabled={startDM.isPending}
-        className="absolute left-2.5 right-2.5 bottom-2.5 rounded-full py-1.5 bg-gradient-brand text-white text-xs font-extrabold disabled:opacity-60"
-      >
-        {startDM.isPending ? 'Opening…' : 'Message'}
-      </button>
-      {error && (
-        <span className="absolute inset-x-0 top-1 text-center text-[10px] text-white bg-black/70 py-0.5">
-          {error}
-        </span>
+
+      {p.caption && (
+        <p className="px-4 pt-3 text-sm text-ink-2 whitespace-pre-wrap break-words">{p.caption}</p>
       )}
-    </motion.div>
+
+      <div className="px-4 py-3 flex items-center gap-5 text-[13px] font-bold text-ink-muted">
+        {!p.hide_like_count && <span>♥ {compactCount(p.like_count)}</span>}
+        {!p.comments_disabled && (
+          <Link to={`/p/${p.id}`}>💬 {compactCount(p.comment_count)}</Link>
+        )}
+        {p.gift_count > 0 && <span>🎁 {compactCount(p.gift_count)}</span>}
+      </div>
+    </article>
   )
 }

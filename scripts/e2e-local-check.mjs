@@ -126,21 +126,39 @@ ok('NEW chats capped at 20 a day', capped && opened === 20, `opened ${opened} be
 let again = await rpc('start_dm', { other_user_id: bob.id }, alice.token)
 ok('existing chats stay reachable past the cap', typeof again.json === 'string' || !!again.json?.id)
 
-console.log('\n=== 9. FRIENDS TAB (mutual matches only) ===')
-// Alice likes Bob: one-sided, so nobody is anybody's friend yet.
+console.log('\n=== 9. FRIENDS TAB (mutual follows) ===')
+// A friend is a MUTUAL FOLLOW (0107) — not a mutual gallery like. Alice
+// likes Bob in the gallery first, to prove that on its own is not enough.
 await rpc('record_gallery_decision', { p_target_id: bob.id, p_decision: 'interested' }, alice.token)
-let fr = await rpc('get_my_friends', {}, alice.token)
-ok('a one-sided like is not a friend', Array.isArray(fr.json) && fr.json.length === 0, JSON.stringify(fr.json).slice(0, 120))
-
-// Bob likes back — now it is a match, and each sees the other.
 await rpc('record_gallery_decision', { p_target_id: alice.id, p_decision: 'interested' }, bob.token)
+let fr = await rpc('get_my_friends', {}, alice.token)
+ok('A MUTUAL LIKE IS NOT A FRIENDSHIP', Array.isArray(fr.json) && fr.json.length === 0, JSON.stringify(fr.json).slice(0, 120))
+
+// Alice follows Bob: one-sided, still not friends.
+await rest('follows', { token: alice.token, method: 'POST', body: { follower_id: alice.id, following_id: bob.id } })
 fr = await rpc('get_my_friends', {}, alice.token)
-ok('A MUTUAL LIKE SHOWS UP AS A FRIEND', (fr.json || []).some(f => f.id === bob.id), JSON.stringify(fr.json).slice(0, 120))
+ok('a one-sided follow is not a friendship', (fr.json || []).length === 0, JSON.stringify(fr.json).slice(0, 120))
+
+// Bob follows back — now they are friends, both ways.
+await rest('follows', { token: bob.token, method: 'POST', body: { follower_id: bob.id, following_id: alice.id } })
+fr = await rpc('get_my_friends', {}, alice.token)
+ok('FOLLOWING EACH OTHER MAKES YOU FRIENDS', (fr.json || []).some(f => f.id === bob.id), JSON.stringify(fr.json).slice(0, 120))
 let frB = await rpc('get_my_friends', {}, bob.token)
 ok('the friendship reads from both sides', (frB.json || []).some(f => f.id === alice.id))
 ok('friend row carries enough to draw a card',
   !!(fr.json || []).find(f => f.id === bob.id && 'avatar_url' in f && 'gallery_urls' in f && 'matched_at' in f))
 ok('nobody is their own friend', !(fr.json || []).some(f => f.id === alice.id))
+
+// Unfollowing ends it immediately, in both directions.
+await rest(`follows?follower_id=eq.${bob.id}&following_id=eq.${alice.id}`, { token: bob.token, method: 'DELETE' })
+fr = await rpc('get_my_friends', {}, alice.token)
+ok('unfollowing ends the friendship', (fr.json || []).length === 0)
+await rest('follows', { token: bob.token, method: 'POST', body: { follower_id: bob.id, following_id: alice.id } })
+
+let fp = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, alice.token)
+ok('friends_posts is callable and scoped', Array.isArray(fp.json), JSON.stringify(fp.json).slice(0, 100))
+let fpStranger = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, bot.token ?? alice.token)
+ok('friends_posts never returns a stranger', Array.isArray(fpStranger.json))
 
 console.log('\n=== 10. PROFILE ACTIONS — comment / save / gift (0106) ===')
 let pc1 = await rpc('add_profile_comment', { p_profile_id: bob.id, p_body: 'nice photo' }, alice.token)
@@ -179,6 +197,8 @@ let st = await rpc('profile_action_state', { p_ids: [bob.id] }, alice.token)
 let row = (st.json || [])[0]
 ok('the card rail reads counts in one call', !!row && row.comment_count === 1 && row.gift_count === 1, JSON.stringify(row))
 ok('"liked" is the gallery interest, not a second signal', row?.liked_by_me === true)
+ok('THE FOLLOW BADGE KNOWS IT IS ALREADY FOLLOWED', row?.followed_by_me === true, JSON.stringify(row))
+ok('and knows they follow back', row?.follows_me === true)
 
 console.log(`\n${'='.repeat(52)}\n  ${pass} passed, ${fail} failed\n${'='.repeat(52)}`)
 process.exit(fail ? 1 : 0)

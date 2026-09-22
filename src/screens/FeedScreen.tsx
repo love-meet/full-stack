@@ -11,10 +11,10 @@ import {
   useToggleProfileBookmark,
   type ProfileActionState,
 } from '../hooks/useProfileActions'
-import ProfileCommentSheet from '../components/ProfileCommentSheet'
 import GiftSheet from '../components/GiftSheet'
+import { useToggleFollow } from '../hooks/useFollow'
 import {
-  HeartIcon, CommentIcon, BookmarkIcon, ShareIcon, GiftIcon, PhotosIcon,
+  HeartIcon, BookmarkIcon, ShareIcon, GiftIcon, PhotosIcon,
   MutedIcon, SoundIcon,
 } from '../components/FeedIcons'
 import { isVideoUrl, compactCount } from '../lib/media'
@@ -180,7 +180,8 @@ function PersonCard({
   const [chatError, setChatError] = useState<string | null>(null)
   const decide = useRecordGalleryDecision()
   const bookmark = useToggleProfileBookmark()
-  const [sheet, setSheet] = useState<null | 'comments' | 'gift'>(null)
+  const follow = useToggleFollow(person.id)
+  const [sheet, setSheet] = useState<null | 'gift'>(null)
   const [muted, setMuted] = useState(true)
   const media = avatarUrlOr(person.avatar_url, person.gender)
 
@@ -188,9 +189,11 @@ function PersonCard({
   // rail has to answer a tap instantly; the counts catch up on the next fetch.
   const [likedNow, setLikedNow] = useState<boolean | null>(null)
   const [savedNow, setSavedNow] = useState<boolean | null>(null)
+  const [followedNow, setFollowedNow] = useState<boolean | null>(null)
 
   const liked = likedNow ?? state?.liked_by_me ?? false
   const saved = savedNow ?? state?.saved_by_me ?? false
+  const following = followedNow ?? state?.followed_by_me ?? false
   const likeCount = (state?.like_count ?? 0) + (likedNow && !state?.liked_by_me ? 1 : 0)
 
   // "Like" is the gallery-interest decision — it puts them in your Interested
@@ -202,6 +205,14 @@ function PersonCard({
     decide.mutate({ targetId: person.id, decision: 'interested' }, {
       onError: () => setLikedNow(null),
     })
+  }
+
+  // Follow is one-way and additive from here: the + vanishes and stays gone.
+  // Following back is what makes the two of you friends (0107).
+  function followThem() {
+    if (following) return
+    setFollowedNow(true)
+    follow.mutate(true, { onError: () => setFollowedNow(null) })
   }
 
   function save() {
@@ -299,15 +310,29 @@ function PersonCard({
               a post, and 0106 gave profiles their own. Like is the
               gallery-interest decision, so it feeds Interested and can match. */}
           <div className="absolute right-2.5 bottom-32 flex flex-col items-center gap-4 z-10">
-            {/* Their face at the top of the rail, tappable through to the
-                profile — the same anchor TikTok puts above the heart. */}
-            <Link to={`/profile/${person.id}`} aria-label={`${name}'s profile`} className="mb-1">
-              <img
-                src={avatarUrlOr(person.avatar_url, person.gender)}
-                alt=""
-                className="w-11 h-11 rounded-full object-cover ring-2 ring-white shadow-lg"
-              />
-            </Link>
+            {/* Their face at the top of the rail with the follow badge hung
+                off it — the same anchor TikTok puts above the heart. The badge
+                disappears once you follow, rather than becoming an "unfollow"
+                button: it would be the easiest thing on the card to hit by
+                accident. Unfollow lives on their profile. */}
+            <div className="relative mb-2">
+              <Link to={`/profile/${person.id}`} aria-label={`${name}'s profile`}>
+                <img
+                  src={avatarUrlOr(person.avatar_url, person.gender)}
+                  alt=""
+                  className="w-11 h-11 rounded-full object-cover ring-2 ring-white shadow-lg"
+                />
+              </Link>
+              {!following && (
+                <button
+                  onClick={followThem}
+                  aria-label={`Follow ${name}`}
+                  className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-gradient-brand text-white text-sm font-bold grid place-items-center ring-2 ring-black/20 transition-transform duration-75 active:scale-75"
+                >
+                  +
+                </button>
+              )}
+            </div>
 
             <RailButton
               icon={<HeartIcon filled={liked} className="w-9 h-9" />}
@@ -319,12 +344,6 @@ function PersonCard({
               // The heart already filled optimistically, so grey-ing it out
               // for the round-trip reads as the tap having failed. `like()`
               // guards against a double-send on its own.
-            />
-            <RailButton
-              icon={<CommentIcon className="w-9 h-9" />}
-              count={state?.comment_count}
-              label="Comments"
-              onClick={() => setSheet('comments')}
             />
             <RailButton
               icon={<GiftIcon filled={state?.gifted_by_me} className="w-8 h-8" />}
@@ -386,13 +405,6 @@ function PersonCard({
         </div>
       </section>
 
-      {sheet === 'comments' && (
-        <ProfileCommentSheet
-          profileId={person.id}
-          profileLabel={person.handle ?? name}
-          onClose={() => setSheet(null)}
-        />
-      )}
       {sheet === 'gift' && (
         <GiftSheet
           recipientId={person.id}

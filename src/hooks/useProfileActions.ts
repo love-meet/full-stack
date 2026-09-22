@@ -23,6 +23,10 @@ export type ProfileActionState = {
   saved_by_me: boolean
   liked_by_me: boolean
   gifted_by_me: boolean
+  /** Do I follow them? Drives the + badge on the card's avatar. */
+  followed_by_me: boolean
+  /** Do they follow me? Both true means you are friends (0107). */
+  follows_me: boolean
 }
 
 export type ProfileComment = {
