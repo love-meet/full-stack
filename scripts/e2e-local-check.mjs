@@ -207,5 +207,40 @@ ok('EVERY GIFT IS WORTH LESS THAN IT COSTS',
   (cat.json || []).length + ' gifts')
 
 
+console.log('\n=== 13. HS-LM-v1 §07 consent, export, photo moderation ===')
+let cons = await rpc('record_consent', { p_kinds: ['terms', 'privacy', 'age_18'], p_version: 'HS-LM-v1' }, alice.token)
+ok('CONSENT IS RECORDED', cons.json === 3, JSON.stringify(cons.json))
+let consRows = await rest('user_consents?select=kind,version,accepted_at', { token: alice.token })
+ok('with a server timestamp and a version',
+  (consRows.json || []).length === 3 && (consRows.json || []).every(c => c.version === 'HS-LM-v1' && !!c.accepted_at))
+let consSpy = await rest('user_consents?select=kind&user_id=eq.' + alice.id, { token: bob.token })
+ok("nobody can read another person's consents (RLS)", (consSpy.json || []).length === 0)
+let consAgain = await rpc('record_consent', { p_kinds: ['terms'], p_version: 'HS-LM-v1' }, alice.token)
+ok('recording the same consent twice is a no-op', consAgain.json === 0, JSON.stringify(consAgain.json))
+
+let exp = await rpc('export_my_data', {}, alice.token)
+ok('DATA EXPORT RETURNS THE ACCOUNT', !!exp.json?.profile?.id && exp.json.profile.id === alice.id)
+ok('the export carries the coin ledger and decisions',
+  Array.isArray(exp.json?.coin_ledger) && Array.isArray(exp.json?.decisions_i_made))
+ok('the export does NOT leak who blocked me', !('blocked_me' in (exp.json ?? {})))
+
+// Every avatar queues itself for review — the trigger, not the client.
+let mine = await rest('photo_reviews?select=url,state&user_id=eq.' + alice.id, { token: alice.token })
+ok('EVERY PICTURE QUEUES ITSELF FOR REVIEW', (mine.json || []).length > 0, JSON.stringify(mine.json).slice(0, 90))
+let queueAsUser = await rpc('pending_photo_reviews', { p_limit: 10 }, alice.token)
+ok('a normal user cannot see the moderation queue', JSON.stringify(queueAsUser.json).includes('not allowed'), JSON.stringify(queueAsUser.json).slice(0, 70))
+
+// Promote bob and let him reject alice's picture.
+await rest('profiles?id=eq.' + bob.id, { key: SRK, method: 'PATCH', body: { role: 'admin' } })
+let queue = await rpc('pending_photo_reviews', { p_limit: 50 }, bob.token)
+ok('AN ADMIN SEES THE QUEUE', Array.isArray(queue.json) && queue.json.length > 0, ((queue.json || []).length) + ' pending')
+const target = (queue.json || []).find(r => r.user_id === alice.id)
+await rpc('review_photo', { p_review_id: target?.id, p_approve: false, p_reason: 'test rejection' }, bob.token)
+let after = await rest('profiles?select=avatar_url&id=eq.' + alice.id, { key: SRK })
+ok('A REJECTED PICTURE LEAVES THE FEED', after.json?.[0]?.avatar_url === null, JSON.stringify(after.json))
+let prn = await rest('notifications?select=type&user_id=eq.' + alice.id + '&type=eq.photo_rejected', { key: SRK })
+ok('and the person is told', (prn.json || []).length === 1)
+
+
 console.log(`\n${'='.repeat(52)}\n  ${pass} passed, ${fail} failed\n${'='.repeat(52)}`)
 process.exit(fail ? 1 : 0)
