@@ -8,6 +8,7 @@ import { useState } from 'react'
 import type { BoardProps, GameDef, Role } from './types'
 import { other } from './types'
 import { setGameSecret, guessWordLetter } from './secretApi'
+import { errMessage, isStaleLike } from '../../hooks/useChatGames'
 
 /**
  * One player sets a word, the other guesses letters.
@@ -34,6 +35,10 @@ export type WordGuessState = {
 export const MAX_WRONG = 6
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
+function normalizeWord(raw: string): string {
+  return raw.toUpperCase().replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').trim()
+}
+
 /** What the guesser can see: hit letters in place, everything else blank. */
 function displayFor(state: WordGuessState): string[] {
   const out = state.mask.split('')
@@ -43,33 +48,56 @@ function displayFor(state: WordGuessState): string[] {
   return out
 }
 
+/** `set_game_secret` and `guess_word_letter` raise plain postgrest tokens —
+ *  never render one verbatim. */
+function friendlyError(e: unknown): string {
+  const m = errMessage(e)
+  if (m.includes('already guessed')) return 'You already tried that letter.'
+  if (isStaleLike(e)) return 'The board moved on — refreshing.'
+  return m
+}
+
 function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMove }: BoardProps<WordGuessState>) {
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  // The word already written to chat_game_secrets, once the write has
+  // actually landed. set_game_secret is set-once (0095:57): once this is
+  // non-null, a retry must resend this exact word — never whatever is
+  // currently typed — or the public `mask`'s shape (derived from the word
+  // below) would stop matching the word the server actually scores against.
+  const [lockedWord, setLockedWord] = useState<string | null>(null)
   const amSetter = state.setter === myRole
   const guesser = other(state.setter)
 
+  const candidate = lockedWord ?? normalizeWord(draft)
+  const candidateValid = candidate.replace(/ /g, '').length >= 3
+
   async function setWord() {
-    const word = draft.toUpperCase().replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').trim()
-    if (!isMyTurn || finished || word.replace(/ /g, '').length < 3 || busy || pending) return
+    if (!isMyTurn || finished || busy || pending) return
+    if (lockedWord === null && !candidateValid) return
     setPending(true)
     setError(null)
     try {
-      // The word goes to the secrets table; only its shape goes public.
-      await setGameSecret(gameId, { word })
-      onMove({
+      if (lockedWord === null) {
+        // The word goes to the secrets table; only its shape goes public.
+        await setGameSecret(gameId, { word: candidate })
+        // Only now — once the write actually landed — does this become the
+        // word of record.
+        setLockedWord(candidate)
+      }
+      const ok = await onMove({
         state: {
           ...state,
           phase: 'guessing',
-          mask: word.replace(/[A-Z]/g, '_'),
+          mask: candidate.replace(/[A-Z]/g, '_'),
         },
         nextTurn: guesser,
         summary: 'set a word — your turn to guess',
       })
-      setDraft('')
+      if (ok) setDraft('')
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e))
     } finally {
       setPending(false)
     }
@@ -85,7 +113,7 @@ function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMov
       const hits = r.hit ? { ...state.hits, [letter]: r.positions } : state.hits
       const wrong = r.hit ? state.wrong : state.wrong + 1
       const lost = wrong >= MAX_WRONG
-      onMove({
+      await onMove({
         state: {
           ...state,
           guessed,
@@ -100,7 +128,7 @@ function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMov
         summary: r.solved ? 'guessed the word' : lost ? 'ran out of guesses' : `guessed ${letter}`,
       })
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e))
     } finally {
       setPending(false)
     }
@@ -114,21 +142,24 @@ function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMov
     return (
       <div className="space-y-3">
         <input
-          value={draft}
+          value={lockedWord ?? draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="A word or short phrase"
           maxLength={24}
-          disabled={!isMyTurn || finished || busy || pending}
+          disabled={!isMyTurn || finished || lockedWord !== null || busy || pending}
           className="lm-input w-full text-center tracking-[0.2em] uppercase disabled:opacity-50"
           aria-label="Word to guess"
         />
         <button
           onClick={setWord}
-          disabled={!isMyTurn || finished || draft.replace(/[^a-zA-Z]/g, '').length < 3 || busy || pending}
+          disabled={!isMyTurn || finished || busy || pending || (lockedWord === null && !candidateValid)}
           className="w-full rounded-full py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose disabled:opacity-50"
         >
-          {pending ? 'Setting…' : 'Set the word'}
+          {pending ? 'Setting…' : lockedWord !== null ? 'Send again' : 'Set the word'}
         </button>
+        {lockedWord !== null && !pending && (
+          <p className="text-xs text-ink-muted text-center">Saved — tap again to send.</p>
+        )}
         <p className="text-xs text-ink-muted text-center">
           Letters and spaces. They get {MAX_WRONG} wrong guesses. They never see the word — not even in the page source.
         </p>

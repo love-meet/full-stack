@@ -8,6 +8,7 @@ import { useState } from 'react'
 import type { BoardProps, GameDef, Role } from './types'
 import { other } from './types'
 import { setGameSecret, guessDuelNumber } from './secretApi'
+import { errMessage, isStaleLike } from '../../hooks/useChatGames'
 
 export const MIN = 1
 export const MAX = 100
@@ -31,10 +32,25 @@ export type DuelState = {
   guesses: Record<Role, { value: number; verdict: -1 | 0 | 1 }[]>
 }
 
+/** `set_game_secret` and `guess_duel_number` raise plain postgrest tokens —
+ *  never render one verbatim. */
+function friendlyError(e: unknown): string {
+  const m = errMessage(e)
+  if (m.includes('have not picked a number yet')) return "They haven't picked their number yet — try again in a moment."
+  if (isStaleLike(e)) return 'The board moved on — refreshing.'
+  return m
+}
+
 function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<DuelState>) {
   const [draft, setDraft] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The number already written to chat_game_secrets, once the write has
+  // actually landed. set_game_secret is set-once (0095:57): once this is
+  // non-null, a retry must resend this exact value — never whatever is
+  // currently typed — or the player's belief and the server's secret
+  // diverge silently.
+  const [lockedNumber, setLockedNumber] = useState<number | null>(null)
   const opponent = other(myRole)
   const amReady = state.ready.includes(myRole)
   const mine = state.guesses[myRole] ?? []
@@ -42,25 +58,32 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: Boar
 
   const value = Number(draft)
   const valid = Number.isInteger(value) && value >= MIN && value <= MAX
+  const commitValue = lockedNumber ?? value
 
   async function lockIn() {
-    if (!isMyTurn || !valid || busy || pending) return
+    if (!isMyTurn || finished || busy || pending) return
+    if (lockedNumber === null && !valid) return
     setPending(true)
     setError(null)
     try {
-      await setGameSecret(gameId, { number: value })
+      if (lockedNumber === null) {
+        await setGameSecret(gameId, { number: commitValue })
+        // Only now — once the write actually landed — does this become the
+        // number of record.
+        setLockedNumber(commitValue)
+      }
       const ready = [...state.ready, myRole]
       const bothIn = ready.length === 2
-      onMove({
+      const ok = await onMove({
         state: { ...state, ready, phase: bothIn ? 'playing' : 'setting' },
         // While setting, hand over so the other player picks. Once both are
         // in, player 'a' guesses first.
         nextTurn: bothIn ? 'a' : opponent,
         summary: bothIn ? 'locked in — game on' : 'picked a number — your turn',
       })
-      setDraft('')
+      if (ok) setDraft('')
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e))
     } finally {
       setPending(false)
     }
@@ -76,15 +99,15 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: Boar
         ...state.guesses,
         [myRole]: [...mine, { value, verdict: r.verdict }],
       }
-      onMove({
+      const ok = await onMove({
         state: { ...state, guesses },
         finished: r.correct,
         winner: r.correct ? myRole : null,
         summary: r.correct ? `got it — ${value}` : `guessed ${value}`,
       })
-      setDraft('')
+      if (ok) setDraft('')
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e))
     } finally {
       setPending(false)
     }
@@ -104,14 +127,21 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: Boar
             <p className="text-center text-sm text-ink-2">
               Pick a secret number, {MIN}–{MAX}. They'll try to guess it.
             </p>
-            <NumberInput value={draft} onChange={setDraft} disabled={!isMyTurn || busy || pending} />
+            <NumberInput
+              value={lockedNumber !== null ? String(lockedNumber) : draft}
+              onChange={setDraft}
+              disabled={!isMyTurn || busy || pending || lockedNumber !== null}
+            />
             <button
               onClick={lockIn}
-              disabled={!isMyTurn || !valid || busy || pending}
+              disabled={pending || busy || !isMyTurn || finished || (lockedNumber === null && !valid)}
               className="w-full rounded-full py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose disabled:opacity-50"
             >
-              {pending ? 'Locking in…' : 'Lock it in'}
+              {pending ? 'Locking in…' : lockedNumber !== null ? 'Send again' : 'Lock it in'}
             </button>
+            {lockedNumber !== null && !pending && (
+              <p className="text-xs text-ink-muted text-center">Saved — tap again to send.</p>
+            )}
           </>
         )
       ) : (
@@ -138,7 +168,7 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: Boar
 
           {!finished && isMyTurn && (
             <>
-              <NumberInput value={draft} onChange={setDraft} />
+              <NumberInput value={draft} onChange={setDraft} disabled={busy || pending} />
               <button
                 onClick={guess}
                 disabled={!valid || busy || pending}
