@@ -7,6 +7,7 @@ import { useProfile, useProfileById } from '../hooks/useProfile'
 import { useStartDM } from '../hooks/useStartDM'
 import { useProfileSocial } from '../hooks/useFollow'
 import { useRecordGalleryDecision } from '../hooks/useGalleryFeed'
+import ReportPersonSheet from '../components/ReportPersonSheet'
 import { avatarFor } from '../lib/avatar'
 import PresenceDot from '../components/PresenceDot'
 import BlueTick from '../components/BlueTick'
@@ -33,6 +34,7 @@ export default function ProfileScreen() {
   const profileSocial = useProfileSocial(routeUserId ?? myProfileQ.data?.id ?? null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [imageOpen, setImageOpen] = useState(false)
+  const [reporting, setReporting] = useState(false)
 
   // "Someone viewed your profile" (§6). Fire-and-forget: the RPC ignores self
   // views and blocked pairs, and notifies at most once a day per pair, so
@@ -212,11 +214,28 @@ export default function ProfileScreen() {
               <div className="flex items-center gap-2 shrink-0">
                 <InterestedButton targetId={profile.id} />
                 <ChatLinkButton otherId={profile.id} />
+                {/* §07: a profile must be reportable, and this is the only
+                    place a person lands when something has gone wrong. */}
+                <button
+                  onClick={() => setReporting(true)}
+                  aria-label="Report this person"
+                  className="w-10 h-10 rounded-full grid place-items-center glass text-ink-2 hover:text-danger shadow-lg"
+                >
+                  ⚑
+                </button>
               </div>
             )}
           </div>
         </motion.div>
       </div>
+
+      {reporting && (
+        <ReportPersonSheet
+          subjectId={profile.id}
+          subjectLabel={profile.handle ?? profile.display_name ?? 'this person'}
+          onClose={() => setReporting(false)}
+        />
+      )}
 
       {/* === Body — details + tabs === */}
       <div className="relative z-[3] bg-surface pt-2">

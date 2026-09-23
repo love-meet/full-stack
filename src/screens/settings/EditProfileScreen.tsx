@@ -20,6 +20,7 @@ type Form = {
   display_name: string
   handle: string
   bio: string
+  statusLine: string
   gender: Profile['gender']
   dob: string
   looking_for: Profile['looking_for']
@@ -41,6 +42,7 @@ function fromProfile(p: Profile): Form {
     display_name: p.display_name ?? '',
     handle: p.handle ?? '',
     bio: p.bio ?? '',
+    statusLine: p.status_line ?? '',
     gender: p.gender,
     dob: p.dob ?? '',
     looking_for: p.looking_for,
@@ -63,6 +65,9 @@ function toPatch(form: Form, original: Profile): ProfileUpdate {
   if (form.display_name !== (original.display_name ?? '')) patch.display_name = form.display_name.trim() || null
   if (form.handle !== (original.handle ?? '')) patch.handle = form.handle.trim() || null
   if (form.bio !== (original.bio ?? '')) patch.bio = form.bio.trim() || null
+  if (form.statusLine !== (original.status_line ?? '')) {
+    patch.status_line = form.statusLine.trim() || null
+  }
   if (form.gender !== original.gender) patch.gender = form.gender
   if (form.dob !== (original.dob ?? '')) patch.dob = form.dob || null
   if (form.looking_for !== original.looking_for) patch.looking_for = form.looking_for
@@ -274,6 +279,19 @@ export default function EditProfileScreen() {
                 placeholder="yourhandle"
               />
             </div>
+          </Field>
+
+          {/* §05: "Their status — a short line they set themselves."
+              It shows on your friends' lists, which is why it sits above the
+              bio rather than buried with it: a bio is read once on a profile,
+              a status is read every time somebody scans for who to talk to. */}
+          <Field label="Status" hint={`${form.statusLine.length}/80`}>
+            <input
+              value={form.statusLine}
+              onChange={(e) => set('statusLine', e.target.value.slice(0, 80))}
+              className="lm-input"
+              placeholder="Here for the games"
+            />
           </Field>
 
           <Field label="Bio" hint={`${form.bio.length}/240`}>

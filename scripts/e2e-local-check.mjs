@@ -280,5 +280,39 @@ let gone = await rpc('list_topics', { p_kind: 'topic', p_limit: 10, p_offset: 0 
 ok('the author can delete their own', !(gone.json || []).some(t => t.id === topic.json?.id))
 
 
+console.log('\n=== 15. HS-LM-v1 §07 report a profile, a photo, a message ===')
+let rp = await rpc('submit_report', { p_target: 'profile', p_subject: dan.id, p_reason: 'harassment', p_note: 'would not stop' }, alice.token)
+ok('A PROFILE IS REPORTABLE', typeof rp.json === 'string' && rp.json.length > 10, JSON.stringify(rp.json).slice(0, 60))
+let rph = await rpc('submit_report', { p_target: 'photo', p_subject: dan.id, p_ref: 'https://example.test/x.jpg', p_reason: 'inappropriate' }, alice.token)
+ok('A PHOTOGRAPH IS REPORTABLE', typeof rph.json === 'string')
+let rm = await rpc('submit_report', { p_target: 'message', p_subject: dan.id, p_ref: 'some-message-id', p_reason: 'illegal' }, alice.token)
+ok('A MESSAGE IS REPORTABLE', typeof rm.json === 'string')
+let dup = await rpc('submit_report', { p_target: 'profile', p_subject: dan.id, p_reason: 'harassment' }, alice.token)
+ok('tapping report twice does not flood the queue', dup.json === rp.json, dup.json + ' vs ' + rp.json)
+let self = await rpc('submit_report', { p_target: 'profile', p_subject: alice.id, p_reason: 'other' }, alice.token)
+ok('you cannot report yourself', JSON.stringify(self.json).includes('cannot report yourself'))
+
+let seeMine = await rest('reports?select=id,target', { token: alice.token })
+ok('you can see what you reported', (seeMine.json || []).length === 3, ((seeMine.json || []).length) + ' rows')
+let seeAbout = await rest('reports?select=id&subject_id=eq.' + dan.id, { token: dan.token })
+ok('BUT NOT THAT YOU WERE REPORTED', (seeAbout.json || []).length === 0)
+
+let qUser = await rpc('open_reports', { p_limit: 10 }, alice.token)
+ok('a normal user cannot open the moderator queue', JSON.stringify(qUser.json).includes('not allowed'))
+let q = await rpc('open_reports', { p_limit: 100 }, bob.token)
+ok('THE REPORT REACHES A HUMAN (§07)', (q.json || []).some(r => r.subject_id === dan.id), ((q.json || []).length) + ' open')
+await rpc('resolve_report', { p_report: rp.json, p_dismiss: false }, bob.token)
+let q2 = await rpc('open_reports', { p_limit: 100 }, bob.token)
+ok('and can be closed', !(q2.json || []).some(r => r.id === rp.json))
+
+console.log('\n=== 16. §07 every existing picture is queued for review ===')
+// Compare every visible avatar against the review queue directly.
+let allP = await rest('profiles?select=id,avatar_url&deleted_at=is.null&avatar_url=not.is.null', { key: SRK })
+let allR = await rest('photo_reviews?select=user_id,url', { key: SRK })
+const queued = new Set((allR.json || []).map(r => r.user_id + '|' + r.url))
+const missing = (allP.json || []).filter(p => !queued.has(p.id + '|' + p.avatar_url))
+ok('NO PICTURE IS ON THE FEED UNREVIEWED', missing.length === 0, missing.length + ' unqueued of ' + ((allP.json || []).length))
+
+
 console.log(`\n${'='.repeat(52)}\n  ${pass} passed, ${fail} failed\n${'='.repeat(52)}`)
 process.exit(fail ? 1 : 0)
