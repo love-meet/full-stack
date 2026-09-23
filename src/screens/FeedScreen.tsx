@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import TopIcons from '../shell/TopIcons'
+import FeedAd from '../components/FeedAd'
+import { useAdsVisible } from '../hooks/useAds'
 import { usePeopleFeed, useAdvanceFeed, ageFrom, type FeedPerson } from '../hooks/usePeopleFeed'
 import { useStartDM, isDailyChatLimit } from '../hooks/useStartDM'
 import { useRecordGalleryDecision } from '../hooks/useGalleryFeed'
@@ -33,6 +35,8 @@ import { languageName } from '../data/languages'
  * running total is flushed to `advance_feed_position` so the next session
  * starts where this one stopped rather than replaying the same first profile.
  */
+const AD_EVERY = 10
+
 export default function FeedScreen() {
   const feed = usePeopleFeed()
   const advance = useAdvanceFeed()
@@ -138,13 +142,18 @@ export default function FeedScreen() {
           </div>
         )}
 
-        {people.map((person) => (
+        {people.map((person, i) => (
           <PersonCard
             key={person.id}
             person={person}
             state={actions.data?.[person.id]}
             onSeen={markSeen}
             onOpenGallery={() => setGallery(person)}
+            // A sponsored card every tenth profile (§7). Always on, for
+            // everyone — not a reward, unlocks nothing. Tenth rather than
+            // eighth because the feed is faces: an ad among them intrudes
+            // more than one among posts did.
+            showAdAfter={(i + 1) % AD_EVERY === 0}
           />
         ))}
       </div>
@@ -160,13 +169,20 @@ export default function FeedScreen() {
 // One person, one screen. The picture is the card.
 // ---------------------------------------------------------------------------
 function PersonCard({
-  person, state, onSeen, onOpenGallery,
+  person, state, onSeen, onOpenGallery, showAdAfter,
 }: {
   person: FeedPerson
   state?: ProfileActionState
   onSeen: (id: string) => void
   onOpenGallery: () => void
+  showAdAfter: boolean
 }) {
+  // Both levels must allow it (§7/§2): the build must be configured for a
+  // provider AND the database switch must be on. Checked here, not inside
+  // AdCard, so that when ads are not visible the wrapping "Sponsored" card
+  // is never emitted at all — no blank full-screen slide in a snap-scroll
+  // feed (the bug the previous implementation had).
+  const adsVisible = useAdsVisible()
   const ref = useRef<HTMLElement>(null)
   const navigate = useNavigate()
   const startDM = useStartDM()
@@ -402,6 +418,8 @@ function PersonCard({
           onClose={() => setSheet(null)}
         />
       )}
+
+      {showAdAfter && adsVisible && <AdCard />}
     </>
   )
 }
@@ -520,6 +538,28 @@ function Chip({ children }: { children: React.ReactNode }) {
     <span className="rounded-full px-2.5 py-1 bg-white/15 backdrop-blur-sm text-white text-[11px] font-semibold">
       {children}
     </span>
+  )
+}
+
+/**
+ * A sponsored slide — same footprint as a profile, clearly labelled.
+ *
+ * Only ever mounted when the caller has already confirmed `adsVisible`, so
+ * there is no scenario where this renders and `FeedAd` inside comes back
+ * empty: the wrapper and the ad appear and disappear together.
+ */
+function AdCard() {
+  return (
+    <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center px-5">
+      <div className="w-full max-w-md mx-auto glass rounded-3xl px-5 pt-4 pb-5 flex flex-col items-center gap-4">
+        <span className="self-start text-[10px] font-bold uppercase tracking-[0.18em] text-ink-muted">
+          Sponsored
+        </span>
+        <div className="grid place-items-center min-h-[250px] w-full">
+          <FeedAd />
+        </div>
+      </div>
+    </section>
   )
 }
 

@@ -18,6 +18,8 @@ import { getSurface } from '../lib/surface'
 import GiftSheet from '../components/GiftSheet'
 import PostMoreDropdown from '../components/PostMoreDropdown'
 import CommentActionsSheet from '../components/CommentActionsSheet'
+import { InlineAd } from '../components/FeedAd'
+import { useAdsVisible } from '../hooks/useAds'
 import AuthorTick from '../components/AuthorTick'
 import { IconBack, IconComment, IconShare, IconMore } from '../components/icons'
 import type { FeedPost } from '../hooks/useFeed'
@@ -321,6 +323,14 @@ const REPLIES_PAGE = 5
 function Comments({ postId }: { postId: string }) {
   const commentsQ = useComments(postId)
   const [visible, setVisible] = useState(COMMENTS_PAGE)
+  // Drop a single Sponsored row somewhere between the 3rd and 7th comment. A
+  // lazy useState initializer runs exactly once, on mount, outside render
+  // purity rules — Math.random() here (unlike inside useMemo, which React
+  // may recompute, e.g. under StrictMode's double-invoked first render) can
+  // never reassign adAt while the list is being read or re-rendered (new
+  // comments arriving, pagination).
+  const [adAt] = useState(() => 3 + Math.floor(Math.random() * 5))
+  const adsVisible = useAdsVisible()
   if (commentsQ.status === 'pending') {
     return (
       <div className="px-1 py-3 space-y-3">
@@ -347,9 +357,10 @@ function Comments({ postId }: { postId: string }) {
 
   return (
     <ul className="divide-y divide-white/[0.06]">
-      {shown.map((c) => (
+      {shown.map((c, i) => (
         <Fragment key={c.id}>
           <CommentRow postId={postId} comment={c} />
+          {i === adAt && adsVisible && <li className="py-1"><InlineAd /></li>}
         </Fragment>
       ))}
       {remaining > 0 && (

@@ -3,12 +3,15 @@ import { motion } from 'framer-motion'
 import { NAV_ITEMS } from './navItems'
 import { useProfile } from '../hooks/useProfile'
 import { avatarFor } from '../lib/avatar'
+import { SidebarAd } from '../components/FeedAd'
+import { useAdsVisible } from '../hooks/useAds'
 
 export default function Sidebar() {
   const profile = useProfile()
   const avatarUrl = avatarFor(profile.data)
   const displayName =
     profile.data?.handle ?? profile.data?.display_name ?? 'you'
+  const adsVisible = useAdsVisible()
 
   return (
     <aside
@@ -63,7 +66,18 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      <div className="mt-auto px-3 pt-6 text-[10px] text-ink-muted">
+      {/* Sponsored skyscraper. Shown to everyone ads are visible to (§7);
+          gated here on useAdsVisible so the wrapper reserves no space at all
+          when ads are off (build unconfigured or switch off) — SidebarAd
+          itself also returns null if the 160x600 key is unset, as a second
+          line of defense. */}
+      {adsVisible && (
+        <div className="mt-auto pt-6 grid place-items-center">
+          <SidebarAd />
+        </div>
+      )}
+
+      <div className={`${adsVisible ? 'mt-4' : 'mt-auto'} px-3 pt-6 text-[10px] text-ink-muted`}>
         @{displayName}
       </div>
     </aside>

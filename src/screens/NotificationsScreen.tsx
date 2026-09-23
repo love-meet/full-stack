@@ -133,6 +133,46 @@ function actorName(n: AppNotification): string {
   )
 }
 
+// What 0094's play_chat_move writes when a client omits `p_summary`
+// (`coalesce(p_summary, row.kind::text)`) — a bare game-kind id, not prose.
+// A `game_round` body equal to one of these (or null/empty) falls back to
+// the generic copy instead of being rendered as if it were a sentence.
+const GAME_KIND_IDS = new Set([
+  'tic_tac_toe',
+  'connect_four',
+  'rock_paper_scissors',
+  'nim',
+  'word_guess',
+  'dots_and_boxes',
+  'draughts',
+  'number_duel',
+])
+
+// `p_summary` (0094:272) is taken verbatim from the client with no length
+// limit on `notifications.body` — a legitimate summary is short, but a
+// modified client could push arbitrary-length text into an opponent's
+// notification list attributed to them. React escapes it (no XSS), but
+// render-time length is still ours to bound. 140 chars is generous for the
+// short, fixed-shape summaries every game module actually produces; house
+// pattern for this is `tg_notify_comment`'s `substring(new.body for 120)`.
+const GAME_ROUND_BODY_MAX = 140
+
+/** `game_round` bodies (withdraw/resign text from 0114, and every game
+ *  module's `p_summary`) are phrased to follow "{who} " and don't carry
+ *  their own full stop; add one unless the body already ends in
+ *  terminal punctuation. Falls back to the pre-0114 fixed copy when there
+ *  is no usable body. Truncated to `GAME_ROUND_BODY_MAX` BEFORE the
+ *  punctuation check, so a cut string never comes out as "..", and gets
+ *  "…" instead of a "." so a mid-word cut doesn't read as a complete
+ *  sentence. */
+function gameRoundBody(body: string | null): string {
+  const raw = body?.trim() ?? ''
+  if (!raw || GAME_KIND_IDS.has(raw)) return 'made a move. Your turn.'
+  const trimmed = raw.slice(0, GAME_ROUND_BODY_MAX)
+  if (trimmed.length < raw.length) return `${trimmed}…`
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`
+}
+
 function message(n: AppNotification): React.ReactNode {
   const who = <span className="font-semibold">{actorName(n)}</span>
   switch (n.type) {
@@ -151,7 +191,7 @@ function message(n: AppNotification): React.ReactNode {
     case 'support_user_msg': return <>{who} messaged live support: <span className="text-ink-2">“{n.body}”</span></>
     case 'support_reply': return <>Support replied{n.body ? <>: <span className="text-ink-2">“{n.body}”</span></> : ''} 🛟</>
     case 'game_invite': return <>{who} invited you to play a game 🎮 Tap to join.</>
-    case 'game_round': return <>{who} made a move. Your turn.</>
+    case 'game_round': return <>{who} {gameRoundBody(n.body)}</>
     case 'game_join': return <>{who} joined your game 🎮</>
     case 'game_waiting': return <>⏰ It's your turn — your opponent is waiting. Tap to play.</>
     // Transactional / system notifications carry their full text in body.

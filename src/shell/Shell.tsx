@@ -7,6 +7,7 @@ import NotifPermissionBanner from './NotifPermissionBanner'
 import { usePresenceInit } from '../hooks/usePresenceInit'
 import { useEnsureBrowserNotifications } from '../hooks/useBrowserNotifications'
 import { useIncomingMessageAlerts } from '../hooks/useIncomingMessageAlerts'
+import { useAdSettingsRealtime } from '../hooks/useAds'
 
 // Routes that take over the whole mobile viewport — no bottom nav, no main
 // padding-bottom for the nav. Sidebar still shows on desktop.
@@ -18,6 +19,13 @@ export default function Shell() {
   usePresenceInit()
   useEnsureBrowserNotifications()
   useIncomingMessageAlerts()
+  // This is the app's SINGLE mount of useAdSettingsRealtime() — do not add
+  // another one anywhere else. realtime-js returns the existing channel for
+  // a topic that's already open, so a second mount (e.g. on the admin
+  // screen) would share this subscription, and that component unmounting
+  // would silently tear it down for the whole app, killing the live kill
+  // switch for every user.
+  useAdSettingsRealtime()
 
   const immersive = IMMERSIVE_ROUTES.some(
     (p) => location.pathname === p || location.pathname.startsWith(`${p}/`),

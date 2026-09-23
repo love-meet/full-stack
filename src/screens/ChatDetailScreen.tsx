@@ -19,6 +19,9 @@ import ChatBubble from '../components/chat/ChatBubble'
 import TypingIndicatorBubble from '../components/chat/TypingIndicatorBubble'
 import MessageActionsSheet from '../components/chat/MessageActionsSheet'
 import ChatOptionsSheet from '../components/chat/ChatOptionsSheet'
+import ChatGameCard, { isDismissed } from '../components/chat/ChatGameCard'
+import GamePickerSheet from '../components/chat/GamePickerSheet'
+import { useChatGames, useChatGamesRealtime } from '../hooks/useChatGames'
 import { useUploadChatMedia, type ChatMediaUpload } from '../hooks/useUploadChatMedia'
 
 type ComposerMode =
@@ -59,9 +62,54 @@ export function ChatPane({
 
   const [actionsFor, setActionsFor] = useState<Message | null>(null)
   const [needCredits, setNeedCredits] = useState(false)
+  const [gamePickerOpen, setGamePickerOpen] = useState(false)
 
   // Games in this chat. Realtime keeps the board in step without anyone
   // needing to be present — that is the whole point of turn-based (§8).
+  const gamesQ = useChatGames(conversationId)
+  useChatGamesRealtime(conversationId)
+  // Bumped by each ChatGameCard's `onDismissed` callback, fired right after
+  // it writes to `localStorage` and flips its own local `closed` state.
+  // Dismissal lives entirely inside ChatGameCard, and neither the write nor
+  // the state flip touches `gamesQ.data` or fires a same-tab `storage`
+  // event — so without this nudge `visibleGames` would not re-run
+  // `isDismissed` until something else happened to re-render this
+  // component. `dismissTick` itself is just the re-render nudge; the
+  // `onDismissed` callback is what makes it an explicit signal rather than
+  // an inferred one (a wrapper `onClick` on the strip used to stand in for
+  // this, but it fired on any click and missed Withdraw, whose dismissal
+  // happens asynchronously after the originating click).
+  const [dismissTick, setDismissTick] = useState(0)
+  // Strip shows invited/active games plus anything that finished in the last
+  // 24h so the payoff move (the win) is still visible for a day (D14), minus
+  // whatever the user has locally closed on THIS card (`isDismissed`, owned
+  // by ChatGameCard — reused here rather than re-reading its localStorage
+  // key directly, so the two never drift). Filtering dismissal here (not
+  // just inside the card) is what keeps the wrapper itself from rendering an
+  // empty bordered band once every game in it has been closed.
+  const visibleGames = useMemo(
+    () =>
+      (gamesQ.data ?? []).filter(
+        (g) =>
+          !isDismissed(g.id) &&
+          (g.status === 'invited' ||
+            g.status === 'active' ||
+            (g.status === 'finished' && !!g.finished_at && isRecentlyFinished(g.finished_at))),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dismissTick is a manual re-check nudge, not a data dependency
+    [gamesQ.data, dismissTick],
+  )
+  // Kinds already in progress in this chat, so the picker can label them
+  // "In progress" instead of firing a create RPC that would just hand back
+  // the same row (D16).
+  const liveGameKinds = useMemo(
+    () =>
+      (gamesQ.data ?? [])
+        .filter((g) => g.status === 'invited' || g.status === 'active')
+        .map((g) => g.kind),
+    [gamesQ.data],
+  )
+
   const [mode, setMode] = useState<ComposerMode>({ kind: 'idle' })
   const [chatMenuOpen, setChatMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -150,6 +198,15 @@ export function ChatPane({
             verified={otherVerified}
           />
         )}
+        {conversationId && (
+          <button
+            onClick={() => setGamePickerOpen(true)}
+            aria-label="Play a game"
+            className="text-ink-2 hover:text-ink text-xl leading-none px-2 py-2"
+          >
+            🎲
+          </button>
+        )}
         {conv.data?.other_id && (
           <button
             onClick={() => setChatMenuOpen(true)}
@@ -160,6 +217,24 @@ export function ChatPane({
           </button>
         )}
       </header>
+
+      {/* Live games sit above the messages: turn-based and asynchronous, so a
+          board is a thing you come back to, not something you have to be
+          present for. Bounded height so a long list of games can never push
+          the conversation itself out of view. Each card reports its own
+          dismissal via onDismissed (see dismissTick above), so this wrapper
+          no longer needs to infer anything from clicks. */}
+      {visibleGames.length > 0 && (
+        <div className="shrink-0 px-3 pt-2 border-b border-white/5 max-h-[60vh] overflow-y-auto no-scrollbar">
+          {visibleGames.map((g) => (
+            <ChatGameCard
+              key={g.id}
+              game={g}
+              onDismissed={() => setDismissTick((t) => t + 1)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* In-chat search bar — toggled from the chat ⋯ menu. */}
       {searchOpen && (
@@ -247,6 +322,16 @@ export function ChatPane({
 
       <AnimatePresence>
         {needCredits && <OutOfCreditsSheet onClose={() => setNeedCredits(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {gamePickerOpen && conversationId && (
+          <GamePickerSheet
+            conversationId={conversationId}
+            liveKinds={liveGameKinds}
+            onClose={() => setGamePickerOpen(false)}
+          />
+        )}
       </AnimatePresence>
 
       <AnimatePresence>
@@ -884,6 +969,13 @@ function pickAudioMime(): string {
     if (MediaRecorder.isTypeSupported(c)) return c
   }
   return ''
+}
+
+/** Finished games stay in the strip for a day so the payoff move (the win)
+ *  is still visible — see visibleGames in ChatPane and D14 of the plan. */
+function isRecentlyFinished(finishedAt: string): boolean {
+  const DAY_MS = 24 * 60 * 60 * 1000
+  return Date.now() - new Date(finishedAt).getTime() < DAY_MS
 }
 
 function fmtRec(secs: number): string {
