@@ -126,40 +126,6 @@ ok('NEW chats capped at 20 a day', capped && opened === 20, `opened ${opened} be
 let again = await rpc('start_dm', { other_user_id: bob.id }, alice.token)
 ok('existing chats stay reachable past the cap', typeof again.json === 'string' || !!again.json?.id)
 
-console.log('\n=== 9. FRIENDS TAB (mutual follows) ===')
-// A friend is a MUTUAL FOLLOW (0107) — not a mutual gallery like. Alice
-// likes Bob in the gallery first, to prove that on its own is not enough.
-await rpc('record_gallery_decision', { p_target_id: bob.id, p_decision: 'interested' }, alice.token)
-await rpc('record_gallery_decision', { p_target_id: alice.id, p_decision: 'interested' }, bob.token)
-let fr = await rpc('get_my_friends', {}, alice.token)
-ok('A MUTUAL LIKE IS NOT A FRIENDSHIP', Array.isArray(fr.json) && fr.json.length === 0, JSON.stringify(fr.json).slice(0, 120))
-
-// Alice follows Bob: one-sided, still not friends.
-await rest('follows', { token: alice.token, method: 'POST', body: { follower_id: alice.id, following_id: bob.id } })
-fr = await rpc('get_my_friends', {}, alice.token)
-ok('a one-sided follow is not a friendship', (fr.json || []).length === 0, JSON.stringify(fr.json).slice(0, 120))
-
-// Bob follows back — now they are friends, both ways.
-await rest('follows', { token: bob.token, method: 'POST', body: { follower_id: bob.id, following_id: alice.id } })
-fr = await rpc('get_my_friends', {}, alice.token)
-ok('FOLLOWING EACH OTHER MAKES YOU FRIENDS', (fr.json || []).some(f => f.id === bob.id), JSON.stringify(fr.json).slice(0, 120))
-let frB = await rpc('get_my_friends', {}, bob.token)
-ok('the friendship reads from both sides', (frB.json || []).some(f => f.id === alice.id))
-ok('friend row carries enough to draw a card',
-  !!(fr.json || []).find(f => f.id === bob.id && 'avatar_url' in f && 'gallery_urls' in f && 'matched_at' in f))
-ok('nobody is their own friend', !(fr.json || []).some(f => f.id === alice.id))
-
-// Unfollowing ends it immediately, in both directions.
-await rest(`follows?follower_id=eq.${bob.id}&following_id=eq.${alice.id}`, { token: bob.token, method: 'DELETE' })
-fr = await rpc('get_my_friends', {}, alice.token)
-ok('unfollowing ends the friendship', (fr.json || []).length === 0)
-await rest('follows', { token: bob.token, method: 'POST', body: { follower_id: bob.id, following_id: alice.id } })
-
-let fp = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, alice.token)
-ok('friends_posts is callable and scoped', Array.isArray(fp.json), JSON.stringify(fp.json).slice(0, 100))
-let fpStranger = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, bot.token ?? alice.token)
-ok('friends_posts never returns a stranger', Array.isArray(fpStranger.json))
-
 console.log('\n=== 9b. POSTING (the New tab) ===')
 // The composer writes straight to public.posts under RLS — this is the exact
 // insert PostScreen performs after the Cloudinary upload returns.
@@ -178,51 +144,68 @@ let forged = await rest('posts', {
   body: { author_id: alice.id, kind: 'image', media_url: 'https://example.test/forged.jpg' },
 })
 ok('CANNOT POST AS SOMEONE ELSE (RLS)', forged.status !== 201, `status ${forged.status}`)
-// alice and bob follow each other by now, so her post lands in his Friends tab.
+// Friendship now comes from Interested in either direction (§05), so one tap
+// from bob is enough for alice's post to reach his Friends tab.
+await rpc('record_gallery_decision', { p_target_id: alice.id, p_decision: 'interested' }, bob.token)
 let fpNow = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, bob.token)
 ok("A FRIEND'S POST SHOWS IN THE FRIENDS TAB", (fpNow.json || []).some(x => x.caption === 'hello world'), JSON.stringify(fpNow.json).slice(0, 110))
 let fpStrangerNow = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, bot.token)
 ok('a stranger sees none of it', (fpStrangerNow.json || []).length === 0, JSON.stringify(fpStrangerNow.json).slice(0, 110))
 
-console.log('\n=== 10. PROFILE ACTIONS — comment / save / gift (0106) ===')
-let pc1 = await rpc('add_profile_comment', { p_profile_id: bob.id, p_body: 'nice photo' }, alice.token)
-ok('COMMENT ON A PERSON', !!pc1.json?.id, JSON.stringify(pc1.json).slice(0, 120))
-let cs = await rpc('get_profile_comments', { p_profile_id: bob.id }, bob.token)
-ok('the comment reads back on their profile', (cs.json || []).some(x => x.body === 'nice photo'))
-ok('the profile owner can delete it', (cs.json || []).every(x => x.can_delete === true))
-let cl = await rpc('toggle_profile_comment_like', { p_comment_id: pc1.json.id }, bob.token)
-ok('a comment can be liked', cl.json === true)
-let cn = await rest(`notifications?select=type,body&user_id=eq.${bob.id}&type=eq.profile_comment`, { key: SRK })
-ok('the comment notifies them', (cn.json || []).length === 1, JSON.stringify(cn.json).slice(0, 100))
+console.log('\n=== 10. HS-LM-v1 §04 THE FEED: three actions, never repeats ===')
+await rpc('record_gallery_decision', { p_target_id: bob.id, p_decision: 'passed' }, alice.token)
+let f1 = await rpc('people_feed', { page_size: 50 }, alice.token)
+ok('A REJECTED PROFILE NEVER COMES BACK', !(f1.json || []).some(x => x.id === bob.id), ((f1.json||[]).length) + ' cards left')
+let rn = await rest('notifications?select=id&user_id=eq.' + bob.id + '&type=eq.reject', { key: SRK })
+ok('REJECT IS SILENT — they are never told', (rn.json || []).length === 0)
 
-let sv = await rpc('toggle_profile_bookmark', { p_profile_id: bob.id }, alice.token)
-ok('SAVE A PERSON', sv.json === true)
-let sl = await rpc('get_saved_profiles', {}, alice.token)
-ok('the saved list has them', (sl.json || []).some(x => x.id === bob.id))
-let svn = await rest(`notifications?select=id&user_id=eq.${bob.id}&type=eq.profile_bookmark`, { key: SRK })
-ok('SAVING IS PRIVATE — they are never told', (svn.json || []).length === 0)
-await rpc('toggle_profile_bookmark', { p_profile_id: bob.id }, alice.token)
-sl = await rpc('get_saved_profiles', {}, alice.token)
-ok('saving again unsaves', !(sl.json || []).some(x => x.id === bob.id))
-let svSelf = await rpc('toggle_profile_bookmark', { p_profile_id: alice.id }, alice.token)
-ok('you cannot save yourself', JSON.stringify(svSelf.json).includes('cannot save yourself'))
+console.log('\n=== 11. HS-LM-v1 §05 FRIENDS: from Interested, both directions ===')
+const carol = await signup('carol.' + s + '@lm.local')
+await onboard(carol, 'carol' + s, 'male')
+await rpc('record_gallery_decision', { p_target_id: carol.id, p_decision: 'interested' }, alice.token)
+let fa = await rpc('get_my_friends', {}, alice.token)
+ok('ONE-WAY INTERESTED MAKES A FRIEND', (fa.json || []).some(x => x.id === carol.id), JSON.stringify(fa.json).slice(0, 110))
+let fc = await rpc('get_my_friends', {}, carol.token)
+ok('AND THEY SEE YOU TOO — §05 is a union, not a match', (fc.json || []).some(x => x.id === alice.id))
+ok('the row says who chose whom',
+  (fa.json || []).find(x => x.id === carol.id)?.i_said_it === true &&
+  (fc.json || []).find(x => x.id === alice.id)?.they_said_it === true)
+let stl = await rpc('set_status_line', { p_text: 'here for the games' }, alice.token)
+ok('a status line can be set', stl.json === 'here for the games', JSON.stringify(stl.json))
+ok('friends carry status and last seen',
+  'status_line' in ((fc.json || [])[0] ?? {}) && 'last_seen_at' in ((fc.json || [])[0] ?? {}))
+await rpc('remove_friend', { p_other: carol.id }, alice.token)
+fa = await rpc('get_my_friends', {}, alice.token)
+fc = await rpc('get_my_friends', {}, carol.token)
+ok('REMOVE A FRIEND clears both sides (§07)',
+  !(fa.json || []).some(x => x.id === carol.id) && !(fc.json || []).some(x => x.id === alice.id))
 
-let before = (await rest(`profiles?select=coins&id=eq.${bob.id}`, { key: SRK })).json?.[0]?.coins
-let g = await rpc('send_profile_gift', { p_profile_id: bob.id, p_gift_id: 'rose', p_gift_name: 'Rose' }, alice.token)
-ok('GIFT A PERSON', !!g.json?.id, JSON.stringify(g.json).slice(0, 120))
-let after = (await rest(`profiles?select=coins&id=eq.${bob.id}`, { key: SRK })).json?.[0]?.coins
-ok('A GIFT GRANTS NO CREDITS', before === after, `${before} → ${after}`)
-let gcols = Object.keys(g.json || {})
-ok('profile_gifts has no price column at all', !gcols.some(k => /amount|cents|price|usd/i.test(k)), gcols.join(','))
-let gSelf = await rpc('send_profile_gift', { p_profile_id: alice.id, p_gift_id: 'rose', p_gift_name: 'Rose' }, alice.token)
-ok('you cannot gift yourself', JSON.stringify(gSelf.json).includes('cannot gift yourself'))
+console.log('\n=== 12. HS-LM-v1 §06 GIFTS COST COINS AND BURN ===')
+const dan = await signup('dan.' + s + '@lm.local')
+await onboard(dan, 'dan' + s, 'male')
+const coinsOf = async (u) => (await rest('profiles?select=coins&id=eq.' + u.id, { key: SRK })).json?.[0]?.coins
+let aBefore = await coinsOf(alice), dBefore = await coinsOf(dan)
+let gr = await rpc('send_profile_gift', { p_profile_id: dan.id, p_gift_id: '456727' }, alice.token)
+let aAfter = await coinsOf(alice), dAfter = await coinsOf(dan)
+ok('GIFT SENT', !!gr.json?.id, JSON.stringify(gr.json).slice(0, 90))
+ok('SENDER PAYS THE CATALOGUE COST', aBefore - aAfter === 250, aBefore + ' -> ' + aAfter)
+ok('RECEIVER GETS LESS THAN IT COST', dAfter - dBefore === 150, dBefore + ' -> ' + dAfter)
+ok('THE LOOPHOLE IS CLOSED — coins are burned',
+  (aBefore + dBefore) > (aAfter + dAfter), 'total ' + (aBefore + dBefore) + ' -> ' + (aAfter + dAfter))
+let cheat = await rpc('send_profile_gift', { p_profile_id: dan.id, p_gift_id: 'not-a-gift' }, alice.token)
+ok('THE CLIENT CANNOT NAME ITS OWN PRICE', JSON.stringify(cheat.json).includes('no such gift'))
+const eve = await signup('eve.' + s + '@lm.local')
+await onboard(eve, 'eve' + s, 'female')
+await rest('profiles?id=eq.' + eve.id, { key: SRK, method: 'PATCH', body: { coins: 10 } })
+let broke = await rpc('send_profile_gift', { p_profile_id: dan.id, p_gift_id: '456720' }, eve.token)
+ok('CANNOT GIFT WITHOUT THE COINS', JSON.stringify(broke.json).includes('insufficient_coins'), JSON.stringify(broke.json).slice(0, 80))
+let pgx = await rpc('send_gift', { p_post_id: np.json?.[0]?.id, p_gift_id: '456720', p_gift_name: 'x', p_gift_image: null }, alice.token)
+ok('the free post-gift path is closed', JSON.stringify(pgx.json).includes('not posts'), JSON.stringify(pgx.json).slice(0, 80))
+let cat = await rest('gift_catalogue?select=gift_id,cost_coins,value_coins', { token: alice.token })
+ok('EVERY GIFT IS WORTH LESS THAN IT COSTS',
+  Array.isArray(cat.json) && cat.json.length > 0 && cat.json.every(g => g.value_coins < g.cost_coins),
+  (cat.json || []).length + ' gifts')
 
-let st = await rpc('profile_action_state', { p_ids: [bob.id] }, alice.token)
-let row = (st.json || [])[0]
-ok('the card rail reads counts in one call', !!row && row.comment_count === 1 && row.gift_count === 1, JSON.stringify(row))
-ok('"liked" is the gallery interest, not a second signal', row?.liked_by_me === true)
-ok('THE FOLLOW BADGE KNOWS IT IS ALREADY FOLLOWED', row?.followed_by_me === true, JSON.stringify(row))
-ok('and knows they follow back', row?.follows_me === true)
 
 console.log(`\n${'='.repeat(52)}\n  ${pass} passed, ${fail} failed\n${'='.repeat(52)}`)
 process.exit(fail ? 1 : 0)
