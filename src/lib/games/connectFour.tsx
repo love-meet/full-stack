@@ -29,7 +29,7 @@ function winsAt(state: ConnectFourState, col: number, row: number, role: Role): 
 const DISC: Record<Role, string> = { a: 'bg-rose', b: 'bg-gold' }
 
 function Board({ state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<ConnectFourState>) {
-  async function drop(c: number) {
+  function drop(c: number) {
     if (!isMyTurn || busy || finished) return
     if (state.cols[c].length >= ROWS) return
     const cols = state.cols.map((col) => col.slice())
@@ -37,7 +37,7 @@ function Board({ state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<C
     const next = { cols }
     const won = winsAt(next, c, cols[c].length - 1, myRole)
     const full = cols.every((col) => col.length >= ROWS)
-    await onMove({
+    onMove({
       state: next,
       finished: won || full,
       winner: won ? myRole : null,

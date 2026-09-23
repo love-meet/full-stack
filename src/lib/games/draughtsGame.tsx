@@ -21,55 +21,19 @@ import {
 } from '../draughts'
 
 /**
- * Draughts, on the rules engine carried over from the old real-time version
- * (`src/lib/draughts.ts`, untouched — pure, framework-free, already exercised
- * by a shipped game). Role 'a' plays red ('r'), 'b' plays black ('b'); red
- * moves first.
+ * Draughts, on the rules engine from the old real-time version.
  *
- * RULES IMPLEMENTED HERE, STATED PLAINLY:
- * - Captures are FORCED: if any of your pieces can capture, only capturing
- *   moves are offered (`legalMoves` drops every plain step the moment one
- *   capture exists anywhere on the board for that side).
- * - A capture chain is forced to CONTINUE, but not to be MAXIMAL: once a
- *   jump is taken, the same piece must keep jumping while it still can
- *   (`chainFrom`, below), but if a player has more than one initial capture
- *   to choose from — e.g. two different pieces can each start a chain, one
- *   shorter than the other — either is legal. Only that one piece may move,
- *   and only its own further captures, until its chain ends.
- * - Kings FLY: a king moves or captures any distance along an open diagonal
- *   (`kingCapturesFrom`/plain king steps in the engine), not just one square.
- * - Promotion looks only at where a move ENDS — `applyMove` (draughts.ts:201-219)
- *   checks only `move.to` against the far back rank, for a plain step exactly
- *   as much as for a capture. A chain still in progress is walked with pawn
- *   geometry the whole way (`pawnCapturesFrom`), so crossing the back rank
- *   partway through a chain does not promote. If a chain does land on the
- *   back rank and the newly-made king can still capture from there, that next
- *   hop is offered using the king's (flying) capture rules — promotion does
- *   not by itself end the turn.
- * - NO draw rule: two kings can shuffle forever with nothing in this engine
- *   to call it. Resign is the only way out of a dead position (S-3 in the
- *   plan); `outcome === 'draw'` is unreachable for this game but the branch
- *   is kept for type-shape parity with the other boards.
- *
- * MULTI-JUMP ACROSS TURNS (D11): `DraughtsState.chainFrom` records the
- * square a forced continuation must move from. `ChatGameCard` remounts the
- * Board on every accepted move (keyed on `move_count`), which would
- * otherwise drop any local "mid-chain" selection; carrying it in server
- * state instead means both devices, a reload, or a stale refetch all agree
- * on which piece is mid-chain.
+ * lib/draughts.ts is pure — board, legal moves, apply, loss detection — so it
+ * survived Phase 0 untouched and this is just a new surface on it. Role 'a'
+ * plays red, 'b' plays black; red moves first.
  */
 export type DraughtsState = {
   board: DraughtsBoardT
-  /** Mirrors whichever colour is next to move; for rendering/status only —
-   *  the server's `turn_user_id` (via `nextTurn`) is what actually gates play. */
   turn: PieceColor
-  /** Set when the mover must continue a capture chain from this square.
-   *  Cleared (null) whenever the turn changes hands. */
-  chainFrom: Square | null
 }
 
 const COLOR_OF: Record<Role, PieceColor> = { a: 'r', b: 'b' }
-const OPPONENT_COLOR: Record<PieceColor, PieceColor> = { r: 'b', b: 'r' }
+const ROLE_OF: Record<PieceColor, Role> = { r: 'a', b: 'b' }
 
 function sameSquare(a: Square, b: Square) {
   return a.r === b.r && a.c === b.c
@@ -77,44 +41,43 @@ function sameSquare(a: Square, b: Square) {
 
 function Board({ state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<DraughtsState>) {
   const myColor = COLOR_OF[myRole]
-  const forced = isMyTurn && !finished ? state.chainFrom : null
-  const [selected, setSelected] = useState<Square | null>(forced)
+  const [selected, setSelected] = useState<Square | null>(null)
 
   const myLegal = useMemo(
     () => (isMyTurn && !finished ? legalMoves(state.board, myColor) : []),
     [state.board, myColor, isMyTurn, finished],
   )
 
-  // While mid-chain, only the forced piece may be picked up.
-  const fromSquares = useMemo(() => {
-    if (forced) return new Set([`${forced.r},${forced.c}`])
-    return new Set(myLegal.map((m) => `${m.from.r},${m.from.c}`))
-  }, [myLegal, forced])
+  const fromSquares = useMemo(
+    () => new Set(myLegal.map((m) => `${m.from.r},${m.from.c}`)),
+    [myLegal],
+  )
 
   const options = useMemo(
     () => (selected ? legalMovesFrom(state.board, selected, myColor) : []),
     [selected, state.board, myColor],
   )
 
-  async function play(move: Move) {
+  function play(move: Move) {
     if (!isMyTurn || busy || finished) return
     const board = applyMove(state.board, move)
-    const captureCount = move.captures.length
-    // A multi-jump leaves the same colour to move; the engine reports that
-    // by still having captures available from the landing square (whether
-    // the piece is still a pawn or was just promoted to a king).
-    const chain = captureCount > 0 ? legalMovesFrom(board, move.to, myColor).filter((m) => m.captures.length > 0) : []
-    const continues = chain.length > 0
-    const nextColor = OPPONENT_COLOR[myColor]
-    const opponentLost = !continues && isLost(board, nextColor)
-    const pieceWord = captureCount === 1 ? 'a piece' : `${captureCount} pieces`
+    const nextColor = other(myRole) === 'a' ? 'r' : 'b'
+    // A multi-jump leaves the same colour to move; the engine reports that by
+    // still having captures available from the landing square.
+    const chain = move.captures?.length
+      ? legalMovesFrom(board, move.to, myColor).filter((m) => m.captures?.length)
+      : []
+    const keepsTurn = chain.length > 0
+    const turn: PieceColor = keepsTurn ? myColor : nextColor
+    const opponentLost = !keepsTurn && isLost(board, nextColor)
 
-    await onMove({
-      state: { board, turn: continues ? myColor : nextColor, chainFrom: continues ? move.to : null },
-      nextTurn: continues ? myRole : other(myRole),
+    setSelected(keepsTurn ? move.to : null)
+    onMove({
+      state: { board, turn },
+      nextTurn: keepsTurn ? myRole : other(myRole),
       finished: opponentLost,
       winner: opponentLost ? myRole : null,
-      summary: opponentLost ? 'won at draughts' : captureCount > 0 ? `took ${pieceWord}` : 'moved',
+      summary: opponentLost ? 'won at draughts' : move.captures?.length ? 'took a piece' : 'moved',
     })
   }
 
@@ -163,15 +126,16 @@ function Board({ state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<D
                       {piece.king ? '♔' : ''}
                     </span>
                   )}
-                  {target && <span className="absolute w-3 h-3 rounded-full bg-gold/80" />}
+                  {target && (
+                    <span className="absolute w-3 h-3 rounded-full bg-gold/80" />
+                  )}
                 </button>
               )
             })}
           </div>
         ))}
       </div>
-      {/* No deselect while a chain is forced — the piece must finish jumping. */}
-      {selected && !forced && (
+      {selected && (
         <button
           onClick={() => setSelected(null)}
           className="mt-2 w-full text-xs text-ink-muted hover:text-ink"
@@ -187,18 +151,19 @@ export const draughts: GameDef<DraughtsState> = {
   kind: 'draughts',
   name: 'Draughts',
   emoji: '⚫',
-  blurb: 'Classic 8x8 draughts. Jumps are forced, kings fly.',
-  initialState: () => ({ board: initialBoard(), turn: 'r', chainFrom: null }),
+  blurb: 'Classic 8×8 draughts. Jumps are forced.',
+  initialState: () => ({ board: initialBoard(), turn: 'r' }),
   status: (state, myRole, isMyTurn, outcome) => {
     if (outcome === 'draw') return 'A draw.'
     if (outcome) return outcome === 'won' ? 'You win.' : 'They win this one.'
     if (isMyTurn) {
-      if (state.chainFrom) return 'Your turn — keep taking'
       const mine = legalMoves(state.board, COLOR_OF[myRole])
-      const forced = mine.some((m) => m.captures.length > 0)
+      const forced = mine.some((m) => m.captures?.length)
       return forced ? 'Your turn — you must take' : 'Your turn'
     }
     return 'Waiting for them'
   },
   Board,
 }
+
+export { ROLE_OF }

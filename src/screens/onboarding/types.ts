@@ -23,6 +23,14 @@
 export type Gender = 'male' | 'female' | 'nonbinary' | 'other' | 'prefer_not_to_say'
 
 export type FormData = {
+  // Step 3 — the agreement.
+  //
+  // §07 requires consent captured at signup and recorded with a timestamp.
+  // It is a checkbox rather than an implied "by continuing you agree",
+  // because an implied consent is the one a regulator throws out — and it
+  // costs one tap on a screen that already exists rather than a fourth step.
+  consent: boolean
+
   // Step 1 — You
   username: string
   // Transient: live username availability (not persisted). null = unknown
@@ -48,6 +56,7 @@ export type FormData = {
 }
 
 export const initialFormData: FormData = {
+  consent: false,
   username: '',
   usernameAvailable: null,
   gender: '',

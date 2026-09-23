@@ -176,13 +176,13 @@ export function creditLabel(kind: CreditKind, note?: string | null): string {
   // the kind alone renders them as a pair of mysterious "Adjustment" entries
   // that net to zero. The note says what actually happened — use it.
   if (kind === 'admin_adjust' && note) {
-    if (note.startsWith('Opening balance')) return 'Your old coins'
+    if (note.startsWith('Opening balance')) return 'Your old balance'
     if (note.startsWith('Reset from'))      return 'Old coins cleared'
   }
   switch (kind) {
-    case 'signup_grant':  return 'Welcome credits'
+    case 'signup_grant':  return 'Welcome coins'
     case 'message_day':   return "A day's messaging"
-    case 'purchase':      return 'Credits added'
+    case 'purchase':      return 'Coins added'
     case 'gift_received': return 'Gift received'
     case 'admin_adjust':  return 'Adjustment'
   }
@@ -192,10 +192,10 @@ export function creditLabel(kind: CreditKind, note?: string | null): string {
 export function creditNote(kind: CreditKind, note?: string | null): string | null {
   if (kind !== 'admin_adjust' || !note) return null
   if (note.startsWith('Opening balance')) {
-    return 'Carried over when credits replaced the old coins'
+    return 'Carried over from your old balance'
   }
   if (note.startsWith('Reset from')) {
-    return 'Replaced by your 1,000 welcome credits'
+    return 'Replaced by your 1,000 welcome coins'
   }
   return null
 }

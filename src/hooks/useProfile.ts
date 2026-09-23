@@ -14,6 +14,8 @@ export type Profile = {
   gender: 'female' | 'male' | 'nonbinary' | 'other' | 'prefer_not_to_say' | null
   dob: string | null
   bio: string | null
+  /** A short line you set yourself, shown on your friends' lists (§05). */
+  status_line: string | null
   looking_for: 'serious' | 'casual' | 'friends' | null
   interests: string[]
   language: string | null
@@ -70,6 +72,7 @@ export type ProfileUpdate = Partial<
     | 'gender'
     | 'dob'
     | 'bio'
+    | 'status_line'
     | 'looking_for'
     | 'interests'
     | 'language'

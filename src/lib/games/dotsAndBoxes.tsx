@@ -7,23 +7,13 @@
 import type { BoardProps, GameDef, Role } from './types'
 import { other } from './types'
 
-/**
- * Dots & Boxes, 3x3 boxes — small enough to finish in a couple of minutes of
- * chat.
- *
- * EXTRA-TURN RULE: closing one or more boxes with a single line keeps the
- * turn with the same player (`nextTurn: myRole`); a line that closes nothing
- * hands over (`nextTurn` omitted). This is the rule that makes the endgame
- * work — a run of already-loaded boxes lets one player sweep several in a
- * row — and it means `nextTurn` is never a blind alternation here, unlike
- * every other game in this module.
- */
+/** 3×3 boxes — small enough to finish in a couple of minutes of chat. */
 export const SIZE = 3
 
 export type DotsState = {
-  /** Horizontal edges: (SIZE+1) rows x SIZE columns. h[r][c] sits above box row r. */
+  /** Horizontal edges: (SIZE+1) rows × SIZE columns. */
   h: (Role | null)[][]
-  /** Vertical edges: SIZE rows x (SIZE+1) columns. v[r][c] sits left of box column c. */
+  /** Vertical edges: SIZE rows × (SIZE+1) columns. */
   v: (Role | null)[][]
   boxes: (Role | null)[][]
 }
@@ -36,7 +26,7 @@ function countBoxes(boxes: (Role | null)[][], role: Role): number {
 }
 
 function Board({ state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<DotsState>) {
-  async function draw(kind: 'h' | 'v', r: number, c: number) {
+  function draw(kind: 'h' | 'v', r: number, c: number) {
     if (!isMyTurn || busy || finished) return
     if (state[kind][r][c]) return
 
@@ -46,8 +36,7 @@ function Board({ state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<D
     if (kind === 'h') h[r][c] = myRole
     else v[r][c] = myRole
 
-    // Claim every box this single edge just closed — can be more than one
-    // when the edge is shared by two boxes that were both already 3/4 done.
+    // Claim any box this edge just closed.
     let claimed = 0
     for (let br = 0; br < SIZE; br++) {
       for (let bc = 0; bc < SIZE; bc++) {
@@ -64,21 +53,15 @@ function Board({ state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<D
     const mine = countBoxes(boxes, myRole)
     const theirs = countBoxes(boxes, other(myRole))
 
-    await onMove({
+    onMove({
       state: next,
-      // Closing >=1 box keeps the turn; a line that closes nothing hands over.
+      // Close a box, go again — the rule that makes the endgame interesting.
       nextTurn: claimed > 0 ? myRole : other(myRole),
       finished: done,
       winner: done ? (mine === theirs ? null : mine > theirs ? myRole : other(myRole)) : null,
       summary: done
-        ? mine > theirs
-          ? 'won at Dots and Boxes'
-          : mine === theirs
-            ? 'drew at Dots and Boxes'
-            : 'finished the game'
-        : claimed > 0
-          ? `closed ${claimed === 1 ? 'a box' : `${claimed} boxes`}`
-          : 'drew a line',
+        ? (mine > theirs ? 'won at Dots and Boxes' : mine === theirs ? 'drew at Dots and Boxes' : 'finished the game')
+        : claimed > 0 ? `closed ${claimed === 1 ? 'a box' : `${claimed} boxes`}` : 'drew a line',
     })
   }
 
@@ -89,7 +72,7 @@ function Board({ state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<D
     <div className="space-y-3">
       <div className="flex items-center justify-center gap-4 text-sm font-bold">
         <span className={TEXT[myRole]}>You {countBoxes(state.boxes, myRole)}</span>
-        <span className="text-ink-muted">-</span>
+        <span className="text-ink-muted">—</span>
         <span className={TEXT[other(myRole)]}>{countBoxes(state.boxes, other(myRole))} Them</span>
       </div>
 
@@ -143,7 +126,7 @@ function Board({ state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<D
                         state.boxes[r][c] === myRole ? 'text-rose' : 'text-gold',
                       ].join(' ')}
                     >
-                      {state.boxes[r][c] ? (state.boxes[r][c] === myRole ? 'You' : '.') : ''}
+                      {state.boxes[r][c] ? (state.boxes[r][c] === myRole ? 'You' : '·') : ''}
                     </span>
                   </div>
                 ))}
@@ -180,7 +163,7 @@ export const dotsAndBoxes: GameDef<DotsState> = {
     boxes: Array.from({ length: SIZE }, () => Array<Role | null>(SIZE).fill(null)),
   }),
   status: (_state, _myRole, isMyTurn, outcome) => {
-    if (outcome === 'draw') return "A draw — honours even."
+    if (outcome === 'draw') return 'A draw — honours even.'
     if (outcome) return outcome === 'won' ? 'You win.' : 'They win this one.'
     return isMyTurn ? 'Your turn — draw a line' : 'Waiting for them'
   },

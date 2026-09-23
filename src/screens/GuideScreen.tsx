@@ -40,10 +40,10 @@ const STEPS: Step[] = [
   },
   {
     emoji: '💬',
-    title: 'Credits are for messaging',
-    body: "100 credits covers the first message you send on any day — after that, message as much as you like until tomorrow. Games are free.",
+    title: 'Coins are for messaging',
+    body: "100 coins covers the first message you send on any day — after that, message as much as you like until tomorrow. Games are free.",
     to: '/credits',
-    cta: 'See credits',
+    cta: 'See coins',
   },
 ]
 

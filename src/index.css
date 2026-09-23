@@ -202,6 +202,38 @@ html {
   scroll-behavior: smooth;
 }
 
+/* ---------------------------------------------------------------------------
+ * Right-to-left (HS-LM-v1 §03)
+ *
+ * Almost nothing is needed here, which is the point: the layout is flexbox
+ * and grid, so setting dir="rtl" on <html> (see i18n/applyDocumentLanguage)
+ * mirrors it on its own. These are the handful of things the browser cannot
+ * infer.
+ *
+ * No RTL locale ships yet. This is the allowance §03 asks for — "retrofitting
+ * Arabic into a finished layout is a rebuild; allowing for it now is an
+ * afternoon" — so that adding one is a translation job and not a redesign.
+ * ------------------------------------------------------------------------ */
+
+/* Back arrows are glyphs, not icons, so the browser will not turn them
+   around. A back button pointing the wrong way is the single most confusing
+   thing in a mirrored interface. */
+[dir='rtl'] .lm-flip {
+  transform: scaleX(-1);
+}
+
+/* Numbers, times and coin balances stay left-to-right inside RTL text —
+   otherwise "1,000 coins" renders as "coins 000,1". */
+[dir='rtl'] .tabular-nums,
+[dir='rtl'] time {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* The ambient orbs are decoration anchored to the viewport; mirroring them
+   would be busywork with no visible benefit, so they are deliberately left
+   where they are. */
+
 /* ---- Landing-page keyframes (ported from _archive/web/src/index.css) ---- */
 
 @keyframes float {

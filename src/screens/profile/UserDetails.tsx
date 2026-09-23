@@ -2,10 +2,9 @@ import type { Profile } from '../../hooks/useProfile'
 
 type Props = {
   profile: Profile
-  isMe: boolean
 }
 
-export default function UserDetails({ profile: p, isMe }: Props) {
+export default function UserDetails({ profile: p }: Props) {
   const age = ageFromDob(p.dob)
   const birthday = formatBirthday(p.dob)
   const location = [p.city, p.region, p.country_name ?? p.country_code]
@@ -32,14 +31,6 @@ export default function UserDetails({ profile: p, isMe }: Props) {
         title="Hobbies"
         value={p.interests.length ? p.interests.join(', ') : 'No hobbies 😭'}
       />
-      {isMe && (
-        <Row
-          icon="◎"
-          iconColor="text-magenta"
-          title="Target age range"
-          value={p.age_min && p.age_max ? `${p.age_min} – ${p.age_max} years` : '—'}
-        />
-      )}
     </div>
   )
 }

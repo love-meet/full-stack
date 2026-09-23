@@ -15,8 +15,7 @@ import { setGameSecret, guessWordLetter } from './secretApi'
  * The word is NOT in this state — it lives in chat_game_secrets, where RLS
  * only ever shows it to the setter. The public state carries the shape of the
  * word and what has been guessed, which is exactly what the guesser is
- * allowed to see. `solution` is filled in only once the game ends, and only
- * when `guess_word_letter` actually returns it (see below).
+ * allowed to see. `solution` is filled in only once the game ends.
  */
 export type WordGuessState = {
   phase: 'setting' | 'guessing'
@@ -44,43 +43,33 @@ function displayFor(state: WordGuessState): string[] {
   return out
 }
 
-function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMove, onError }: BoardProps<WordGuessState>) {
+function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMove }: BoardProps<WordGuessState>) {
   const [draft, setDraft] = useState('')
-  // D13: freeze the word the moment `set_game_secret` succeeds. It cannot be
-  // un-sent (set-once, silent no-op on re-send), so a retry after a failed
-  // `play_chat_move` must resend this exact value, not whatever `draft` has
-  // drifted to since.
-  const [lockedWord, setLockedWord] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const amSetter = state.setter === myRole
   const guesser = other(state.setter)
 
-  const candidate = lockedWord ?? draft.toUpperCase().replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').trim()
-  const candidateValid = candidate.replace(/ /g, '').length >= 3
-
   async function setWord() {
-    if (busy || pending || finished || !isMyTurn) return
-    if (lockedWord === null && !candidateValid) return
+    const word = draft.toUpperCase().replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').trim()
+    if (word.replace(/ /g, '').length < 3 || busy || pending) return
     setPending(true)
+    setError(null)
     try {
-      if (lockedWord === null) {
-        try {
-          await setGameSecret(gameId, { word: candidate })
-        } catch (e) {
-          onError(e)
-          return
-        }
-        setLockedWord(candidate)
-      }
-      const ok = await onMove(
-        {
-          state: { ...state, phase: 'guessing', mask: candidate.replace(/[A-Z]/g, '_') },
-          nextTurn: guesser,
-          summary: 'set a word — your turn to guess',
+      // The word goes to the secrets table; only its shape goes public.
+      await setGameSecret(gameId, { word })
+      onMove({
+        state: {
+          ...state,
+          phase: 'guessing',
+          mask: word.replace(/[A-Z]/g, '_'),
         },
-        { secretSaved: true },
-      )
-      if (ok) setDraft('')
+        nextTurn: guesser,
+        summary: 'set a word — your turn to guess',
+      })
+      setDraft('')
+    } catch (e) {
+      setError((e as Error).message)
     } finally {
       setPending(false)
     }
@@ -89,19 +78,14 @@ function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMov
   async function guess(letter: string) {
     if (!isMyTurn || busy || pending || finished || state.guessed.includes(letter)) return
     setPending(true)
+    setError(null)
     try {
-      let r: Awaited<ReturnType<typeof guessWordLetter>>
-      try {
-        r = await guessWordLetter(gameId, letter)
-      } catch (e) {
-        onError(e)
-        return
-      }
+      const r = await guessWordLetter(gameId, letter)
       const guessed = [...state.guessed, letter]
       const hits = r.hit ? { ...state.hits, [letter]: r.positions } : state.hits
       const wrong = r.hit ? state.wrong : state.wrong + 1
       const lost = wrong >= MAX_WRONG
-      await onMove({
+      onMove({
         state: {
           ...state,
           guessed,
@@ -115,6 +99,8 @@ function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMov
         winner: r.solved ? guesser : lost ? state.setter : null,
         summary: r.solved ? 'guessed the word' : lost ? 'ran out of guesses' : `guessed ${letter}`,
       })
+    } catch (e) {
+      setError((e as Error).message)
     } finally {
       setPending(false)
     }
@@ -128,25 +114,24 @@ function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMov
     return (
       <div className="space-y-3">
         <input
-          value={lockedWord ?? draft}
+          value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="A word or short phrase"
           maxLength={24}
-          disabled={pending || finished || lockedWord !== null || !isMyTurn}
-          className="lm-input w-full text-center tracking-[0.2em] uppercase disabled:opacity-70"
+          className="lm-input w-full text-center tracking-[0.2em] uppercase"
           aria-label="Word to guess"
         />
         <button
           onClick={setWord}
-          disabled={pending || busy || finished || !isMyTurn || (lockedWord === null && !candidateValid)}
+          disabled={draft.replace(/[^a-zA-Z]/g, '').length < 3 || busy || pending}
           className="w-full rounded-full py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose disabled:opacity-50"
         >
           {pending ? 'Setting…' : 'Set the word'}
         </button>
-        {lockedWord && <p className="text-xs text-ink-muted text-center">Saved — tap again to send.</p>}
         <p className="text-xs text-ink-muted text-center">
           Letters and spaces. They get {MAX_WRONG} wrong guesses. They never see the word — not even in the page source.
         </p>
+        {error && <p className="text-xs text-danger text-center">{error}</p>}
       </div>
     )
   }
@@ -205,19 +190,10 @@ function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMov
         </div>
       )}
 
-      {outcome && (
-        state.solution ? (
-          <p className="text-center text-sm font-bold text-ink">The word was “{state.solution}”.</p>
-        ) : (
-          // 0095's guess_word_letter only returns the word once solved — on a
-          // loss the guesser is never handed it by the server, so there is
-          // nothing to reveal here. Say so instead of showing nothing.
-          <p className="text-center text-sm text-ink-muted">
-            {amSetter
-              ? 'They ran out of guesses. You win — the word stays between you.'
-              : "Out of guesses. It isn't revealed here — ask them in chat."}
-          </p>
-        )
+      {error && <p className="text-center text-xs text-danger">{error}</p>}
+
+      {outcome && state.solution && (
+        <p className="text-center text-sm font-bold text-ink">The word was “{state.solution}”.</p>
       )}
     </div>
   )

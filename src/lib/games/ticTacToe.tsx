@@ -24,13 +24,13 @@ function winnerOf(cells: (Role | null)[]): Role | null {
 const MARK: Record<Role, string> = { a: '✕', b: '◯' }
 
 function Board({ state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<TicTacToeState>) {
-  async function play(i: number) {
+  function play(i: number) {
     if (!isMyTurn || busy || finished || state.cells[i]) return
     const cells = state.cells.slice()
     cells[i] = myRole
     const win = winnerOf(cells)
     const full = cells.every(Boolean)
-    await onMove({
+    onMove({
       state: { cells },
       finished: !!win || full,
       winner: win ?? null,

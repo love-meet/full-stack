@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom'
-import { appRunsHere } from '../lib/surface'
+import { appRoutesAllowed } from '../lib/surface'
 
 /**
  * The app does not exist on the website.
@@ -15,6 +15,6 @@ import { appRunsHere } from '../lib/surface'
  * Better to land them on the page that says where the app actually is.
  */
 export default function RequireAppSurface() {
-  if (!appRunsHere()) return <Navigate to="/" replace />
+  if (!appRoutesAllowed()) return <Navigate to="/" replace />
   return <Outlet />
 }

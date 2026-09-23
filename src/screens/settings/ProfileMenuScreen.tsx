@@ -57,6 +57,7 @@ export default function ProfileMenuScreen() {
       items: [
         { icon: '✎', label: 'Edit profile', hint: 'Photo, handle, bio, interests', onClick: () => navigate('/profile/edit') },
         { icon: '🛡', label: 'Security', hint: 'PIN, password', onClick: () => navigate('/security') },
+        { icon: '📄', label: 'Your data', hint: 'Download everything, and what you agreed to', onClick: () => navigate('/my-data') },
         {
           icon: '🌐',
           label: 'Language',
@@ -66,19 +67,16 @@ export default function ProfileMenuScreen() {
       ],
     },
     {
-      title: 'Credits',
+      title: 'Coins',
       items: [
-        { icon: '💬', label: 'Credits', hint: 'Balance, history, and getting more', onClick: () => navigate('/credits') },
+        { icon: '💬', label: 'Coins', hint: 'Balance, history, and getting more', onClick: () => navigate('/credits') },
       ],
     },
     {
       title: 'Activity',
       items: [
         { icon: '👥', label: 'Create a group', hint: 'Start your own community', onClick: () => navigate('/groups/new') },
-        // "Saved" now means saved people — the Save on a feed card. Saved
-        // posts still exist for group threads, one level down.
-        { icon: '🔖', label: 'Saved', hint: 'People you saved from the feed', onClick: () => navigate('/saved') },
-        { icon: '📑', label: 'Saved posts', hint: 'Your bookmarked posts', onClick: () => navigate('/saved/posts') },
+        { icon: '🔖', label: 'Saved posts', hint: 'Your bookmarked posts', onClick: () => navigate('/saved') },
         { icon: '🎉', label: 'Invite friends', hint: 'Share your referral code', onClick: () => navigate('/invite') },
         { icon: '🚫', label: 'Blocked users', hint: 'Manage who you blocked', onClick: () => navigate('/blocked') },
         { icon: '🔕', label: 'Muted users', hint: 'Manage who you muted', onClick: () => navigate('/muted') },
@@ -95,6 +93,9 @@ export default function ProfileMenuScreen() {
       items: [
         { icon: '💬', label: 'Live support', hint: 'Chat with our team — open a ticket', onClick: () => navigate('/support') },
         { icon: '❓', label: 'Help & support', onClick: () => navigate('/legal/help') },
+        { icon: '🛡', label: 'Staying safe', onClick: () => navigate('/legal/safety') },
+        { icon: '👥', label: 'Community guidelines', onClick: () => navigate('/legal/guidelines') },
+        { icon: '🧸', label: 'Child safety', onClick: () => navigate('/legal/child-safety') },
         { icon: '🔒', label: 'Privacy policy', onClick: () => navigate('/legal/privacy') },
         { icon: '📜', label: 'Terms of service', onClick: () => navigate('/legal/terms') },
         { icon: 'ℹ', label: 'About Love meet', onClick: () => navigate('/legal/about') },

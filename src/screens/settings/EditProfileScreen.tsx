@@ -13,13 +13,13 @@ import { avatarFor } from '../../lib/avatar'
 import { LANGUAGES } from '../../data/languages'
 
 const GENDERS: Profile['gender'][] = ['female', 'male', 'nonbinary', 'other', 'prefer_not_to_say']
-const LOOKING: NonNullable<Profile['looking_for']>[] = ['serious', 'casual', 'friends']
 
 type Form = {
   avatar_url: string
   display_name: string
   handle: string
   bio: string
+  statusLine: string
   gender: Profile['gender']
   dob: string
   looking_for: Profile['looking_for']
@@ -41,6 +41,7 @@ function fromProfile(p: Profile): Form {
     display_name: p.display_name ?? '',
     handle: p.handle ?? '',
     bio: p.bio ?? '',
+    statusLine: p.status_line ?? '',
     gender: p.gender,
     dob: p.dob ?? '',
     looking_for: p.looking_for,
@@ -63,6 +64,9 @@ function toPatch(form: Form, original: Profile): ProfileUpdate {
   if (form.display_name !== (original.display_name ?? '')) patch.display_name = form.display_name.trim() || null
   if (form.handle !== (original.handle ?? '')) patch.handle = form.handle.trim() || null
   if (form.bio !== (original.bio ?? '')) patch.bio = form.bio.trim() || null
+  if (form.statusLine !== (original.status_line ?? '')) {
+    patch.status_line = form.statusLine.trim() || null
+  }
   if (form.gender !== original.gender) patch.gender = form.gender
   if (form.dob !== (original.dob ?? '')) patch.dob = form.dob || null
   if (form.looking_for !== original.looking_for) patch.looking_for = form.looking_for
@@ -276,6 +280,19 @@ export default function EditProfileScreen() {
             </div>
           </Field>
 
+          {/* §05: "Their status — a short line they set themselves."
+              It shows on your friends' lists, which is why it sits above the
+              bio rather than buried with it: a bio is read once on a profile,
+              a status is read every time somebody scans for who to talk to. */}
+          <Field label="Status" hint={`${form.statusLine.length}/80`}>
+            <input
+              value={form.statusLine}
+              onChange={(e) => set('statusLine', e.target.value.slice(0, 80))}
+              className="lm-input"
+              placeholder="Here for the games"
+            />
+          </Field>
+
           <Field label="Bio" hint={`${form.bio.length}/240`}>
             <textarea
               value={form.bio}
@@ -316,65 +333,6 @@ export default function EditProfileScreen() {
 
         {/* --- Preferences --- */}
         <Section title="Preferences">
-          <Field label="Show me" hint="Who appears in your feed">
-            <div className="flex flex-wrap gap-2">
-              {GENDERS.filter((g) => g === 'female' || g === 'male' || g === 'nonbinary').map((g) => {
-                const on = form.interested_in.includes(g as string)
-                return (
-                  <Chip
-                    key={g}
-                    active={on}
-                    onClick={() => set('interested_in',
-                      on ? form.interested_in.filter((x) => x !== g)
-                         : [...form.interested_in, g as string])}
-                  >
-                    {labelGender(g)}
-                  </Chip>
-                )
-              })}
-            </div>
-          </Field>
-
-          <Field label="Looking for">
-            <div className="flex flex-wrap gap-2">
-              {LOOKING.map((l) => (
-                <Chip
-                  key={l}
-                  active={form.looking_for === l}
-                  onClick={() => set('looking_for', l)}
-                >
-                  {l}
-                </Chip>
-              ))}
-            </div>
-          </Field>
-
-          <Field label="Age range">
-            <div className="flex items-center gap-3">
-              <input
-                type="number"
-                inputMode="numeric"
-                value={form.age_min}
-                onChange={(e) => set('age_min', e.target.value)}
-                min={18}
-                max={99}
-                className="lm-input w-24"
-                placeholder="18"
-              />
-              <span className="text-ink-muted">to</span>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={form.age_max}
-                onChange={(e) => set('age_max', e.target.value)}
-                min={18}
-                max={99}
-                className="lm-input w-24"
-                placeholder="60"
-              />
-            </div>
-          </Field>
-
           <Field label="Interests" hint="Comma-separated · e.g. travel, music, gym">
             <textarea
               value={form.interests}

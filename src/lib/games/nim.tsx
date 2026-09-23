@@ -14,11 +14,11 @@ export const START = 21
 export const MAX_TAKE = 3
 
 function Board({ state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<NimState>) {
-  async function take(n: number) {
+  function take(n: number) {
     if (!isMyTurn || busy || finished || n > state.remaining) return
     const remaining = state.remaining - n
     const tookLast = remaining === 0
-    await onMove({
+    onMove({
       state: { remaining },
       finished: tookLast,
       // Take the last stick and you lose.

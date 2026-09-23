@@ -1,24 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import TopIcons from '../shell/TopIcons'
-import FeedAd from '../components/FeedAd'
-import { useAdsVisible } from '../hooks/useAds'
 import { usePeopleFeed, useAdvanceFeed, ageFrom, type FeedPerson } from '../hooks/usePeopleFeed'
-import { useStartDM, isDailyChatLimit } from '../hooks/useStartDM'
 import { useRecordGalleryDecision } from '../hooks/useGalleryFeed'
-import {
-  useProfileActionState,
-  useToggleProfileBookmark,
-  type ProfileActionState,
-} from '../hooks/useProfileActions'
 import GiftSheet from '../components/GiftSheet'
-import { useToggleFollow } from '../hooks/useFollow'
 import {
-  HeartIcon, BookmarkIcon, ShareIcon, GiftIcon,
+  HeartIcon, CloseIcon, GiftIcon,
   MutedIcon, SoundIcon,
 } from '../components/FeedIcons'
-import { isVideoUrl, compactCount } from '../lib/media'
+import { isVideoUrl } from '../lib/media'
 import { avatarUrlOr } from '../lib/avatar'
 import { languageName } from '../data/languages'
 
@@ -35,8 +26,6 @@ import { languageName } from '../data/languages'
  * running total is flushed to `advance_feed_position` so the next session
  * starts where this one stopped rather than replaying the same first profile.
  */
-const AD_EVERY = 10
-
 export default function FeedScreen() {
   const feed = usePeopleFeed()
   const advance = useAdvanceFeed()
@@ -45,10 +34,6 @@ export default function FeedScreen() {
 
   const people = feed.data ?? []
   const isEmpty = feed.status === 'success' && people.length === 0
-
-  // Counts and my-state for every card on the page, in one request rather
-  // than one per card.
-  const actions = useProfileActionState(people.map((p) => p.id))
 
   // ── Consumption tracking ────────────────────────────────────────────────
   // `seen` is a set so a card scrolled past twice only counts once; `pending`
@@ -142,18 +127,12 @@ export default function FeedScreen() {
           </div>
         )}
 
-        {people.map((person, i) => (
+        {people.map((person) => (
           <PersonCard
             key={person.id}
             person={person}
-            state={actions.data?.[person.id]}
             onSeen={markSeen}
             onOpenGallery={() => setGallery(person)}
-            // A sponsored card every tenth profile (§7). Always on, for
-            // everyone — not a reward, unlocks nothing. Tenth rather than
-            // eighth because the feed is faces: an ad among them intrudes
-            // more than one among posts did.
-            showAdAfter={(i + 1) % AD_EVERY === 0}
           />
         ))}
       </div>
@@ -169,79 +148,30 @@ export default function FeedScreen() {
 // One person, one screen. The picture is the card.
 // ---------------------------------------------------------------------------
 function PersonCard({
-  person, state, onSeen, onOpenGallery, showAdAfter,
+  person, onSeen, onOpenGallery,
 }: {
   person: FeedPerson
-  state?: ProfileActionState
   onSeen: (id: string) => void
   onOpenGallery: () => void
-  showAdAfter: boolean
 }) {
-  // Both levels must allow it (§7/§2): the build must be configured for a
-  // provider AND the database switch must be on. Checked here, not inside
-  // AdCard, so that when ads are not visible the wrapping "Sponsored" card
-  // is never emitted at all — no blank full-screen slide in a snap-scroll
-  // feed (the bug the previous implementation had).
-  const adsVisible = useAdsVisible()
   const ref = useRef<HTMLElement>(null)
-  const navigate = useNavigate()
-  const startDM = useStartDM()
-  const [chatError, setChatError] = useState<string | null>(null)
   const decide = useRecordGalleryDecision()
-  const bookmark = useToggleProfileBookmark()
-  const follow = useToggleFollow(person.id)
   const [sheet, setSheet] = useState<null | 'gift'>(null)
   const [muted, setMuted] = useState(true)
   const media = avatarUrlOr(person.avatar_url, person.gender)
 
-  // Optimistic overrides — null means "whatever the server last said". The
-  // rail has to answer a tap instantly; the counts catch up on the next fetch.
-  const [likedNow, setLikedNow] = useState<boolean | null>(null)
-  const [savedNow, setSavedNow] = useState<boolean | null>(null)
-  const [followedNow, setFollowedNow] = useState<boolean | null>(null)
+  // §04 allows exactly three answers to a profile, and each one is final for
+  // this viewer: the card leaves the feed either way and never comes back.
+  // `answered` is the local half of that — the server already filters the
+  // next page, but the card in front of the user has to react now.
+  const [answered, setAnswered] = useState<null | 'interested' | 'passed'>(null)
 
-  const liked = likedNow ?? state?.liked_by_me ?? false
-  const saved = savedNow ?? state?.saved_by_me ?? false
-  const following = followedNow ?? state?.followed_by_me ?? false
-  const likeCount = (state?.like_count ?? 0) + (likedNow && !state?.liked_by_me ? 1 : 0)
-
-  // "Like" is the gallery-interest decision — it puts them in your Interested
-  // tab and creates a match if they have liked you too. Deliberately not a
-  // second, parallel like signal.
-  function like() {
-    if (liked || decide.isPending) return
-    setLikedNow(true)
-    decide.mutate({ targetId: person.id, decision: 'interested' }, {
-      onError: () => setLikedNow(null),
+  function decideOn(decision: 'interested' | 'passed') {
+    if (answered || decide.isPending) return
+    setAnswered(decision)
+    decide.mutate({ targetId: person.id, decision }, {
+      onError: () => setAnswered(null),
     })
-  }
-
-  // Follow is one-way and additive from here: the + vanishes and stays gone.
-  // Following back is what makes the two of you friends (0107).
-  function followThem() {
-    if (following) return
-    setFollowedNow(true)
-    follow.mutate(true, { onError: () => setFollowedNow(null) })
-  }
-
-  function save() {
-    const next = !saved
-    setSavedNow(next)
-    bookmark.mutate(person.id, {
-      onSuccess: (v) => setSavedNow(v),
-      onError: () => setSavedNow(null),
-    })
-  }
-
-  async function share() {
-    const url = `${window.location.origin}/profile/${person.id}`
-    const text = `${name} on Love meet`
-    try {
-      if (navigator.share) { await navigator.share({ url, text }); return }
-      await navigator.clipboard.writeText(url)
-      setChatError('Link copied')
-      window.setTimeout(() => setChatError(null), 1500)
-    } catch { /* user dismissed the share sheet — nothing to report */ }
   }
 
   // Consumed once it has actually been on screen — not merely rendered, or
@@ -262,22 +192,6 @@ function PersonCard({
   const place = [person.city, person.country_name].filter(Boolean).join(', ')
   const lang = languageName(person.language)
   const extra = person.gallery_urls.length
-
-  async function message() {
-    setChatError(null)
-    try {
-      const id = await startDM.mutateAsync(person.id)
-      navigate(`/chat/${id}`)
-    } catch (e) {
-      // Out of new chats for today is a real answer, not a failure — say so
-      // rather than letting the button appear broken.
-      setChatError(
-        isDailyChatLimit(e)
-          ? "That's 20 new chats today — the limit resets tomorrow. You can still reply to anyone."
-          : null,
-      )
-    }
-  }
 
   return (
     <>
@@ -313,70 +227,6 @@ function PersonCard({
             </span>
           )}
 
-          {/* Action rail — beside the card, the way TikTok and Instagram place
-              them: outlined icon, count underneath, nothing else. Every one of
-              these targets the person; comments, saves and gifts used to need
-              a post, and 0106 gave profiles their own. Like is the
-              gallery-interest decision, so it feeds Interested and can match. */}
-          <div className="absolute right-2.5 bottom-32 flex flex-col items-center gap-4 z-10">
-            {/* Their face at the top of the rail with the follow badge hung
-                off it — the same anchor TikTok puts above the heart. The badge
-                disappears once you follow, rather than becoming an "unfollow"
-                button: it would be the easiest thing on the card to hit by
-                accident. Unfollow lives on their profile. */}
-            <div className="relative mb-2">
-              <Link to={`/profile/${person.id}`} aria-label={`${name}'s profile`}>
-                <img
-                  src={avatarUrlOr(person.avatar_url, person.gender)}
-                  alt=""
-                  className="w-11 h-11 rounded-full object-cover ring-2 ring-white shadow-lg"
-                />
-              </Link>
-              {!following && (
-                <button
-                  onClick={followThem}
-                  aria-label={`Follow ${name}`}
-                  className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-gradient-brand text-white text-sm font-bold grid place-items-center ring-2 ring-black/20 transition-transform duration-75 active:scale-75"
-                >
-                  +
-                </button>
-              )}
-            </div>
-
-            <RailButton
-              icon={<HeartIcon filled={liked} className="w-9 h-9" />}
-              count={likeCount}
-              label={liked ? 'Liked' : 'Like'}
-              active={liked}
-              onClick={like}
-              // Deliberately NOT disabled while the mutation is in flight.
-              // The heart already filled optimistically, so grey-ing it out
-              // for the round-trip reads as the tap having failed. `like()`
-              // guards against a double-send on its own.
-            />
-            <RailButton
-              icon={<GiftIcon filled={state?.gifted_by_me} className="w-8 h-8" />}
-              count={state?.gift_count}
-              label="Send a gift"
-              active={state?.gifted_by_me}
-              onClick={() => setSheet('gift')}
-            />
-            <RailButton
-              icon={<BookmarkIcon filled={saved} className="w-8 h-8" />}
-              label={saved ? 'Saved' : 'Save'}
-              active={saved}
-              onClick={save}
-            />
-            {/* No Photos button: tapping the picture already opens the
-                gallery, so a second control for it was the same action twice.
-                The "1 / N" badge at the top-left says there is more to see. */}
-            <RailButton
-              icon={<ShareIcon className="w-8 h-8" />}
-              label="Share"
-              onClick={share}
-            />
-          </div>
-
           <div className="absolute left-0 right-0 bottom-0 p-5 pb-6">
             <Link to={`/profile/${person.id}`} className="block active:opacity-70">
               <h2 className="text-white text-2xl font-extrabold drop-shadow flex items-baseline gap-2">
@@ -389,23 +239,51 @@ function PersonCard({
             </Link>
 
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {place && <Chip>📍 {place}</Chip>}
-              {lang && <Chip>💬 {lang}</Chip>}
+              {place && <Chip>{place}</Chip>}
+              {lang && <Chip>{lang}</Chip>}
             </div>
 
-            {/* Message stays the one big commitment — it is the action that
-                costs a credit. Like / Photos / Share live in the rail beside
-                the card, where a thumb reaches them without covering the face. */}
-            <button
-              onClick={message}
-              disabled={startDM.isPending}
-              className="mt-4 w-full rounded-full py-3 bg-gradient-brand text-white font-extrabold text-sm glow-rose active:scale-[0.98] transition-transform disabled:opacity-60"
-            >
-              {startDM.isPending ? 'Opening…' : 'Message'}
-            </button>
+            {/* §04: three things you can do to a profile, and then the next
+                person. Laid out across the bottom rather than up the side —
+                a side rail is for a feed you keep scrolling past, and these
+                are decisions that end the card.
 
-            {chatError && (
-              <p className="mt-2 text-center text-xs text-white/80 drop-shadow">{chatError}</p>
+                Reject is deliberately the quiet one. It is permanent and the
+                other person is never told, so it should not look like the
+                obvious tap, but it must not hide either: burying it is what
+                makes people answer Interested just to move on. */}
+            <div className="mt-4 flex items-center gap-2.5">
+              <button
+                onClick={() => decideOn('passed')}
+                disabled={!!answered}
+                aria-label={`Reject ${name}`}
+                className="w-14 h-14 shrink-0 rounded-full grid place-items-center bg-white/10 backdrop-blur-sm text-white/80 ring-1 ring-white/20 active:scale-90 transition-transform disabled:opacity-40"
+              >
+                <CloseIcon className="w-6 h-6" />
+              </button>
+
+              <button
+                onClick={() => decideOn('interested')}
+                disabled={!!answered}
+                className="flex-1 h-14 rounded-full bg-gradient-brand text-white font-extrabold glow-rose active:scale-[0.97] transition-transform disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                <HeartIcon filled className="w-5 h-5" />
+                {answered === 'interested' ? 'Interested' : 'Interested'}
+              </button>
+
+              <button
+                onClick={() => setSheet('gift')}
+                aria-label={`Send ${name} a gift`}
+                className="w-14 h-14 shrink-0 rounded-full grid place-items-center bg-white/10 backdrop-blur-sm text-white ring-1 ring-white/20 active:scale-90 transition-transform"
+              >
+                <GiftIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            {answered === 'interested' && (
+              <p className="mt-2 text-center text-xs text-white/85 drop-shadow">
+                You're on each other's friends list. Say hello.
+              </p>
             )}
           </div>
         </div>
@@ -418,63 +296,7 @@ function PersonCard({
           onClose={() => setSheet(null)}
         />
       )}
-
-      {showAdAfter && adsVisible && <AdCard />}
     </>
-  )
-}
-
-/**
- * One control in the right-hand rail: a big outlined icon with its count
- * directly underneath, and nothing else.
- *
- * No pill, no capsule, no word label — TikTok and Instagram both dropped
- * those years ago because the icon has to read against a photograph, and a
- * background plate fights the photo instead of sitting on it. A drop shadow
- * does the same job at a fraction of the visual weight. `count` is omitted
- * when it would be zero: "0" on a like button reads as failure.
- */
-function RailButton({
-  icon, count, label, onClick, active, disabled,
-}: {
-  icon: React.ReactNode
-  count?: number
-  label: string
-  onClick: () => void
-  active?: boolean
-  disabled?: boolean
-}) {
-  return (
-    <button
-      // Fires on pointer-up without waiting for the browser's click
-      // synthesis, and without framer-motion's gesture recogniser in between.
-      // `whileTap` looked nicer but added a layer that had to settle before
-      // the handler ran; a CSS :active transform paints on touch-down instead,
-      // so the button acknowledges the finger immediately even while the
-      // mutation is still in flight.
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      aria-pressed={active}
-      className={[
-        // A 44px minimum target. The icons are ~34px drawn, so without the
-        // padding a thumb misses the edges and the tap lands on the card
-        // behind, which opens the gallery instead — reading as "it ignored me".
-        'flex flex-col items-center justify-center gap-1 min-w-11 min-h-11 px-1',
-        'transition-transform duration-75 active:scale-[0.82] disabled:opacity-60',
-        // The shadow is what keeps a white outline legible over a bright
-        // photo; without it the icon disappears on pale backgrounds.
-        '[filter:drop-shadow(0_1px_3px_rgba(0,0,0,0.55))]',
-        active ? 'text-rose' : 'text-white',
-      ].join(' ')}
-    >
-      {icon}
-      {count != null && count > 0 && (
-        <span className="text-[13px] font-bold tabular-nums leading-none text-white">
-          {compactCount(count)}
-        </span>
-      )}
-    </button>
   )
 }
 
@@ -482,8 +304,9 @@ function RailButton({
  * A picture or a video, whichever the URL actually is.
  *
  * Galleries hold both — `gallery_urls` is just text — but every surface was
- * rendering an `<img>`, so a video showed as the browser's broken-image box or,
- * worse, a frozen first frame that looked like a photo that would not move.
+ * rendering an `<img>`, so a video showed as the browser's broken-image box
+ * or, worse, a frozen first frame that looked like a photo that would not
+ * move.
  *
  * Autoplay only works muted and only while the element is on screen, so the
  * play is driven by an IntersectionObserver rather than the `autoplay`
@@ -541,28 +364,6 @@ function Chip({ children }: { children: React.ReactNode }) {
   )
 }
 
-/**
- * A sponsored slide — same footprint as a profile, clearly labelled.
- *
- * Only ever mounted when the caller has already confirmed `adsVisible`, so
- * there is no scenario where this renders and `FeedAd` inside comes back
- * empty: the wrapper and the ad appear and disappear together.
- */
-function AdCard() {
-  return (
-    <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center px-5">
-      <div className="w-full max-w-md mx-auto glass rounded-3xl px-5 pt-4 pb-5 flex flex-col items-center gap-4">
-        <span className="self-start text-[10px] font-bold uppercase tracking-[0.18em] text-ink-muted">
-          Sponsored
-        </span>
-        <div className="grid place-items-center min-h-[250px] w-full">
-          <FeedAd />
-        </div>
-      </div>
-    </section>
-  )
-}
-
 // ---------------------------------------------------------------------------
 // Tap a picture → that person's gallery. Avatar first, then their photos.
 // ---------------------------------------------------------------------------
@@ -615,7 +416,7 @@ function GalleryOverlay({ person, onClose }: { person: FeedPerson; onClose: () =
         className="absolute left-3 z-20 flex items-center gap-1.5 rounded-full pl-2.5 pr-4 py-2 bg-black/60 backdrop-blur-sm text-white text-sm font-bold"
         style={{ top: 'calc(var(--lm-top-inset) + 0.75rem)' }}
       >
-        <span className="text-lg leading-none">←</span> Back
+        <span className="lm-flip text-lg leading-none">←</span> Back
       </button>
 
       <Media src={photos[index]} fit="contain" play controls />

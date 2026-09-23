@@ -126,40 +126,6 @@ ok('NEW chats capped at 20 a day', capped && opened === 20, `opened ${opened} be
 let again = await rpc('start_dm', { other_user_id: bob.id }, alice.token)
 ok('existing chats stay reachable past the cap', typeof again.json === 'string' || !!again.json?.id)
 
-console.log('\n=== 9. FRIENDS TAB (mutual follows) ===')
-// A friend is a MUTUAL FOLLOW (0107) — not a mutual gallery like. Alice
-// likes Bob in the gallery first, to prove that on its own is not enough.
-await rpc('record_gallery_decision', { p_target_id: bob.id, p_decision: 'interested' }, alice.token)
-await rpc('record_gallery_decision', { p_target_id: alice.id, p_decision: 'interested' }, bob.token)
-let fr = await rpc('get_my_friends', {}, alice.token)
-ok('A MUTUAL LIKE IS NOT A FRIENDSHIP', Array.isArray(fr.json) && fr.json.length === 0, JSON.stringify(fr.json).slice(0, 120))
-
-// Alice follows Bob: one-sided, still not friends.
-await rest('follows', { token: alice.token, method: 'POST', body: { follower_id: alice.id, following_id: bob.id } })
-fr = await rpc('get_my_friends', {}, alice.token)
-ok('a one-sided follow is not a friendship', (fr.json || []).length === 0, JSON.stringify(fr.json).slice(0, 120))
-
-// Bob follows back — now they are friends, both ways.
-await rest('follows', { token: bob.token, method: 'POST', body: { follower_id: bob.id, following_id: alice.id } })
-fr = await rpc('get_my_friends', {}, alice.token)
-ok('FOLLOWING EACH OTHER MAKES YOU FRIENDS', (fr.json || []).some(f => f.id === bob.id), JSON.stringify(fr.json).slice(0, 120))
-let frB = await rpc('get_my_friends', {}, bob.token)
-ok('the friendship reads from both sides', (frB.json || []).some(f => f.id === alice.id))
-ok('friend row carries enough to draw a card',
-  !!(fr.json || []).find(f => f.id === bob.id && 'avatar_url' in f && 'gallery_urls' in f && 'matched_at' in f))
-ok('nobody is their own friend', !(fr.json || []).some(f => f.id === alice.id))
-
-// Unfollowing ends it immediately, in both directions.
-await rest(`follows?follower_id=eq.${bob.id}&following_id=eq.${alice.id}`, { token: bob.token, method: 'DELETE' })
-fr = await rpc('get_my_friends', {}, alice.token)
-ok('unfollowing ends the friendship', (fr.json || []).length === 0)
-await rest('follows', { token: bob.token, method: 'POST', body: { follower_id: bob.id, following_id: alice.id } })
-
-let fp = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, alice.token)
-ok('friends_posts is callable and scoped', Array.isArray(fp.json), JSON.stringify(fp.json).slice(0, 100))
-let fpStranger = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, bot.token ?? alice.token)
-ok('friends_posts never returns a stranger', Array.isArray(fpStranger.json))
-
 console.log('\n=== 9b. POSTING (the New tab) ===')
 // The composer writes straight to public.posts under RLS — this is the exact
 // insert PostScreen performs after the Cloudinary upload returns.
@@ -178,51 +144,175 @@ let forged = await rest('posts', {
   body: { author_id: alice.id, kind: 'image', media_url: 'https://example.test/forged.jpg' },
 })
 ok('CANNOT POST AS SOMEONE ELSE (RLS)', forged.status !== 201, `status ${forged.status}`)
-// alice and bob follow each other by now, so her post lands in his Friends tab.
+// Friendship now comes from Interested in either direction (§05), so one tap
+// from bob is enough for alice's post to reach his Friends tab.
+await rpc('record_gallery_decision', { p_target_id: alice.id, p_decision: 'interested' }, bob.token)
 let fpNow = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, bob.token)
 ok("A FRIEND'S POST SHOWS IN THE FRIENDS TAB", (fpNow.json || []).some(x => x.caption === 'hello world'), JSON.stringify(fpNow.json).slice(0, 110))
 let fpStrangerNow = await rpc('friends_posts', { p_limit: 10, p_offset: 0 }, bot.token)
 ok('a stranger sees none of it', (fpStrangerNow.json || []).length === 0, JSON.stringify(fpStrangerNow.json).slice(0, 110))
 
-console.log('\n=== 10. PROFILE ACTIONS — comment / save / gift (0106) ===')
-let pc1 = await rpc('add_profile_comment', { p_profile_id: bob.id, p_body: 'nice photo' }, alice.token)
-ok('COMMENT ON A PERSON', !!pc1.json?.id, JSON.stringify(pc1.json).slice(0, 120))
-let cs = await rpc('get_profile_comments', { p_profile_id: bob.id }, bob.token)
-ok('the comment reads back on their profile', (cs.json || []).some(x => x.body === 'nice photo'))
-ok('the profile owner can delete it', (cs.json || []).every(x => x.can_delete === true))
-let cl = await rpc('toggle_profile_comment_like', { p_comment_id: pc1.json.id }, bob.token)
-ok('a comment can be liked', cl.json === true)
-let cn = await rest(`notifications?select=type,body&user_id=eq.${bob.id}&type=eq.profile_comment`, { key: SRK })
-ok('the comment notifies them', (cn.json || []).length === 1, JSON.stringify(cn.json).slice(0, 100))
+console.log('\n=== 10. HS-LM-v1 §04 THE FEED: three actions, never repeats ===')
+await rpc('record_gallery_decision', { p_target_id: bob.id, p_decision: 'passed' }, alice.token)
+let f1 = await rpc('people_feed', { page_size: 50 }, alice.token)
+ok('A REJECTED PROFILE NEVER COMES BACK', !(f1.json || []).some(x => x.id === bob.id), ((f1.json||[]).length) + ' cards left')
+let rn = await rest('notifications?select=id&user_id=eq.' + bob.id + '&type=eq.reject', { key: SRK })
+ok('REJECT IS SILENT — they are never told', (rn.json || []).length === 0)
 
-let sv = await rpc('toggle_profile_bookmark', { p_profile_id: bob.id }, alice.token)
-ok('SAVE A PERSON', sv.json === true)
-let sl = await rpc('get_saved_profiles', {}, alice.token)
-ok('the saved list has them', (sl.json || []).some(x => x.id === bob.id))
-let svn = await rest(`notifications?select=id&user_id=eq.${bob.id}&type=eq.profile_bookmark`, { key: SRK })
-ok('SAVING IS PRIVATE — they are never told', (svn.json || []).length === 0)
-await rpc('toggle_profile_bookmark', { p_profile_id: bob.id }, alice.token)
-sl = await rpc('get_saved_profiles', {}, alice.token)
-ok('saving again unsaves', !(sl.json || []).some(x => x.id === bob.id))
-let svSelf = await rpc('toggle_profile_bookmark', { p_profile_id: alice.id }, alice.token)
-ok('you cannot save yourself', JSON.stringify(svSelf.json).includes('cannot save yourself'))
+console.log('\n=== 11. HS-LM-v1 §05 FRIENDS: from Interested, both directions ===')
+const carol = await signup('carol.' + s + '@lm.local')
+await onboard(carol, 'carol' + s, 'male')
+await rpc('record_gallery_decision', { p_target_id: carol.id, p_decision: 'interested' }, alice.token)
+let fa = await rpc('get_my_friends', {}, alice.token)
+ok('ONE-WAY INTERESTED MAKES A FRIEND', (fa.json || []).some(x => x.id === carol.id), JSON.stringify(fa.json).slice(0, 110))
+let fc = await rpc('get_my_friends', {}, carol.token)
+ok('AND THEY SEE YOU TOO — §05 is a union, not a match', (fc.json || []).some(x => x.id === alice.id))
+ok('the row says who chose whom',
+  (fa.json || []).find(x => x.id === carol.id)?.i_said_it === true &&
+  (fc.json || []).find(x => x.id === alice.id)?.they_said_it === true)
+let stl = await rpc('set_status_line', { p_text: 'here for the games' }, alice.token)
+ok('a status line can be set', stl.json === 'here for the games', JSON.stringify(stl.json))
+ok('friends carry status and last seen',
+  'status_line' in ((fc.json || [])[0] ?? {}) && 'last_seen_at' in ((fc.json || [])[0] ?? {}))
+await rpc('remove_friend', { p_other: carol.id }, alice.token)
+fa = await rpc('get_my_friends', {}, alice.token)
+fc = await rpc('get_my_friends', {}, carol.token)
+ok('REMOVE A FRIEND clears both sides (§07)',
+  !(fa.json || []).some(x => x.id === carol.id) && !(fc.json || []).some(x => x.id === alice.id))
 
-let before = (await rest(`profiles?select=coins&id=eq.${bob.id}`, { key: SRK })).json?.[0]?.coins
-let g = await rpc('send_profile_gift', { p_profile_id: bob.id, p_gift_id: 'rose', p_gift_name: 'Rose' }, alice.token)
-ok('GIFT A PERSON', !!g.json?.id, JSON.stringify(g.json).slice(0, 120))
-let after = (await rest(`profiles?select=coins&id=eq.${bob.id}`, { key: SRK })).json?.[0]?.coins
-ok('A GIFT GRANTS NO CREDITS', before === after, `${before} → ${after}`)
-let gcols = Object.keys(g.json || {})
-ok('profile_gifts has no price column at all', !gcols.some(k => /amount|cents|price|usd/i.test(k)), gcols.join(','))
-let gSelf = await rpc('send_profile_gift', { p_profile_id: alice.id, p_gift_id: 'rose', p_gift_name: 'Rose' }, alice.token)
-ok('you cannot gift yourself', JSON.stringify(gSelf.json).includes('cannot gift yourself'))
+console.log('\n=== 12. HS-LM-v1 §06 GIFTS COST COINS AND BURN ===')
+const dan = await signup('dan.' + s + '@lm.local')
+await onboard(dan, 'dan' + s, 'male')
+const coinsOf = async (u) => (await rest('profiles?select=coins&id=eq.' + u.id, { key: SRK })).json?.[0]?.coins
+let aBefore = await coinsOf(alice), dBefore = await coinsOf(dan)
+let gr = await rpc('send_profile_gift', { p_profile_id: dan.id, p_gift_id: '456727' }, alice.token)
+let aAfter = await coinsOf(alice), dAfter = await coinsOf(dan)
+ok('GIFT SENT', !!gr.json?.id, JSON.stringify(gr.json).slice(0, 90))
+ok('SENDER PAYS THE CATALOGUE COST', aBefore - aAfter === 250, aBefore + ' -> ' + aAfter)
+ok('RECEIVER GETS LESS THAN IT COST', dAfter - dBefore === 150, dBefore + ' -> ' + dAfter)
+ok('THE LOOPHOLE IS CLOSED — coins are burned',
+  (aBefore + dBefore) > (aAfter + dAfter), 'total ' + (aBefore + dBefore) + ' -> ' + (aAfter + dAfter))
+let cheat = await rpc('send_profile_gift', { p_profile_id: dan.id, p_gift_id: 'not-a-gift' }, alice.token)
+ok('THE CLIENT CANNOT NAME ITS OWN PRICE', JSON.stringify(cheat.json).includes('no such gift'))
+const eve = await signup('eve.' + s + '@lm.local')
+await onboard(eve, 'eve' + s, 'female')
+await rest('profiles?id=eq.' + eve.id, { key: SRK, method: 'PATCH', body: { coins: 10 } })
+let broke = await rpc('send_profile_gift', { p_profile_id: dan.id, p_gift_id: '456720' }, eve.token)
+ok('CANNOT GIFT WITHOUT THE COINS', JSON.stringify(broke.json).includes('insufficient_coins'), JSON.stringify(broke.json).slice(0, 80))
+let pgx = await rpc('send_gift', { p_post_id: np.json?.[0]?.id, p_gift_id: '456720', p_gift_name: 'x', p_gift_image: null }, alice.token)
+ok('the free post-gift path is closed', JSON.stringify(pgx.json).includes('not posts'), JSON.stringify(pgx.json).slice(0, 80))
+let cat = await rest('gift_catalogue?select=gift_id,cost_coins,value_coins', { token: alice.token })
+ok('EVERY GIFT IS WORTH LESS THAN IT COSTS',
+  Array.isArray(cat.json) && cat.json.length > 0 && cat.json.every(g => g.value_coins < g.cost_coins),
+  (cat.json || []).length + ' gifts')
 
-let st = await rpc('profile_action_state', { p_ids: [bob.id] }, alice.token)
-let row = (st.json || [])[0]
-ok('the card rail reads counts in one call', !!row && row.comment_count === 1 && row.gift_count === 1, JSON.stringify(row))
-ok('"liked" is the gallery interest, not a second signal', row?.liked_by_me === true)
-ok('THE FOLLOW BADGE KNOWS IT IS ALREADY FOLLOWED', row?.followed_by_me === true, JSON.stringify(row))
-ok('and knows they follow back', row?.follows_me === true)
+
+console.log('\n=== 13. HS-LM-v1 §07 consent, export, photo moderation ===')
+let cons = await rpc('record_consent', { p_kinds: ['terms', 'privacy', 'age_18'], p_version: 'HS-LM-v1' }, alice.token)
+ok('CONSENT IS RECORDED', cons.json === 3, JSON.stringify(cons.json))
+let consRows = await rest('user_consents?select=kind,version,accepted_at', { token: alice.token })
+ok('with a server timestamp and a version',
+  (consRows.json || []).length === 3 && (consRows.json || []).every(c => c.version === 'HS-LM-v1' && !!c.accepted_at))
+let consSpy = await rest('user_consents?select=kind&user_id=eq.' + alice.id, { token: bob.token })
+ok("nobody can read another person's consents (RLS)", (consSpy.json || []).length === 0)
+let consAgain = await rpc('record_consent', { p_kinds: ['terms'], p_version: 'HS-LM-v1' }, alice.token)
+ok('recording the same consent twice is a no-op', consAgain.json === 0, JSON.stringify(consAgain.json))
+
+let exp = await rpc('export_my_data', {}, alice.token)
+ok('DATA EXPORT RETURNS THE ACCOUNT', !!exp.json?.profile?.id && exp.json.profile.id === alice.id)
+ok('the export carries the coin ledger and decisions',
+  Array.isArray(exp.json?.coin_ledger) && Array.isArray(exp.json?.decisions_i_made))
+ok('the export does NOT leak who blocked me', !('blocked_me' in (exp.json ?? {})))
+
+// Every avatar queues itself for review — the trigger, not the client.
+let mine = await rest('photo_reviews?select=url,state&user_id=eq.' + alice.id, { token: alice.token })
+ok('EVERY PICTURE QUEUES ITSELF FOR REVIEW', (mine.json || []).length > 0, JSON.stringify(mine.json).slice(0, 90))
+let queueAsUser = await rpc('pending_photo_reviews', { p_limit: 10 }, alice.token)
+ok('a normal user cannot see the moderation queue', JSON.stringify(queueAsUser.json).includes('not allowed'), JSON.stringify(queueAsUser.json).slice(0, 70))
+
+// Promote bob and let him reject alice's picture.
+await rest('profiles?id=eq.' + bob.id, { key: SRK, method: 'PATCH', body: { role: 'admin' } })
+let queue = await rpc('pending_photo_reviews', { p_limit: 50 }, bob.token)
+ok('AN ADMIN SEES THE QUEUE', Array.isArray(queue.json) && queue.json.length > 0, ((queue.json || []).length) + ' pending')
+// Read her review row directly rather than scanning the admin queue: that
+// query is capped at 50 and the cap is reached once a few test runs have
+// accumulated, which made this fail for a reason that had nothing to do
+// with moderation.
+let mineRow = await rest('photo_reviews?select=id&state=eq.pending&user_id=eq.' + alice.id, { key: SRK })
+const target = (mineRow.json || [])[0]
+await rpc('review_photo', { p_review_id: target?.id, p_approve: false, p_reason: 'test rejection' }, bob.token)
+let after = await rest('profiles?select=avatar_url&id=eq.' + alice.id, { key: SRK })
+ok('A REJECTED PICTURE LEAVES THE FEED', after.json?.[0]?.avatar_url === null, JSON.stringify(after.json))
+let prn = await rest('notifications?select=type&user_id=eq.' + alice.id + '&type=eq.photo_rejected', { key: SRK })
+ok('and the person is told', (prn.json || []).length === 1)
+
+
+console.log('\n=== 14. HS-LM-v1 §05 tips and topics ===')
+let tips = await rpc('list_topics', { p_kind: 'tip', p_limit: 20, p_offset: 0 }, alice.token)
+ok('THE TIPS SECTION IS NOT EMPTY ON DAY ONE', (tips.json || []).length >= 5, ((tips.json || []).length) + ' tips')
+ok('tips have no author — they are from Love meet', (tips.json || []).every(t => t.author_id === null))
+
+// bob said Interested about alice earlier, so he is a friend and hears about it.
+let topic = await rpc('create_topic', { p_title: 'Long distance, worth it?', p_body: 'Six months in and we have met twice.' }, alice.token)
+ok('ANYONE CAN OPEN A TOPIC', !!topic.json?.id, JSON.stringify(topic.json).slice(0, 90))
+let ftn = await rest('notifications?select=type,body&user_id=eq.' + bob.id + '&type=eq.friend_topic', { key: SRK })
+ok('A FRIEND HEARS ABOUT IT (§05)', (ftn.json || []).length === 1, JSON.stringify(ftn.json).slice(0, 100))
+let strangerN = await rest('notifications?select=id&user_id=eq.' + bot.id + '&type=eq.friend_topic', { key: SRK })
+ok('a stranger does not', (strangerN.json || []).length === 0)
+
+let rep = await rpc('reply_to_topic', { p_topic: topic.json?.id, p_body: 'Twice in six months is the problem.' }, bob.token)
+ok('anyone can reply', !!rep.json?.id)
+let reps = await rpc('list_topic_replies', { p_topic: topic.json?.id }, alice.token)
+ok('the reply reads back', (reps.json || []).some(r => r.body.startsWith('Twice')))
+let counted = await rpc('list_topics', { p_kind: 'topic', p_limit: 10, p_offset: 0 }, alice.token)
+ok('the reply count moves', (counted.json || []).find(t => t.id === topic.json?.id)?.reply_count === 1)
+let ownerN = await rest('notifications?select=id&user_id=eq.' + alice.id + '&type=eq.topic_reply', { key: SRK })
+ok('the person who opened it is told', (ownerN.json || []).length === 1)
+
+// eve, not bob: section 13 promoted bob to admin, and an admin deleting
+// somebody else's topic is correct behaviour, not the thing under test.
+let steal = await rpc('delete_topic', { p_topic: topic.json?.id }, eve.token)
+ok('SOMEBODY ELSE CANNOT DELETE YOUR TOPIC', JSON.stringify(steal.json).includes('not yours'), JSON.stringify(steal.json).slice(0, 70))
+let direct = await rest('topics', { token: bob.token, method: 'POST', body: { kind: 'topic', author_id: bob.id, title: 'sneaking in', body: 'no notification, no count' } })
+ok('and cannot insert one directly, skipping the fan-out (RLS)', direct.status !== 201, 'status ' + direct.status)
+await rpc('delete_topic', { p_topic: topic.json?.id }, alice.token)
+let gone = await rpc('list_topics', { p_kind: 'topic', p_limit: 10, p_offset: 0 }, alice.token)
+ok('the author can delete their own', !(gone.json || []).some(t => t.id === topic.json?.id))
+
+
+console.log('\n=== 15. HS-LM-v1 §07 report a profile, a photo, a message ===')
+let rp = await rpc('submit_report', { p_target: 'profile', p_subject: dan.id, p_reason: 'harassment', p_note: 'would not stop' }, alice.token)
+ok('A PROFILE IS REPORTABLE', typeof rp.json === 'string' && rp.json.length > 10, JSON.stringify(rp.json).slice(0, 60))
+let rph = await rpc('submit_report', { p_target: 'photo', p_subject: dan.id, p_ref: 'https://example.test/x.jpg', p_reason: 'inappropriate' }, alice.token)
+ok('A PHOTOGRAPH IS REPORTABLE', typeof rph.json === 'string')
+let rm = await rpc('submit_report', { p_target: 'message', p_subject: dan.id, p_ref: 'some-message-id', p_reason: 'illegal' }, alice.token)
+ok('A MESSAGE IS REPORTABLE', typeof rm.json === 'string')
+let dup = await rpc('submit_report', { p_target: 'profile', p_subject: dan.id, p_reason: 'harassment' }, alice.token)
+ok('tapping report twice does not flood the queue', dup.json === rp.json, dup.json + ' vs ' + rp.json)
+let self = await rpc('submit_report', { p_target: 'profile', p_subject: alice.id, p_reason: 'other' }, alice.token)
+ok('you cannot report yourself', JSON.stringify(self.json).includes('cannot report yourself'))
+
+let seeMine = await rest('reports?select=id,target', { token: alice.token })
+ok('you can see what you reported', (seeMine.json || []).length === 3, ((seeMine.json || []).length) + ' rows')
+let seeAbout = await rest('reports?select=id&subject_id=eq.' + dan.id, { token: dan.token })
+ok('BUT NOT THAT YOU WERE REPORTED', (seeAbout.json || []).length === 0)
+
+let qUser = await rpc('open_reports', { p_limit: 10 }, alice.token)
+ok('a normal user cannot open the moderator queue', JSON.stringify(qUser.json).includes('not allowed'))
+let q = await rpc('open_reports', { p_limit: 100 }, bob.token)
+ok('THE REPORT REACHES A HUMAN (§07)', (q.json || []).some(r => r.subject_id === dan.id), ((q.json || []).length) + ' open')
+await rpc('resolve_report', { p_report: rp.json, p_dismiss: false }, bob.token)
+let q2 = await rpc('open_reports', { p_limit: 100 }, bob.token)
+ok('and can be closed', !(q2.json || []).some(r => r.id === rp.json))
+
+console.log('\n=== 16. §07 every existing picture is queued for review ===')
+// Compare every visible avatar against the review queue directly.
+let allP = await rest('profiles?select=id,avatar_url&deleted_at=is.null&avatar_url=not.is.null', { key: SRK })
+let allR = await rest('photo_reviews?select=user_id,url', { key: SRK })
+const queued = new Set((allR.json || []).map(r => r.user_id + '|' + r.url))
+const missing = (allP.json || []).filter(p => !queued.has(p.id + '|' + p.avatar_url))
+ok('NO PICTURE IS ON THE FEED UNREVIEWED', missing.length === 0, missing.length + ' unqueued of ' + ((allP.json || []).length))
+
 
 console.log(`\n${'='.repeat(52)}\n  ${pass} passed, ${fail} failed\n${'='.repeat(52)}`)
 process.exit(fail ? 1 : 0)

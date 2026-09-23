@@ -20,8 +20,8 @@ export const MAX = 100
  *
  * The numbers live in chat_game_secrets and the comparison runs server-side
  * (migration 0095) — the guess only ever comes back as higher, lower, or got
- * it. The client never compares the two numbers itself; it only relays the
- * verdict the server already computed.
+ * it. The old version was a real-time race that needed both players present;
+ * this is the same idea with the waiting taken out.
  */
 export type DuelState = {
   phase: 'setting' | 'playing'
@@ -31,76 +31,60 @@ export type DuelState = {
   guesses: Record<Role, { value: number; verdict: -1 | 0 | 1 }[]>
 }
 
-function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove, onError }: BoardProps<DuelState>) {
+function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<DuelState>) {
   const [draft, setDraft] = useState('')
-  // D13: freeze the number the moment `set_game_secret` succeeds (set-once,
-  // silent no-op on re-send) so a retry after a failed `play_chat_move`
-  // resends this exact value.
-  const [lockedNumber, setLockedNumber] = useState<number | null>(null)
   const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const opponent = other(myRole)
   const amReady = state.ready.includes(myRole)
   const mine = state.guesses[myRole] ?? []
   const last = mine[mine.length - 1]
 
-  const draftValue = Number(draft)
-  const draftValid = Number.isInteger(draftValue) && draftValue >= MIN && draftValue <= MAX
-  const commitValue = lockedNumber ?? draftValue
+  const value = Number(draft)
+  const valid = Number.isInteger(value) && value >= MIN && value <= MAX
 
   async function lockIn() {
-    if (busy || pending || !isMyTurn) return
-    if (lockedNumber === null && !draftValid) return
+    if (!valid || busy || pending) return
     setPending(true)
+    setError(null)
     try {
-      if (lockedNumber === null) {
-        try {
-          await setGameSecret(gameId, { number: commitValue })
-        } catch (e) {
-          onError(e)
-          return
-        }
-        setLockedNumber(commitValue)
-      }
+      await setGameSecret(gameId, { number: value })
       const ready = [...state.ready, myRole]
       const bothIn = ready.length === 2
-      const ok = await onMove(
-        {
-          state: { ...state, ready, phase: bothIn ? 'playing' : 'setting' },
-          // While setting, hand over so the other player picks. Once both
-          // are in, player 'a' guesses first.
-          nextTurn: bothIn ? 'a' : opponent,
-          summary: bothIn ? 'locked in — game on' : 'picked a number — your turn',
-        },
-        { secretSaved: true },
-      )
-      if (ok) setDraft('')
+      onMove({
+        state: { ...state, ready, phase: bothIn ? 'playing' : 'setting' },
+        // While setting, hand over so the other player picks. Once both are
+        // in, player 'a' guesses first.
+        nextTurn: bothIn ? 'a' : opponent,
+        summary: bothIn ? 'locked in — game on' : 'picked a number — your turn',
+      })
+      setDraft('')
+    } catch (e) {
+      setError((e as Error).message)
     } finally {
       setPending(false)
     }
   }
 
   async function guess() {
-    if (!draftValid || !isMyTurn || busy || pending || finished) return
+    if (!valid || !isMyTurn || busy || pending || finished) return
     setPending(true)
+    setError(null)
     try {
-      let r: Awaited<ReturnType<typeof guessDuelNumber>>
-      try {
-        r = await guessDuelNumber(gameId, draftValue)
-      } catch (e) {
-        onError(e)
-        return
-      }
+      const r = await guessDuelNumber(gameId, value)
       const guesses = {
         ...state.guesses,
-        [myRole]: [...mine, { value: draftValue, verdict: r.verdict }],
+        [myRole]: [...mine, { value, verdict: r.verdict }],
       }
-      const ok = await onMove({
+      onMove({
         state: { ...state, guesses },
         finished: r.correct,
         winner: r.correct ? myRole : null,
-        summary: r.correct ? `got it — ${draftValue}` : `guessed ${draftValue}`,
+        summary: r.correct ? `got it — ${value}` : `guessed ${value}`,
       })
-      if (ok) setDraft('')
+      setDraft('')
+    } catch (e) {
+      setError((e as Error).message)
     } finally {
       setPending(false)
     }
@@ -120,21 +104,14 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove, onErro
             <p className="text-center text-sm text-ink-2">
               Pick a secret number, {MIN}–{MAX}. They'll try to guess it.
             </p>
-            <NumberInput
-              value={lockedNumber !== null ? String(lockedNumber) : draft}
-              onChange={setDraft}
-              disabled={pending || lockedNumber !== null || !isMyTurn}
-            />
+            <NumberInput value={draft} onChange={setDraft} />
             <button
               onClick={lockIn}
-              disabled={pending || busy || !isMyTurn || (lockedNumber === null && !draftValid)}
+              disabled={!valid || busy || pending}
               className="w-full rounded-full py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose disabled:opacity-50"
             >
               {pending ? 'Locking in…' : 'Lock it in'}
             </button>
-            {lockedNumber !== null && (
-              <p className="text-xs text-ink-muted text-center">Saved — tap again to send.</p>
-            )}
           </>
         )
       ) : (
@@ -161,10 +138,10 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove, onErro
 
           {!finished && isMyTurn && (
             <>
-              <NumberInput value={draft} onChange={setDraft} disabled={pending} />
+              <NumberInput value={draft} onChange={setDraft} />
               <button
                 onClick={guess}
-                disabled={!draftValid || busy || pending}
+                disabled={!valid || busy || pending}
                 className="w-full rounded-full py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose disabled:opacity-50"
               >
                 {pending ? 'Checking…' : 'Guess'}
@@ -173,19 +150,13 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove, onErro
           )}
         </>
       )}
+
+      {error && <p className="text-center text-xs text-danger">{error}</p>}
     </div>
   )
 }
 
-function NumberInput({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: string
-  onChange: (v: string) => void
-  disabled?: boolean
-}) {
+function NumberInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <input
       type="number"
@@ -194,9 +165,8 @@ function NumberInput({
       max={MAX}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
       placeholder={`${MIN}–${MAX}`}
-      className="lm-input w-full text-center text-2xl font-extrabold tabular-nums disabled:opacity-70"
+      className="lm-input w-full text-center text-2xl font-extrabold tabular-nums"
       aria-label="Number"
     />
   )
@@ -211,8 +181,7 @@ export const numberDuel: GameDef<DuelState> = {
   status: (state, myRole, isMyTurn, outcome) => {
     if (outcome) return outcome === 'won' ? 'You got it. You win.' : 'They got yours first.'
     if (state.phase === 'setting') {
-      if (state.ready.includes(myRole)) return 'Waiting for their number'
-      return isMyTurn ? 'Pick your number' : 'Waiting for your turn'
+      return state.ready.includes(myRole) ? 'Waiting for their number' : 'Pick your number'
     }
     return isMyTurn ? 'Your turn — take a guess' : 'Waiting for them'
   },

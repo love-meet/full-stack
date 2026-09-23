@@ -9,10 +9,14 @@ import { draughts } from './draughtsGame'
 import { numberDuel } from './numberDuel'
 
 /**
- * The eight games (§8), one registry.
+ * The eight games (§8).
  *
- * Order is the order they appear in the picker (plan §3.0): quickest and
- * most obvious first, so the common case is one tap away.
+ * Two were already built and reusable — draughts kept its rules engine
+ * (lib/draughts.ts) wholesale, and Number Duel kept its idea with the
+ * real-time race taken out. Six are new.
+ *
+ * Order is the order they appear in the picker: quickest and most obvious
+ * first, so the common case is one tap away.
  */
 export const GAMES: GameDef<never>[] = [
   ticTacToe,

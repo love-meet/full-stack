@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom'
+import { GUIDELINES, CHILD_SAFETY, SAFETY } from './safetyPolicies'
 
-type Kind = 'privacy' | 'terms' | 'about' | 'help'
+type Kind = 'privacy' | 'terms' | 'about' | 'help' | 'guidelines' | 'child-safety' | 'safety'
 
 const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] }> = {
   privacy: {
@@ -96,7 +97,7 @@ const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] 
         body: `End-to-end encryption for chat. Federated content moderation. Group video. Reach out if any of these sound interesting to work on.`,
       },
       {
-        heading: 'Credits',
+        heading: 'Coins',
         body: `Designed and built by the Love meet team. Love meet is powered by Highscore Tech (highzcore.tech). Bug reports + feature requests: lovemeet@highzcore.tech.`,
       },
     ],
@@ -123,6 +124,9 @@ const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] 
       },
     ],
   },
+  guidelines: GUIDELINES,
+  'child-safety': CHILD_SAFETY,
+  safety: SAFETY,
 }
 
 type Section = { heading: string; body: string }

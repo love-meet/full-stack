@@ -18,7 +18,7 @@ import ChatScreen from './screens/ChatScreen'
 import ChatDetailScreen from './screens/ChatDetailScreen'
 import SearchScreen from './screens/SearchScreen'
 import FriendsScreen from './screens/FriendsScreen'
-import SavedScreen from './screens/SavedScreen'
+import TipsScreen from './screens/TipsScreen'
 import InterviewScreen from './screens/InterviewScreen'
 import GiftDetailScreen from './screens/GiftDetailScreen'
 import GuideScreen from './screens/GuideScreen'
@@ -31,6 +31,7 @@ import CreditsScreen from './screens/settings/CreditsScreen'
 import LanguageScreen from './screens/settings/LanguageScreen'
 import SecurityScreen from './screens/settings/SecurityScreen'
 import CloseAccountScreen from './screens/settings/CloseAccountScreen'
+import PrivacyScreen from './screens/settings/PrivacyScreen'
 import ProfileMenuScreen from './screens/settings/ProfileMenuScreen'
 import SavedPostsScreen from './screens/settings/SavedPostsScreen'
 import InviteFriendsScreen from './screens/settings/InviteFriendsScreen'
@@ -100,6 +101,7 @@ export const router = createBrowserRouter([
               { path: 'guide',                 element: <GuideScreen /> },
               { path: 'chat',                  element: <ChatScreen /> },
               { path: 'friends',               element: <FriendsScreen /> },
+              { path: 'tips',                  element: <TipsScreen /> },
               { path: 'search',                element: <SearchScreen /> }, // header-link, not a bottom-nav tab
               { path: 'notifications',         element: <NotificationsScreen /> },
               { path: 'profile',               element: <ProfileScreen /> },
@@ -109,8 +111,8 @@ export const router = createBrowserRouter([
               { path: 'credits',               element: <CreditsScreen /> },
               { path: 'language',              element: <LanguageScreen /> },
               { path: 'security',              element: <SecurityScreen /> },
-              { path: 'saved',                 element: <SavedScreen /> },
-              { path: 'saved/posts',           element: <SavedPostsScreen /> },
+              { path: 'my-data',               element: <PrivacyScreen /> },
+              { path: 'saved',                 element: <SavedPostsScreen /> },
               { path: 'support',               element: <SupportScreen /> },
               { path: 'invite',                element: <InviteFriendsScreen /> },
               { path: 'blocked',               element: <BlockedUsersScreen /> },

@@ -124,6 +124,31 @@ export default function PictureStep({ data, set }: StepProps) {
           })}
         </div>
       </section>
+
+      {/* The agreement (§07).
+          A real checkbox rather than an implied "by continuing you agree" —
+          an implied consent is the one a regulator discards, and this is the
+          last screen of signup anyway, so it costs a tap rather than a step.
+          The 18+ line is separate from the documents on purpose: age is a
+          statement of fact about the person, not an acceptance of terms, and
+          they are recorded as two different consents. */}
+      <section className="pt-2">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={data.consent}
+            onChange={(e) => set({ consent: e.target.checked })}
+            className="mt-0.5 w-5 h-5 shrink-0 accent-rose"
+          />
+          <span className="text-xs text-ink-2 leading-relaxed">
+            I'm 18 or over, and I accept the{' '}
+            <a href="/legal/terms" target="_blank" rel="noreferrer" className="text-rose font-semibold underline">terms</a>,{' '}
+            <a href="/legal/privacy" target="_blank" rel="noreferrer" className="text-rose font-semibold underline">privacy policy</a>{' '}
+            and{' '}
+            <a href="/legal/guidelines" target="_blank" rel="noreferrer" className="text-rose font-semibold underline">community guidelines</a>.
+          </span>
+        </label>
+      </section>
     </div>
   )
 }

@@ -3,33 +3,18 @@ import { GAMES } from '../../lib/games'
 import { useCreateChatGame } from '../../hooks/useChatGames'
 import type { ChatGameKind } from '../../lib/games/types'
 
-function errMessage(e: unknown): string {
-  if (e && typeof e === 'object' && 'message' in e) {
-    const m = (e as { message?: unknown }).message
-    if (typeof m === 'string' && m) return m
-  }
-  return 'Something went wrong.'
-}
-
 /**
  * Pick a game to play in this chat (§8).
  *
  * No lobby — picking one sends an invite into the conversation and that's the
- * whole flow. Nothing here gates a game behind anything else — pick it and
- * it's sent.
+ * whole flow. Every game is free: nothing here mentions a cost, because there
+ * isn't one.
  */
 export default function GamePickerSheet({
   conversationId,
-  liveKinds,
   onClose,
 }: {
   conversationId: string
-  /** Kinds that already have an `invited`/`active` game in this conversation.
-   *  `create_chat_game` returns that same existing row rather than starting
-   *  a second one (0094: one live game per kind per conversation), so
-   *  tapping one of these just closes the sheet instead of firing an RPC
-   *  that visibly does nothing (D16). */
-  liveKinds?: ChatGameKind[]
   onClose: () => void
 }) {
   const create = useCreateChatGame(conversationId)
@@ -70,35 +55,27 @@ export default function GamePickerSheet({
         </div>
 
         <ul className="space-y-1.5">
-          {GAMES.map((g) => {
-            const live = !!liveKinds?.includes(g.kind)
-            return (
-              <li key={g.kind}>
-                <button
-                  onClick={() => (live ? onClose() : pick(g.kind, g.initialState()))}
-                  disabled={create.isPending}
-                  className="w-full text-left rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-white/[0.06] disabled:opacity-60 transition-colors"
-                >
-                  <span className="w-10 h-10 rounded-full bg-white/8 grid place-items-center text-xl shrink-0">
-                    {g.emoji}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-bold text-ink">{g.name}</span>
-                    <span className="block text-xs text-ink-muted truncate">{g.blurb}</span>
-                  </span>
-                  {live && (
-                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-gold">
-                      In progress
-                    </span>
-                  )}
-                </button>
-              </li>
-            )
-          })}
+          {GAMES.map((g) => (
+            <li key={g.kind}>
+              <button
+                onClick={() => pick(g.kind, g.initialState())}
+                disabled={create.isPending}
+                className="w-full text-left rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-white/[0.06] disabled:opacity-60 transition-colors"
+              >
+                <span className="w-10 h-10 rounded-full bg-white/8 grid place-items-center text-xl shrink-0">
+                  {g.emoji}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-ink">{g.name}</span>
+                  <span className="block text-xs text-ink-muted truncate">{g.blurb}</span>
+                </span>
+              </button>
+            </li>
+          ))}
         </ul>
 
         {create.error && (
-          <p className="mt-3 text-xs text-danger text-center">{errMessage(create.error)}</p>
+          <p className="mt-3 text-xs text-danger text-center">{(create.error as Error).message}</p>
         )}
       </motion.div>
     </motion.div>

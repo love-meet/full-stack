@@ -5,7 +5,9 @@ import { useAuth } from '../stores/auth'
 import { supabase } from '../lib/supabase'
 import { useProfile, useProfileById } from '../hooks/useProfile'
 import { useStartDM } from '../hooks/useStartDM'
-import { useProfileSocial, useToggleFollow, type ProfileSocial } from '../hooks/useFollow'
+import { useProfileSocial } from '../hooks/useFollow'
+import { useRecordGalleryDecision } from '../hooks/useGalleryFeed'
+import ReportPersonSheet from '../components/ReportPersonSheet'
 import { avatarFor } from '../lib/avatar'
 import PresenceDot from '../components/PresenceDot'
 import BlueTick from '../components/BlueTick'
@@ -32,6 +34,7 @@ export default function ProfileScreen() {
   const profileSocial = useProfileSocial(routeUserId ?? myProfileQ.data?.id ?? null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [imageOpen, setImageOpen] = useState(false)
+  const [reporting, setReporting] = useState(false)
 
   // "Someone viewed your profile" (§6). Fire-and-forget: the RPC ignores self
   // views and blocked pairs, and notifies at most once a day per pair, so
@@ -141,10 +144,6 @@ export default function ProfileScreen() {
             @{username}
             {social?.is_subscriber && <BlueTick size={16} />}
           </div>
-          <div className="mt-1 flex items-center gap-4 text-sm text-ink-2">
-            <span><b className="text-ink">{social?.followers ?? 0}</b> followers</span>
-            <span><b className="text-ink">{social?.following ?? 0}</b> following</span>
-          </div>
         </div>
       </motion.div>
 
@@ -210,24 +209,37 @@ export default function ProfileScreen() {
                 </span>
                 {social?.is_subscriber && <BlueTick />}
               </div>
-              <div className="flex items-center gap-4 mt-1.5 text-white drop-shadow">
-                <span className="text-sm"><b className="font-extrabold">{social?.followers ?? 0}</b> <span className="text-white/80">followers</span></span>
-                <span className="text-sm"><b className="font-extrabold">{social?.following ?? 0}</b> <span className="text-white/80">following</span></span>
-              </div>
             </div>
             {!isMe && (
               <div className="flex items-center gap-2 shrink-0">
-                <FollowButton targetId={profile.id} social={social} />
+                <InterestedButton targetId={profile.id} />
                 <ChatLinkButton otherId={profile.id} />
+                {/* §07: a profile must be reportable, and this is the only
+                    place a person lands when something has gone wrong. */}
+                <button
+                  onClick={() => setReporting(true)}
+                  aria-label="Report this person"
+                  className="w-10 h-10 rounded-full grid place-items-center glass text-ink-2 hover:text-danger shadow-lg"
+                >
+                  ⚑
+                </button>
               </div>
             )}
           </div>
         </motion.div>
       </div>
 
+      {reporting && (
+        <ReportPersonSheet
+          subjectId={profile.id}
+          subjectLabel={profile.handle ?? profile.display_name ?? 'this person'}
+          onClose={() => setReporting(false)}
+        />
+      )}
+
       {/* === Body — details + tabs === */}
       <div className="relative z-[3] bg-surface pt-2">
-        <UserDetails profile={profile} isMe={isMe} />
+        <UserDetails profile={profile} />
         <ProfileTabs userId={profile.id} isMe={isMe} />
       </div>
 
@@ -247,19 +259,31 @@ export default function ProfileScreen() {
   )
 }
 
-function FollowButton({ targetId, social }: { targetId: string; social?: ProfileSocial }) {
-  const toggle = useToggleFollow(targetId)
-  const following = social?.is_following ?? false
+/**
+ * Interested, from a profile.
+ *
+ * The same decision the feed offers, so a profile reached from search or a
+ * shared link can be answered the same way as one reached by scrolling. It
+ * does not offer Reject: rejecting is for clearing the queue in front of you,
+ * and somebody who navigated here deliberately is not clearing a queue.
+ */
+function InterestedButton({ targetId }: { targetId: string }) {
+  const decide = useRecordGalleryDecision()
+  const [done, setDone] = useState(false)
   return (
     <button
-      onClick={() => toggle.mutate(!following)}
-      disabled={toggle.isPending}
+      onClick={() => {
+        if (done || decide.isPending) return
+        setDone(true)
+        decide.mutate({ targetId, decision: 'interested' }, { onError: () => setDone(false) })
+      }}
+      disabled={done}
       className={[
-        'inline-flex items-center justify-center px-5 h-10 rounded-full font-bold text-sm shadow-lg disabled:opacity-70 transition-colors',
-        following ? 'glass text-ink' : 'bg-gradient-brand text-white glow-rose',
+        'inline-flex items-center justify-center px-5 h-10 rounded-full font-bold text-sm shadow-lg transition-colors',
+        done ? 'glass text-ink' : 'bg-gradient-brand text-white glow-rose',
       ].join(' ')}
     >
-      {following ? 'Following' : 'Follow'}
+      {done ? 'Interested ✓' : 'Interested'}
     </button>
   )
 }
