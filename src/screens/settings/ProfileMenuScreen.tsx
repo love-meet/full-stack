@@ -57,6 +57,7 @@ export default function ProfileMenuScreen() {
       items: [
         { icon: '✎', label: 'Edit profile', hint: 'Photo, handle, bio, interests', onClick: () => navigate('/profile/edit') },
         { icon: '🛡', label: 'Security', hint: 'PIN, password', onClick: () => navigate('/security') },
+        { icon: '📄', label: 'Your data', hint: 'Download everything, and what you agreed to', onClick: () => navigate('/my-data') },
         {
           icon: '🌐',
           label: 'Language',
@@ -92,6 +93,9 @@ export default function ProfileMenuScreen() {
       items: [
         { icon: '💬', label: 'Live support', hint: 'Chat with our team — open a ticket', onClick: () => navigate('/support') },
         { icon: '❓', label: 'Help & support', onClick: () => navigate('/legal/help') },
+        { icon: '🛡', label: 'Staying safe', onClick: () => navigate('/legal/safety') },
+        { icon: '👥', label: 'Community guidelines', onClick: () => navigate('/legal/guidelines') },
+        { icon: '🧸', label: 'Child safety', onClick: () => navigate('/legal/child-safety') },
         { icon: '🔒', label: 'Privacy policy', onClick: () => navigate('/legal/privacy') },
         { icon: '📜', label: 'Terms of service', onClick: () => navigate('/legal/terms') },
         { icon: 'ℹ', label: 'About Love meet', onClick: () => navigate('/legal/about') },

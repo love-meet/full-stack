@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import StepShell from './StepShell'
 import { STEPS, initialFormData, type FormData } from './types'
+import { useRecordConsent } from '../../hooks/usePrivacy'
 import { useUpdateProfile, useProfile, type ProfileUpdate } from '../../hooks/useProfile'
 import { useAuth } from '../../stores/auth'
 import { supabase } from '../../lib/supabase'
@@ -82,6 +83,8 @@ export default function OnboardingScreen() {
     [],
   )
 
+  const recordConsent = useRecordConsent()
+
   const isLast = step === STEPS.length - 1
   const { valid: canNext, hint: nextHint } = stepStatus(step, data)
   const canBack = step > 0 && !update.isPending
@@ -95,6 +98,14 @@ export default function OnboardingScreen() {
     // Submit on last step
     try {
       await update.mutateAsync(toProfileUpdate(data))
+
+      // Recorded server-side with the server's clock and the policy version
+      // (§07). Non-fatal: a signup that completed but failed to log consent
+      // is a record to repair, not a reason to throw the account away — the
+      // RPC is idempotent, so the next acceptance fills the gap.
+      try {
+        await recordConsent.mutateAsync(['terms', 'privacy', 'guidelines', 'age_18'])
+      } catch { /* logged on the next acceptance */ }
       // Attribute the referral captured from the invite link, if any.
       const ref = localStorage.getItem('lm_ref')
       if (ref) {
@@ -105,7 +116,7 @@ export default function OnboardingScreen() {
     } catch {
       // shown in StepShell via errorText
     }
-  }, [canNext, update, isLast, data, navigate])
+  }, [canNext, update, isLast, data, navigate, recordConsent])
 
   function back() {
     if (step > 0) setStep(step - 1)
@@ -193,6 +204,9 @@ function stepStatus(step: number, d: FormData): StepStatus {
     case 2: {
       if (!d.avatar.trim()) {
         return { valid: false, hint: 'Add a photo, or pick one of the suggested images.' }
+      }
+      if (!d.consent) {
+        return { valid: false, hint: 'Please confirm you are 18+ and accept the terms.' }
       }
       return { valid: true, hint: null }
     }

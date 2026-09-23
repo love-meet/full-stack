@@ -30,6 +30,7 @@ import CreditsScreen from './screens/settings/CreditsScreen'
 import LanguageScreen from './screens/settings/LanguageScreen'
 import SecurityScreen from './screens/settings/SecurityScreen'
 import CloseAccountScreen from './screens/settings/CloseAccountScreen'
+import PrivacyScreen from './screens/settings/PrivacyScreen'
 import ProfileMenuScreen from './screens/settings/ProfileMenuScreen'
 import SavedPostsScreen from './screens/settings/SavedPostsScreen'
 import InviteFriendsScreen from './screens/settings/InviteFriendsScreen'
@@ -108,6 +109,7 @@ export const router = createBrowserRouter([
               { path: 'credits',               element: <CreditsScreen /> },
               { path: 'language',              element: <LanguageScreen /> },
               { path: 'security',              element: <SecurityScreen /> },
+              { path: 'my-data',               element: <PrivacyScreen /> },
               { path: 'saved',                 element: <SavedPostsScreen /> },
               { path: 'support',               element: <SupportScreen /> },
               { path: 'invite',                element: <InviteFriendsScreen /> },
