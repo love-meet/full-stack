@@ -19,6 +19,9 @@ import ChatBubble from '../components/chat/ChatBubble'
 import TypingIndicatorBubble from '../components/chat/TypingIndicatorBubble'
 import MessageActionsSheet from '../components/chat/MessageActionsSheet'
 import ChatOptionsSheet from '../components/chat/ChatOptionsSheet'
+import ChatGameCard from '../components/chat/ChatGameCard'
+import GamePickerSheet from '../components/chat/GamePickerSheet'
+import { useChatGames, useChatGamesRealtime } from '../hooks/useChatGames'
 import { useUploadChatMedia, type ChatMediaUpload } from '../hooks/useUploadChatMedia'
 
 type ComposerMode =
@@ -48,6 +51,14 @@ export function ChatPane({
   const myId = useAuth((s) => s.session?.user.id ?? null)
 
   const conv = useConversation(conversationId)
+  const gamesQ = useChatGames(conversationId)
+  useChatGamesRealtime(conversationId)
+  // Only invited and active boards belong above the thread. A finished game
+  // is a result, not a thing to come back to, so it drops out on next load.
+  const liveGames = useMemo(
+    () => (gamesQ.data ?? []).filter((g) => g.status === 'invited' || g.status === 'active'),
+    [gamesQ.data],
+  )
   const messagesQ = useMessages(conversationId)
   const send = useSendMessage(conversationId ?? '')
   const edit = useEditMessage(conversationId ?? '')
@@ -59,6 +70,7 @@ export function ChatPane({
 
   const [actionsFor, setActionsFor] = useState<Message | null>(null)
   const [needCredits, setNeedCredits] = useState(false)
+  const [gamePickerOpen, setGamePickerOpen] = useState(false)
 
   // Games in this chat. Realtime keeps the board in step without anyone
   // needing to be present — that is the whole point of turn-based (§8).
@@ -150,6 +162,15 @@ export function ChatPane({
             verified={otherVerified}
           />
         )}
+        {conversationId && (
+          <button
+            onClick={() => setGamePickerOpen(true)}
+            aria-label="Play a game"
+            className="text-ink-2 hover:text-ink text-xl leading-none px-2 py-2"
+          >
+            🎲
+          </button>
+        )}
         {conv.data?.other_id && (
           <button
             onClick={() => setChatMenuOpen(true)}
@@ -160,6 +181,15 @@ export function ChatPane({
           </button>
         )}
       </header>
+
+      {/* Live games sit above the messages: turn-based and asynchronous, so a
+          board is a thing you come back to, not something you have to be
+          present for. Finished games drop out of the list on next load. */}
+      {liveGames.length > 0 && (
+        <div className="shrink-0 px-3 pt-2 border-b border-white/5 max-h-[60vh] overflow-y-auto no-scrollbar">
+          {liveGames.map((g) => <ChatGameCard key={g.id} game={g} />)}
+        </div>
+      )}
 
       {/* In-chat search bar — toggled from the chat ⋯ menu. */}
       {searchOpen && (
@@ -247,6 +277,15 @@ export function ChatPane({
 
       <AnimatePresence>
         {needCredits && <OutOfCreditsSheet onClose={() => setNeedCredits(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {gamePickerOpen && conversationId && (
+          <GamePickerSheet
+            conversationId={conversationId}
+            onClose={() => setGamePickerOpen(false)}
+          />
+        )}
       </AnimatePresence>
 
       <AnimatePresence>
