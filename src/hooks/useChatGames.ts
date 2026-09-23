@@ -109,9 +109,43 @@ export function useRespondChatGame(conversationId: string | null) {
   })
 }
 
+/**
+ * postgrest-js parses an RPC failure body with `JSON.parse` and throws the
+ * resulting plain `{message, code, details, hint}` object as-is
+ * (`@supabase/postgrest-js/dist/index.cjs` `processResponse`) — it only
+ * constructs a real `PostgrestError` (which extends `Error`) when
+ * `throwOnError` is set, which this app never does. So `e instanceof Error`
+ * is always false for a mutation's `if (error) throw error`, and any check
+ * built on it silently never matches. Duck-type the message instead.
+ */
+export const errMessage = (e: unknown): string =>
+  typeof e === 'object' && e !== null && 'message' in e &&
+  typeof (e as { message: unknown }).message === 'string'
+    ? (e as { message: string }).message
+    : 'Something went wrong.'
+
 /** Thrown when the board moved on under us — refetch and redraw, don't retry. */
 export function isStaleMove(e: unknown): boolean {
-  return e instanceof Error && e.message.includes('stale_move')
+  return errMessage(e).includes('stale_move')
+}
+
+/**
+ * Every "the row is not what this action assumed" error the live RPCs raise:
+ * `play_chat_move` -> `stale_move` (0094:240); any move/guess RPC ->
+ * `not your turn` (0094:238, 0095:91, 0095:152) or `game is not active`
+ * (0094:237, 0095:90, 0095:151); `guess_word_letter` -> `already guessed`
+ * (0095:106 — only `play_chat_move` writes `state->'guessed'`, so this can
+ * only fire when the client's row is behind). All recover the same way:
+ * refetch, redraw — never retry the same call.
+ */
+export function isStaleLike(e: unknown): boolean {
+  const m = errMessage(e)
+  return (
+    m.includes('stale_move') ||
+    m.includes('not your turn') ||
+    m.includes('game is not active') ||
+    m.includes('already guessed')
+  )
 }
 
 export function usePlayChatMove(conversationId: string | null) {

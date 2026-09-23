@@ -21,13 +21,33 @@ import MessageActionsSheet from '../components/chat/MessageActionsSheet'
 import ChatOptionsSheet from '../components/chat/ChatOptionsSheet'
 import ChatGameCard from '../components/chat/ChatGameCard'
 import GamePickerSheet from '../components/chat/GamePickerSheet'
-import { useChatGames, useChatGamesRealtime } from '../hooks/useChatGames'
+import { useChatGames, useChatGamesRealtime, type ChatGame } from '../hooks/useChatGames'
 import { useUploadChatMedia, type ChatMediaUpload } from '../hooks/useUploadChatMedia'
 
 type ComposerMode =
   | { kind: 'idle' }
   | { kind: 'reply'; replyToId: string }
   | { kind: 'edit'; messageId: string; original: string }
+
+const GAME_STRIP_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/**
+ * A game belongs in the strip above the composer if it's still being played,
+ * or if it finished recently enough that the result — "You win." — hasn't
+ * had a real chance to be seen yet (the winning move's own cache invalidate
+ * would otherwise unmount the card before either player reads it).
+ *
+ * Module-level, not inline in the hook body: `react-hooks/purity` rejects a
+ * bare `Date.now()` read during render, so the impure read lives in a plain
+ * function outside the component instead.
+ */
+function isVisibleGame(g: ChatGame): boolean {
+  if (g.status === 'invited' || g.status === 'active') return true
+  if (g.status === 'finished' && g.finished_at) {
+    return Date.now() - new Date(g.finished_at).getTime() < GAME_STRIP_WINDOW_MS
+  }
+  return false
+}
 
 export default function ChatDetailScreen() {
   const { conversationId } = useParams<{ conversationId: string }>()
@@ -53,10 +73,11 @@ export function ChatPane({
   const conv = useConversation(conversationId)
   const gamesQ = useChatGames(conversationId)
   useChatGamesRealtime(conversationId)
-  // Only invited and active boards belong above the thread. A finished game
-  // is a result, not a thing to come back to, so it drops out on next load.
-  const liveGames = useMemo(
-    () => (gamesQ.data ?? []).filter((g) => g.status === 'invited' || g.status === 'active'),
+  // Invited and active boards belong above the thread, plus anything that
+  // finished within the last 24h — long enough for both players to see the
+  // result before it drops out. See isVisibleGame above.
+  const visibleGames = useMemo(
+    () => (gamesQ.data ?? []).filter(isVisibleGame),
     [gamesQ.data],
   )
   const messagesQ = useMessages(conversationId)
@@ -184,10 +205,11 @@ export function ChatPane({
 
       {/* Live games sit above the messages: turn-based and asynchronous, so a
           board is a thing you come back to, not something you have to be
-          present for. Finished games drop out of the list on next load. */}
-      {liveGames.length > 0 && (
+          present for. A finished game lingers for 24h (isVisibleGame) so the
+          result gets seen, then drops out of the list. */}
+      {visibleGames.length > 0 && (
         <div className="shrink-0 px-3 pt-2 border-b border-white/5 max-h-[60vh] overflow-y-auto no-scrollbar">
-          {liveGames.map((g) => <ChatGameCard key={g.id} game={g} />)}
+          {visibleGames.map((g) => <ChatGameCard key={g.id} game={g} />)}
         </div>
       )}
 

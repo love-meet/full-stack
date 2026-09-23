@@ -44,7 +44,7 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: Boar
   const valid = Number.isInteger(value) && value >= MIN && value <= MAX
 
   async function lockIn() {
-    if (!valid || busy || pending) return
+    if (!isMyTurn || !valid || busy || pending) return
     setPending(true)
     setError(null)
     try {
@@ -104,10 +104,10 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: Boar
             <p className="text-center text-sm text-ink-2">
               Pick a secret number, {MIN}–{MAX}. They'll try to guess it.
             </p>
-            <NumberInput value={draft} onChange={setDraft} />
+            <NumberInput value={draft} onChange={setDraft} disabled={!isMyTurn || busy || pending} />
             <button
               onClick={lockIn}
-              disabled={!valid || busy || pending}
+              disabled={!isMyTurn || !valid || busy || pending}
               className="w-full rounded-full py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose disabled:opacity-50"
             >
               {pending ? 'Locking in…' : 'Lock it in'}
@@ -156,7 +156,15 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: Boar
   )
 }
 
-function NumberInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function NumberInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string
+  onChange: (v: string) => void
+  disabled?: boolean
+}) {
   return (
     <input
       type="number"
@@ -165,8 +173,9 @@ function NumberInput({ value, onChange }: { value: string; onChange: (v: string)
       max={MAX}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
       placeholder={`${MIN}–${MAX}`}
-      className="lm-input w-full text-center text-2xl font-extrabold tabular-nums"
+      className="lm-input w-full text-center text-2xl font-extrabold tabular-nums disabled:opacity-50"
       aria-label="Number"
     />
   )
@@ -181,7 +190,8 @@ export const numberDuel: GameDef<DuelState> = {
   status: (state, myRole, isMyTurn, outcome) => {
     if (outcome) return outcome === 'won' ? 'You got it. You win.' : 'They got yours first.'
     if (state.phase === 'setting') {
-      return state.ready.includes(myRole) ? 'Waiting for their number' : 'Pick your number'
+      if (state.ready.includes(myRole)) return 'Waiting for their number'
+      return isMyTurn ? 'Pick your number' : 'Waiting for them to go first'
     }
     return isMyTurn ? 'Your turn — take a guess' : 'Waiting for them'
   },

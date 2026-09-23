@@ -43,6 +43,11 @@ const BEATS: Record<Throw, Throw> = { rock: 'scissors', paper: 'rock', scissors:
 function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: BoardProps<RpsState>) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The throw already written to chat_game_secrets for this round, if any.
+  // set_game_secret is set-once: once this is non-null, a retry must resend
+  // this exact value rather than whatever was just clicked, or the player
+  // could end up believing they threw something the server never recorded.
+  const [committed, setCommitted] = useState<Throw | null>(null)
   const opponent = other(myRole)
   const iThrew = state.thrown.includes(myRole)
   const theyThrew = state.thrown.includes(opponent)
@@ -50,17 +55,20 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: Boar
 
   async function throwIt(pick: Throw) {
     if (!isMyTurn || busy || pending || finished || iThrew) return
+    const myThrow = committed ?? pick
+    if (committed === null) setCommitted(myThrow)
     setPending(true)
     setError(null)
     try {
-      await setGameSecret(gameId, { throw: pick })
+      await setGameSecret(gameId, { throw: myThrow })
 
       // First to throw: hand over without revealing anything.
       if (!theyThrew) {
-        onMove({
+        const ok = await onMove({
           state: { ...state, thrown: [...state.thrown, myRole] },
           summary: 'threw — your move',
         })
+        if (ok) setCommitted(null)
         return
       }
 
@@ -78,19 +86,42 @@ function Board({ gameId, state, myRole, isMyTurn, finished, busy, onMove }: Boar
         winner,
       }]
       const done = scores[myRole] >= TO_WIN || scores[opponent] >= TO_WIN
+      const matchWinner = done ? (scores[myRole] > scores[opponent] ? myRole : opponent) : null
+      const nextTurn: Role = winner ? other(winner) : myRole
 
-      // Throws are per-round; clear them so the next round starts blind.
-      await clearGameSecrets(gameId)
+      // `summary` is read by the OPPONENT, from their own point of view — it
+      // must describe the real outcome and agree with `nextTurn` below, not
+      // just describe what this player (the mover) did.
+      let summary: string
+      if (done) {
+        summary = matchWinner === myRole ? 'won the set' : 'lost the set'
+      } else if (winner === null) {
+        summary = 'tied a round — threw again'
+      } else if (winner === myRole) {
+        // Mover won the round; opponent lost it and throws next.
+        summary = 'won a round — your turn'
+      } else {
+        // Mover lost the round and throws next; opponent just waits.
+        summary = 'lost a round'
+      }
 
-      onMove({
+      const ok = await onMove({
         state: { thrown: [], scores, history },
         // Loser of the round throws first next, so nobody is always the one
         // throwing blind.
-        nextTurn: winner ? other(winner) : myRole,
+        nextTurn,
         finished: done,
-        winner: done ? (scores[myRole] > scores[opponent] ? myRole : opponent) : null,
-        summary: done ? 'won at rock paper scissors' : 'threw — your turn',
+        winner: matchWinner,
+        summary,
       })
+      // Throws are per-round; only clear them once the move recording the
+      // round has actually landed. Clearing first and having the move then
+      // fail would strand the round — both throws gone, but state still
+      // says they were thrown, and neither can be replayed.
+      if (ok) {
+        await clearGameSecrets(gameId)
+        setCommitted(null)
+      }
     } catch (e) {
       setError((e as Error).message)
     } finally {

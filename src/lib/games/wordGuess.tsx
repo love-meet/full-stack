@@ -52,7 +52,7 @@ function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMov
 
   async function setWord() {
     const word = draft.toUpperCase().replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').trim()
-    if (word.replace(/ /g, '').length < 3 || busy || pending) return
+    if (!isMyTurn || finished || word.replace(/ /g, '').length < 3 || busy || pending) return
     setPending(true)
     setError(null)
     try {
@@ -118,12 +118,13 @@ function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMov
           onChange={(e) => setDraft(e.target.value)}
           placeholder="A word or short phrase"
           maxLength={24}
-          className="lm-input w-full text-center tracking-[0.2em] uppercase"
+          disabled={!isMyTurn || finished || busy || pending}
+          className="lm-input w-full text-center tracking-[0.2em] uppercase disabled:opacity-50"
           aria-label="Word to guess"
         />
         <button
           onClick={setWord}
-          disabled={draft.replace(/[^a-zA-Z]/g, '').length < 3 || busy || pending}
+          disabled={!isMyTurn || finished || draft.replace(/[^a-zA-Z]/g, '').length < 3 || busy || pending}
           className="w-full rounded-full py-2.5 bg-gradient-brand text-white text-sm font-bold glow-rose disabled:opacity-50"
         >
           {pending ? 'Setting…' : 'Set the word'}
@@ -194,6 +195,11 @@ function Board({ gameId, state, myRole, isMyTurn, finished, outcome, busy, onMov
 
       {outcome && state.solution && (
         <p className="text-center text-sm font-bold text-ink">The word was “{state.solution}”.</p>
+      )}
+      {outcome && !state.solution && (
+        <p className="text-center text-sm text-ink-muted">
+          Out of guesses — the word isn't revealed here.
+        </p>
       )}
     </div>
   )

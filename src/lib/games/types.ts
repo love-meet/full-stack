@@ -51,7 +51,14 @@ export type BoardProps<S> = {
   finished: boolean
   outcome: Outcome
   busy: boolean
-  onMove: (result: MoveResult<S>) => void
+  /**
+   * Resolves `true` once `play_chat_move` succeeded, `false` if it failed
+   * (the card has already shown the error). Hidden-information boards must
+   * await it before clearing secrets or discarding a frozen secret — on
+   * `false` they must not advance local state or clear secrets. Open-board
+   * callers may fire-and-forget.
+   */
+  onMove: (result: MoveResult<S>) => Promise<boolean>
 }
 
 export type GameDef<S = unknown> = {

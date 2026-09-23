@@ -6,7 +6,8 @@ import {
   usePlayChatMove,
   useRespondChatGame,
   useResignChatGame,
-  isStaleMove,
+  isStaleLike,
+  errMessage,
   type ChatGame,
 } from '../../hooks/useChatGames'
 import { gameFor } from '../../lib/games'
@@ -40,8 +41,9 @@ export default function ChatGameCard({ game }: { game: ChatGame }) {
       : game.winner_user_id === myId
         ? 'won'
         : 'lost'
+  const busy = play.isPending || respond.isPending || resign.isPending
 
-  async function onMove(result: MoveResult<unknown>) {
+  async function onMove(result: MoveResult<unknown>): Promise<boolean> {
     setError(null)
     try {
       await play.mutateAsync({
@@ -49,10 +51,14 @@ export default function ChatGameCard({ game }: { game: ChatGame }) {
         expectedMove: game.move_count,
         result,
       })
+      return true
     } catch (e) {
-      // A stale move means they moved first. The refetch already fired; the
-      // board is about to redraw, so say so rather than showing a raw error.
-      setError(isStaleMove(e) ? 'They moved first — here’s the new board.' : (e as Error).message)
+      // Stale-like covers everything meaning "the row is not what this move
+      // assumed": a stale move, an out-of-turn call, or a repeated guess.
+      // The refetch already fired (usePlayChatMove.onError), so the board is
+      // about to redraw — say so rather than showing the raw server text.
+      setError(isStaleLike(e) ? 'They moved first — here’s the new board.' : errMessage(e))
+      return false
     }
   }
 
@@ -62,7 +68,36 @@ export default function ChatGameCard({ game }: { game: ChatGame }) {
     return (
       <Shell def={def}>
         {mine ? (
-          <p className="text-sm text-ink-2">Invite sent. Waiting for them to accept.</p>
+          <>
+            <p className="text-sm text-ink-2">Invite sent. Waiting for them to accept.</p>
+            <div className="mt-3 text-center">
+              <button
+                onClick={async () => {
+                  try {
+                    const row = await resign.mutateAsync(game.id)
+                    // 0114: withdrawing an `invited` row normally records a
+                    // decline (status 'declined', no winner) — that status is
+                    // excluded from the games query, so the card disappears
+                    // on its own once the invalidate lands; no local
+                    // dismissal needed. But if the invitee's accept landed
+                    // first, the RPC finds an `active` row instead and
+                    // records a real forfeit (status 'finished'). Don't hide
+                    // that outcome — say what happened.
+                    if (row.status === 'finished') {
+                      setError('They accepted just before your withdrawal landed — the game finished instead.')
+                    }
+                  } catch (e) {
+                    setError(errMessage(e))
+                  }
+                }}
+                disabled={resign.isPending}
+                className="text-xs text-ink-muted hover:text-danger disabled:opacity-60"
+              >
+                Withdraw
+              </button>
+            </div>
+            {error && <p className="mt-2 text-center text-xs text-danger">{error}</p>}
+          </>
         ) : (
           <>
             <p className="text-sm text-ink-2">{def.blurb}</p>
@@ -82,33 +117,27 @@ export default function ChatGameCard({ game }: { game: ChatGame }) {
                 No thanks
               </button>
             </div>
+            {respond.error && (
+              <p className="mt-2 text-center text-xs text-danger">{errMessage(respond.error)}</p>
+            )}
           </>
         )}
       </Shell>
     )
   }
 
-  const BoardComponent = def.Board as unknown as React.ComponentType<{
-    gameId: string
-    state: unknown
-    myRole: typeof myRole
-    isMyTurn: boolean
-    finished: boolean
-    outcome: Outcome
-    busy: boolean
-    onMove: (r: MoveResult<unknown>) => void
-  }>
+  const BoardComponent = def.Board
 
   return (
     <Shell def={def}>
       <BoardComponent
         gameId={game.id}
-        state={game.state}
+        state={game.state as never}
         myRole={myRole}
         isMyTurn={isMyTurn}
         finished={finished}
         outcome={outcome}
-        busy={play.isPending}
+        busy={busy}
         onMove={onMove}
       />
 
@@ -122,6 +151,7 @@ export default function ChatGameCard({ game }: { game: ChatGame }) {
       </p>
 
       {error && <p className="mt-2 text-center text-xs text-danger">{error}</p>}
+      {resign.error && <p className="mt-2 text-center text-xs text-danger">{errMessage(resign.error)}</p>}
 
       {!finished && (
         <div className="mt-3 text-center">
