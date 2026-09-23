@@ -46,22 +46,39 @@ export function getSurface(): Surface {
 }
 
 /**
- * Does the app itself run on this surface?
+ * Is `/` the app's front door, or the website's?
  *
- * The website is a brochure — it describes Love meet and points at Telegram,
- * it does not run it. There is no sign-in on the web and no feed, chat, games
- * or credits. Everything behind RequireAppSurface is gated on this.
+ * Only Telegram. On the web, lovemeetapp.com is a brochure: it describes
+ * Love meet and points at Telegram, it does not run it.
  *
- * Read once, at module load, rather than per render: the Telegram SDK is a
- * synchronous <script> in <head>, so this is already settled by the time any
- * module runs, and a value that cannot change mid-session cannot flip a
- * signed-in user out of the app.
+ * Deliberately NOT true in dev. It was, and that made the brochure impossible
+ * to look at on localhost — `/` rendered the sign-in screen instead, which is
+ * the one page a developer is least likely to be working on. Reaching the app
+ * locally is handled by `appRoutesAllowed()` below, which is a different
+ * question from "what does the front page show".
  *
- * `import.meta.env.DEV` keeps `npm run dev` usable on a laptop. Vite compiles
- * it to a literal `false` in production builds, so a visitor cannot reach it.
+ * Read once at module load: the Telegram SDK is a synchronous <script> in
+ * <head>, so this is settled before any module runs, and a value that cannot
+ * change mid-session cannot flip a signed-in user out of the app.
  */
-const APP_RUNS_HERE = import.meta.env.DEV || getSurface() === 'telegram'
+const IN_TELEGRAM = getSurface() === 'telegram'
 
 export function appRunsHere(): boolean {
-  return APP_RUNS_HERE
+  return IN_TELEGRAM
 }
+
+/**
+ * May the app's routes render at all on this surface?
+ *
+ * Telegram always; localhost too, so `npm run dev` can open /feed, /chat and
+ * the rest without a Telegram client. Vite compiles `import.meta.env.DEV` to
+ * a literal `false` in a production build, so a visitor cannot reach it.
+ */
+const APP_ROUTES_ALLOWED = IN_TELEGRAM || import.meta.env.DEV
+
+export function appRoutesAllowed(): boolean {
+  return APP_ROUTES_ALLOWED
+}
+
+/** True only on `npm run dev` — used to offer a local sign-in. */
+export const IS_DEV = import.meta.env.DEV

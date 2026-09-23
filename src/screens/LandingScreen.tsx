@@ -5,9 +5,12 @@ import { useAuth } from '../stores/auth'
 import { signInWithTelegram, signInWithGoogle } from '../lib/signIn'
 import LoadingShell from '../shell/LoadingShell'
 import { openInTelegramNow } from '../lib/telegramRedirect'
-import { appRunsHere, getSurface } from '../lib/surface'
+import { appRunsHere, IS_DEV } from '../lib/surface'
 import GetTheApp from '../components/GetTheApp'
 import WhatItIs from '../components/WhatItIs'
+import Screenshots from '../components/Screenshots'
+import HowItWorks from '../components/HowItWorks'
+import SiteFooter from '../components/SiteFooter'
 import { TelegramLogo } from '../components/BrandIcons'
 import { HeartIcon } from '../components/FeedIcons'
 
@@ -245,12 +248,16 @@ export default function LandingScreen() {
 
     {/* Where to get it. Telegram is live; the phone apps are honestly marked
         coming soon rather than given store badges that lead nowhere. */}
-    {/* What the app is. This is the website's actual job. */}
+    {/* §02, in the order that document sets out: what we do, screenshots of
+        the inside, how it works, the three doors, then the legal footer. */}
     <WhatItIs />
-
-    {/* Where to get it. Telegram is live; the phone apps are honestly marked
-        coming soon rather than given store badges that lead nowhere. */}
+    <Screenshots />
+    <HowItWorks />
     <GetTheApp />
+    <SiteFooter />
+
+    {/* Localhost only. Compiled out of production builds entirely. */}
+    {IS_DEV && <DevSignIn />}
     </>
   )
 }
@@ -263,26 +270,21 @@ export default function LandingScreen() {
  * sections are for people who have not decided yet, and they are unreachable
  * from this branch.
  *
- * Telegram is the only real door. Google stays wired up for exactly one
- * reason: on localhost there is no Telegram SDK, so signInWithTelegram()
- * throws and nobody could sign in to develop against. That branch cannot
- * reach production — Vite compiles import.meta.env.DEV to a literal false, so
- * appRunsHere() is only ever true inside Telegram in a real build.
+ * Telegram is the only door. Signing in locally is a separate affair —
+ * see DevSignIn at the bottom of this file.
  */
 function AppSignIn() {
-  const viaTelegram = getSurface() === 'telegram'
   // Inside Telegram we sign in on arrival, so the initial state is "working",
   // not "waiting for a tap". Decided here rather than in the effect: the read
   // is pure, and computing it up front means the screen never paints a button
   // for the split second before an effect could take it away.
-  const [busy, setBusy] = useState(() => viaTelegram && !alreadyTriedTelegramAuth())
+  const [busy, setBusy] = useState(() => !alreadyTriedTelegramAuth())
   const [error, setError] = useState<string | null>(null)
 
   function connect() {
     setBusy(true)
     setError(null)
-    const go = viaTelegram ? signInWithTelegram() : signInWithGoogle()
-    go.catch((e: Error) => {
+    signInWithTelegram().catch((e: Error) => {
       setError(e.message)
       setBusy(false)
     })
@@ -348,8 +350,8 @@ function AppSignIn() {
               onClick={connect}
               className="mt-8 w-full rounded-full px-9 py-3.5 bg-gradient-brand text-white font-bold tracking-wide glow-rose transition-transform active:scale-[0.98] flex items-center justify-center gap-2.5"
             >
-              {viaTelegram && <TelegramLogo className="w-5 h-5" />}
-              {viaTelegram ? 'Continue with Telegram' : 'Continue with Google (dev)'}
+              <TelegramLogo className="w-5 h-5" />
+              Continue with Telegram
             </button>
             {error && (
               <p className="mt-3 text-sm text-danger">
@@ -364,5 +366,30 @@ function AppSignIn() {
         </p>
       </motion.div>
     </section>
+  )
+}
+
+/**
+ * A way into the app on localhost.
+ *
+ * There is no Telegram SDK on a laptop, so signInWithTelegram() throws and a
+ * developer has no door at all. This is that door — deliberately a small
+ * corner button on the brochure rather than a screen of its own, because the
+ * previous arrangement replaced the entire landing page with a sign-in form
+ * and made the brochure impossible to look at while working on it.
+ *
+ * Vite compiles import.meta.env.DEV to a literal false, so this whole
+ * component is dropped from a production bundle.
+ */
+function DevSignIn() {
+  const [busy, setBusy] = useState(false)
+  return (
+    <button
+      onClick={() => { setBusy(true); signInWithGoogle().catch(() => setBusy(false)) }}
+      disabled={busy}
+      className="fixed bottom-4 right-4 z-50 rounded-full px-4 py-2 bg-black/70 text-white text-xs font-bold ring-1 ring-white/20 backdrop-blur-sm disabled:opacity-60"
+    >
+      {busy ? 'Opening…' : 'dev sign-in'}
+    </button>
   )
 }

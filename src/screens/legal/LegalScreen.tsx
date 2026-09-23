@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom'
+import { GUIDELINES, CHILD_SAFETY, SAFETY } from './safetyPolicies'
 
-type Kind = 'privacy' | 'terms' | 'about' | 'help'
+type Kind = 'privacy' | 'terms' | 'about' | 'help' | 'guidelines' | 'child-safety' | 'safety'
 
 const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] }> = {
   privacy: {
@@ -123,6 +124,9 @@ const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] 
       },
     ],
   },
+  guidelines: GUIDELINES,
+  'child-safety': CHILD_SAFETY,
+  safety: SAFETY,
 }
 
 type Section = { heading: string; body: string }
