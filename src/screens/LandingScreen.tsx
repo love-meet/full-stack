@@ -1,9 +1,11 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion, type Variants } from 'framer-motion'
 import { Navigate, Link } from 'react-router-dom'
 import { useAuth } from '../stores/auth'
+import { signInWithTelegram, signInWithGoogle } from '../lib/signIn'
+import LoadingShell from '../shell/LoadingShell'
 import { openInTelegramNow } from '../lib/telegramRedirect'
-import { appRunsHere } from '../lib/surface'
+import { appRunsHere, getSurface } from '../lib/surface'
 import GetTheApp from '../components/GetTheApp'
 import WhatItIs from '../components/WhatItIs'
 import { TelegramLogo } from '../components/BrandIcons'
@@ -37,20 +39,33 @@ const rise: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
 }
 
+/** One automatic Telegram sign-in attempt per tab — see AppSignIn. */
+const TG_AUTH_TRIED = 'lm_tg_auth_tried'
+
+function alreadyTriedTelegramAuth(): boolean {
+  // Storage blocked counts as "already tried": without somewhere to record the
+  // attempt there is no way to stop a failed sign-in retrying for ever, so the
+  // safe answer is to show the button instead.
+  try { return sessionStorage.getItem(TG_AUTH_TRIED) === '1' } catch { return true }
+}
+
 /**
- * The website.
+ * Two different screens behind one route.
  *
- * It is a brochure, not the app. There is no sign-in here and no way into the
+ * ON THE WEBSITE this is a brochure. There is no sign-in and no way into the
  * product from a desktop browser: people join on Telegram, and on the phone
- * apps once those ship. Everything this page does is explain what Love meet
- * is and hand you the Telegram link.
+ * apps once those ship. All it does is explain what Love meet is and hand
+ * over the Telegram link.
  *
- * The one exception is the Mini-App itself, which is served from this same
- * URL inside Telegram's webview — there, a signed-in visitor is bounced
- * straight to /feed and never sees any of this.
+ * INSIDE TELEGRAM none of that renders. The Mini-App is served from this same
+ * URL, so `/` is also the app's front door — a signed-in visitor is bounced to
+ * the feed, and a signed-out one gets the sign-in button. Showing them
+ * marketing, or an "Open in Telegram" button while they are standing inside
+ * Telegram, would be absurd.
  */
 export default function LandingScreen() {
   const session = useAuth((s) => s.session)
+  const ready = useAuth((s) => s.ready)
   const particles = useHeartParticles()
   // Only true inside Telegram (or `npm run dev`). On the public website the
   // app is not reachable at all, so there is nothing to sign into.
@@ -72,10 +87,23 @@ export default function LandingScreen() {
     }
   }, [])
 
-  // Inside Telegram a signed-in visitor goes straight to the app and never
-  // sees the brochure. On the website there is nothing to redirect to, so the
-  // page renders immediately rather than waiting on auth to resolve.
-  if (inApp && session) return <Navigate to="/feed" replace />
+  // ── Inside the app (Telegram), this route is never the brochure ──────────
+  //
+  // Three states, and all three have to be right or a Mini-App user sees a
+  // marketing page inside the product:
+  //
+  //   auth still resolving → a loader. Rendering the brochure here would
+  //     flash it at every returning user for the split second before the
+  //     redirect fires.
+  //   signed in            → straight to the feed.
+  //   signed out           → the Telegram sign-in, not the brochure. There is
+  //     no auto sign-in, so this screen is the only way in — and "Open in
+  //     Telegram" is meaningless to someone already inside Telegram.
+  if (inApp) {
+    if (!ready) return <LoadingShell />
+    if (session) return <Navigate to="/feed" replace />
+    return <AppSignIn />
+  }
 
   return (
     <>
@@ -224,5 +252,117 @@ export default function LandingScreen() {
         coming soon rather than given store badges that lead nowhere. */}
     <GetTheApp />
     </>
+  )
+}
+
+/**
+ * Sign-in, shown only where the app actually runs.
+ *
+ * Deliberately not the brochure. Someone here has already chosen Love meet and
+ * is standing inside it — they need one button, not a pitch. The marketing
+ * sections are for people who have not decided yet, and they are unreachable
+ * from this branch.
+ *
+ * Telegram is the only real door. Google stays wired up for exactly one
+ * reason: on localhost there is no Telegram SDK, so signInWithTelegram()
+ * throws and nobody could sign in to develop against. That branch cannot
+ * reach production — Vite compiles import.meta.env.DEV to a literal false, so
+ * appRunsHere() is only ever true inside Telegram in a real build.
+ */
+function AppSignIn() {
+  const viaTelegram = getSurface() === 'telegram'
+  // Inside Telegram we sign in on arrival, so the initial state is "working",
+  // not "waiting for a tap". Decided here rather than in the effect: the read
+  // is pure, and computing it up front means the screen never paints a button
+  // for the split second before an effect could take it away.
+  const [busy, setBusy] = useState(() => viaTelegram && !alreadyTriedTelegramAuth())
+  const [error, setError] = useState<string | null>(null)
+
+  function connect() {
+    setBusy(true)
+    setError(null)
+    const go = viaTelegram ? signInWithTelegram() : signInWithGoogle()
+    go.catch((e: Error) => {
+      setError(e.message)
+      setBusy(false)
+    })
+  }
+
+  /**
+   * Sign in automatically inside Telegram.
+   *
+   * Telegram already put this person here and `initData` is a signed assertion
+   * of who they are — our Edge Function verifies the HMAC. Asking them to tap
+   * "Continue with Telegram" is asking them to confirm an identity the client
+   * already proved; every Mini-App that does this well just signs you in.
+   *
+   * ATTEMPTED ONCE PER TAB. Sign-in ends in a full navigation to a magic link
+   * that lands back on this same route, so a failure that left no session
+   * would otherwise retry forever. The flag makes the failure terminal, and
+   * the button below becomes the manual escape hatch with the real error on
+   * screen instead of an invisible redirect loop.
+   */
+  useEffect(() => {
+    if (!busy) return
+    try { sessionStorage.setItem(TG_AUTH_TRIED, '1') } catch { /* blocked storage */ }
+    signInWithTelegram().catch((e: Error) => {
+      setError(e.message)
+      setBusy(false)
+    })
+  }, [busy])
+
+  return (
+    <section className="relative min-h-screen overflow-hidden grid place-items-center px-6">
+      <div aria-hidden className="pointer-events-none absolute inset-0 z-0">
+        <div className="lm-orb lm-orb-a" />
+        <div className="lm-orb lm-orb-b" />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45 }}
+        className="relative z-10 w-full max-w-sm text-center"
+      >
+        <img src="/logo.png" alt="" className="h-14 w-auto mx-auto" />
+
+        <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-ink leading-tight">
+          Where hearts <span className="text-gradient-warm">actually meet</span>.
+        </h1>
+        <p className="mt-3 text-sm text-ink-2 leading-relaxed">
+          Meet people near you, match with someone who gets you, chat, send
+          gifts, and maybe find the one. It only takes a hello.
+        </p>
+
+        {/* While the automatic sign-in runs this is a splash, not a form —
+            showing a button nobody needs to press invites them to press it.
+            The button only appears if the automatic attempt failed. */}
+        {busy ? (
+          <div className="mt-9 flex flex-col items-center gap-3">
+            <div className="w-8 h-8 rounded-full border-2 border-white/15 border-t-rose animate-spin" />
+            <p className="text-sm text-ink-muted">Signing you in…</p>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={connect}
+              className="mt-8 w-full rounded-full px-9 py-3.5 bg-gradient-brand text-white font-bold tracking-wide glow-rose transition-transform active:scale-[0.98] flex items-center justify-center gap-2.5"
+            >
+              {viaTelegram && <TelegramLogo className="w-5 h-5" />}
+              {viaTelegram ? 'Continue with Telegram' : 'Continue with Google (dev)'}
+            </button>
+            {error && (
+              <p className="mt-3 text-sm text-danger">
+                Couldn't sign you in automatically: {error}
+              </p>
+            )}
+          </>
+        )}
+
+        <p className="mt-6 text-[11px] uppercase tracking-[0.2em] text-ink-muted">
+          18+ · Free to join
+        </p>
+      </motion.div>
+    </section>
   )
 }
