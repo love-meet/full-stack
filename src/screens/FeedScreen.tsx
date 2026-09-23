@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import TopIcons from '../shell/TopIcons'
-import FeedAd from '../components/FeedAd'
 import { usePeopleFeed, useAdvanceFeed, ageFrom, type FeedPerson } from '../hooks/usePeopleFeed'
 import { useStartDM, isDailyChatLimit } from '../hooks/useStartDM'
 import { useRecordGalleryDecision } from '../hooks/useGalleryFeed'
@@ -139,18 +138,13 @@ export default function FeedScreen() {
           </div>
         )}
 
-        {people.map((person, i) => (
+        {people.map((person) => (
           <PersonCard
             key={person.id}
             person={person}
             state={actions.data?.[person.id]}
             onSeen={markSeen}
             onOpenGallery={() => setGallery(person)}
-            // A sponsored card every tenth profile (§7). Always on, for
-            // everyone — not a reward, unlocks nothing. Tenth rather than
-            // eighth because the feed is faces: an ad among them intrudes
-            // more than one among posts did.
-            showAdAfter={(i + 1) % 10 === 0}
           />
         ))}
       </div>
@@ -166,13 +160,12 @@ export default function FeedScreen() {
 // One person, one screen. The picture is the card.
 // ---------------------------------------------------------------------------
 function PersonCard({
-  person, state, onSeen, onOpenGallery, showAdAfter,
+  person, state, onSeen, onOpenGallery,
 }: {
   person: FeedPerson
   state?: ProfileActionState
   onSeen: (id: string) => void
   onOpenGallery: () => void
-  showAdAfter: boolean
 }) {
   const ref = useRef<HTMLElement>(null)
   const navigate = useNavigate()
@@ -409,8 +402,6 @@ function PersonCard({
           onClose={() => setSheet(null)}
         />
       )}
-
-      {showAdAfter && <AdCard />}
     </>
   )
 }
@@ -529,22 +520,6 @@ function Chip({ children }: { children: React.ReactNode }) {
     <span className="rounded-full px-2.5 py-1 bg-white/15 backdrop-blur-sm text-white text-[11px] font-semibold">
       {children}
     </span>
-  )
-}
-
-/** A sponsored slide — same footprint as a profile, clearly labelled. */
-function AdCard() {
-  return (
-    <section className="relative h-full w-full snap-start snap-always bg-black grid place-items-center px-5">
-      <div className="w-full max-w-md mx-auto glass rounded-3xl px-5 pt-4 pb-5 flex flex-col items-center gap-4">
-        <span className="self-start text-[10px] font-bold uppercase tracking-[0.18em] text-ink-muted">
-          Sponsored
-        </span>
-        <div className="grid place-items-center min-h-[250px] w-full">
-          <FeedAd />
-        </div>
-      </div>
-    </section>
   )
 }
 

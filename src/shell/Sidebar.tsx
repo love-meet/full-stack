@@ -3,7 +3,6 @@ import { motion } from 'framer-motion'
 import { NAV_ITEMS } from './navItems'
 import { useProfile } from '../hooks/useProfile'
 import { avatarFor } from '../lib/avatar'
-import { SidebarAd } from '../components/FeedAd'
 
 export default function Sidebar() {
   const profile = useProfile()
@@ -64,13 +63,7 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      {/* Sponsored skyscraper. Shown to everyone (§7); SidebarAd itself
-          returns null when the switch is off or the 160x600 key is unset. */}
-      <div className="mt-auto pt-6 grid place-items-center">
-        <SidebarAd />
-      </div>
-
-      <div className="mt-4 px-3 pt-6 text-[10px] text-ink-muted">
+      <div className="mt-auto px-3 pt-6 text-[10px] text-ink-muted">
         @{displayName}
       </div>
     </aside>
