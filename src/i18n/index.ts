@@ -68,6 +68,37 @@ export function systemLanguage(): LanguageCode {
   return DEFAULT_LANGUAGE
 }
 
+/**
+ * Languages written right to left.
+ *
+ * HS-LM-v1 §03: "Build for right-to-left from the start. Retrofitting Arabic
+ * into a finished layout is a rebuild; allowing for it now is an afternoon."
+ *
+ * We do not ship any of these yet — so this list is the allowance, not the
+ * feature. The moment one is added to SUPPORTED_LANGUAGES the layout already
+ * flips, because the work was in using logical CSS properties (start/end
+ * rather than left/right) rather than in a switch somewhere.
+ */
+const RTL_LANGUAGES = new Set(['ar', 'he', 'fa', 'ur', 'ps', 'sd', 'yi'])
+
+export function isRtl(code: string): boolean {
+  return RTL_LANGUAGES.has(code.toLowerCase().split('-')[0])
+}
+
+/**
+ * Put the language and its direction on <html>.
+ *
+ * `dir` is what makes the browser mirror the whole document — text
+ * alignment, scrollbars, and every CSS logical property. `lang` matters for
+ * screen readers and for the font stack picking sensible glyphs.
+ */
+export function applyDocumentLanguage(code: string) {
+  if (typeof document === 'undefined') return
+  const el = document.documentElement
+  el.lang = code
+  el.dir = isRtl(code) ? 'rtl' : 'ltr'
+}
+
 export function setLanguage(code: LanguageCode) {
   try {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, code)
@@ -75,6 +106,12 @@ export function setLanguage(code: LanguageCode) {
     // Storage blocked — the language still switches for this session.
   }
   void i18next.changeLanguage(code)
+  applyDocumentLanguage(code)
 }
+
+// Apply on load too, not just on change: a returning user never calls
+// setLanguage, so without this the document keeps whatever dir index.html
+// shipped with and an RTL locale renders left to right.
+applyDocumentLanguage(i18next.language ?? DEFAULT_LANGUAGE)
 
 export default i18next

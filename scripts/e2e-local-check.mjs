@@ -234,12 +234,50 @@ ok('a normal user cannot see the moderation queue', JSON.stringify(queueAsUser.j
 await rest('profiles?id=eq.' + bob.id, { key: SRK, method: 'PATCH', body: { role: 'admin' } })
 let queue = await rpc('pending_photo_reviews', { p_limit: 50 }, bob.token)
 ok('AN ADMIN SEES THE QUEUE', Array.isArray(queue.json) && queue.json.length > 0, ((queue.json || []).length) + ' pending')
-const target = (queue.json || []).find(r => r.user_id === alice.id)
+// Read her review row directly rather than scanning the admin queue: that
+// query is capped at 50 and the cap is reached once a few test runs have
+// accumulated, which made this fail for a reason that had nothing to do
+// with moderation.
+let mineRow = await rest('photo_reviews?select=id&state=eq.pending&user_id=eq.' + alice.id, { key: SRK })
+const target = (mineRow.json || [])[0]
 await rpc('review_photo', { p_review_id: target?.id, p_approve: false, p_reason: 'test rejection' }, bob.token)
 let after = await rest('profiles?select=avatar_url&id=eq.' + alice.id, { key: SRK })
 ok('A REJECTED PICTURE LEAVES THE FEED', after.json?.[0]?.avatar_url === null, JSON.stringify(after.json))
 let prn = await rest('notifications?select=type&user_id=eq.' + alice.id + '&type=eq.photo_rejected', { key: SRK })
 ok('and the person is told', (prn.json || []).length === 1)
+
+
+console.log('\n=== 14. HS-LM-v1 §05 tips and topics ===')
+let tips = await rpc('list_topics', { p_kind: 'tip', p_limit: 20, p_offset: 0 }, alice.token)
+ok('THE TIPS SECTION IS NOT EMPTY ON DAY ONE', (tips.json || []).length >= 5, ((tips.json || []).length) + ' tips')
+ok('tips have no author — they are from Love meet', (tips.json || []).every(t => t.author_id === null))
+
+// bob said Interested about alice earlier, so he is a friend and hears about it.
+let topic = await rpc('create_topic', { p_title: 'Long distance, worth it?', p_body: 'Six months in and we have met twice.' }, alice.token)
+ok('ANYONE CAN OPEN A TOPIC', !!topic.json?.id, JSON.stringify(topic.json).slice(0, 90))
+let ftn = await rest('notifications?select=type,body&user_id=eq.' + bob.id + '&type=eq.friend_topic', { key: SRK })
+ok('A FRIEND HEARS ABOUT IT (§05)', (ftn.json || []).length === 1, JSON.stringify(ftn.json).slice(0, 100))
+let strangerN = await rest('notifications?select=id&user_id=eq.' + bot.id + '&type=eq.friend_topic', { key: SRK })
+ok('a stranger does not', (strangerN.json || []).length === 0)
+
+let rep = await rpc('reply_to_topic', { p_topic: topic.json?.id, p_body: 'Twice in six months is the problem.' }, bob.token)
+ok('anyone can reply', !!rep.json?.id)
+let reps = await rpc('list_topic_replies', { p_topic: topic.json?.id }, alice.token)
+ok('the reply reads back', (reps.json || []).some(r => r.body.startsWith('Twice')))
+let counted = await rpc('list_topics', { p_kind: 'topic', p_limit: 10, p_offset: 0 }, alice.token)
+ok('the reply count moves', (counted.json || []).find(t => t.id === topic.json?.id)?.reply_count === 1)
+let ownerN = await rest('notifications?select=id&user_id=eq.' + alice.id + '&type=eq.topic_reply', { key: SRK })
+ok('the person who opened it is told', (ownerN.json || []).length === 1)
+
+// eve, not bob: section 13 promoted bob to admin, and an admin deleting
+// somebody else's topic is correct behaviour, not the thing under test.
+let steal = await rpc('delete_topic', { p_topic: topic.json?.id }, eve.token)
+ok('SOMEBODY ELSE CANNOT DELETE YOUR TOPIC', JSON.stringify(steal.json).includes('not yours'), JSON.stringify(steal.json).slice(0, 70))
+let direct = await rest('topics', { token: bob.token, method: 'POST', body: { kind: 'topic', author_id: bob.id, title: 'sneaking in', body: 'no notification, no count' } })
+ok('and cannot insert one directly, skipping the fan-out (RLS)', direct.status !== 201, 'status ' + direct.status)
+await rpc('delete_topic', { p_topic: topic.json?.id }, alice.token)
+let gone = await rpc('list_topics', { p_kind: 'topic', p_limit: 10, p_offset: 0 }, alice.token)
+ok('the author can delete their own', !(gone.json || []).some(t => t.id === topic.json?.id))
 
 
 console.log(`\n${'='.repeat(52)}\n  ${pass} passed, ${fail} failed\n${'='.repeat(52)}`)

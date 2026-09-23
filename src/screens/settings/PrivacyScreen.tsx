@@ -48,7 +48,7 @@ export default function PrivacyScreen() {
     <div className="min-h-screen text-ink pb-24">
       <header className="sticky top-0 z-10 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
-          <button onClick={() => navigate(-1)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
+          <button onClick={() => navigate(-1)} aria-label="Back" className="lm-flip text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
           <div className="flex-1 text-center font-bold">Your data</div>
           <div className="w-10" aria-hidden />
         </div>

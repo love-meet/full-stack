@@ -416,7 +416,7 @@ function GalleryOverlay({ person, onClose }: { person: FeedPerson; onClose: () =
         className="absolute left-3 z-20 flex items-center gap-1.5 rounded-full pl-2.5 pr-4 py-2 bg-black/60 backdrop-blur-sm text-white text-sm font-bold"
         style={{ top: 'calc(var(--lm-top-inset) + 0.75rem)' }}
       >
-        <span className="text-lg leading-none">←</span> Back
+        <span className="lm-flip text-lg leading-none">←</span> Back
       </button>
 
       <Media src={photos[index]} fit="contain" play controls />

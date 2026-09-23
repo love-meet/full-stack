@@ -18,6 +18,7 @@ import ChatScreen from './screens/ChatScreen'
 import ChatDetailScreen from './screens/ChatDetailScreen'
 import SearchScreen from './screens/SearchScreen'
 import FriendsScreen from './screens/FriendsScreen'
+import TipsScreen from './screens/TipsScreen'
 import InterviewScreen from './screens/InterviewScreen'
 import GiftDetailScreen from './screens/GiftDetailScreen'
 import GuideScreen from './screens/GuideScreen'
@@ -100,6 +101,7 @@ export const router = createBrowserRouter([
               { path: 'guide',                 element: <GuideScreen /> },
               { path: 'chat',                  element: <ChatScreen /> },
               { path: 'friends',               element: <FriendsScreen /> },
+              { path: 'tips',                  element: <TipsScreen /> },
               { path: 'search',                element: <SearchScreen /> }, // header-link, not a bottom-nav tab
               { path: 'notifications',         element: <NotificationsScreen /> },
               { path: 'profile',               element: <ProfileScreen /> },
