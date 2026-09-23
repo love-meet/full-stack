@@ -59,11 +59,11 @@ const FEATURES = [
   },
   {
     Icon: SparkIcon,
-    title: 'Credits, not a subscription',
+    title: 'Coins, not a subscription',
     body:
-      'The first message you send on any day costs credits; after that, ' +
+      'The first message you send on any day costs coins; after that, ' +
       'message as much as you like until tomorrow. A day you do not message ' +
-      'costs nothing, and credits never expire.',
+      'costs nothing, and coins never expire.',
   },
 ]
 
@@ -117,7 +117,7 @@ export default function WhatItIs() {
           viewport={{ once: true }}
           className="mt-10 text-center text-xs text-ink-muted max-w-xl mx-auto leading-relaxed"
         >
-          You must be 18 or over. Credits buy messaging inside Love meet — they
+          You must be 18 or over. Coins buy messaging inside Love meet — they
           have no cash value and cannot be transferred, exchanged or withdrawn.
           Games are free and pay out nothing.
         </motion.p>

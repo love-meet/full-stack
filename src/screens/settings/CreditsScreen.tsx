@@ -82,7 +82,7 @@ export default function CreditsScreen() {
           })
           setStatus(tx.completed ? 'done' : 'idle')
           if (!tx.completed) {
-            setError('Payment is still processing — your credits will land once it clears.')
+            setError('Payment is still processing — your coins will land once it clears.')
           }
         } catch (e) {
           setError((e as Error).message)
@@ -98,7 +98,7 @@ export default function CreditsScreen() {
       <header className="sticky top-0 z-10 glass border-b border-white/5" style={{ paddingTop: 'var(--lm-top-inset)' }}>
         <div className="max-w-2xl mx-auto h-14 px-3 flex items-center">
           <button onClick={() => navigate(-1)} aria-label="Back" className="text-ink-2 hover:text-ink text-2xl leading-none px-2 py-2">←</button>
-          <div className="flex-1 text-center text-ink font-bold">Credits</div>
+          <div className="flex-1 text-center text-ink font-bold">Coins</div>
           <div className="w-10" aria-hidden />
         </div>
       </header>
@@ -107,7 +107,7 @@ export default function CreditsScreen() {
         {/* Balance */}
         <section className="glass rounded-3xl p-6 text-center">
           <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-bold">
-            Your credits
+            Your coins
           </div>
           {balance.isPending ? (
             <div className="mt-3 mx-auto h-10 w-40 rounded-lg bg-white/10 animate-pulse" />
@@ -126,11 +126,11 @@ export default function CreditsScreen() {
         {/* How it works — plainly, so nobody has to guess what they're paying for. */}
         <section className="glass rounded-2xl p-5 space-y-2 text-sm text-ink-2">
           <p>
-            <b className="text-ink">{DAILY_MESSAGE_COST} credits</b> covers the first message
+            <b className="text-ink">{DAILY_MESSAGE_COST} coins</b> covers the first message
             you send on any day. After that, message as much as you like, in every
             chat, until the day rolls over.
           </p>
-          <p>A day you don't message costs nothing. Credits never expire.</p>
+          <p>A day you don't message costs nothing. Coins never expire.</p>
           <p><b className="text-ink">Games are free.</b> They cost nothing to play and pay nothing out.</p>
         </section>
 
@@ -143,7 +143,7 @@ export default function CreditsScreen() {
             <div className="flex items-baseline justify-between">
               <div>
                 <div className="text-2xl font-extrabold text-gradient-warm">
-                  {(PACK_USD * CREDITS_PER_USD).toLocaleString()} credits
+                  {(PACK_USD * CREDITS_PER_USD).toLocaleString()} coins
                 </div>
                 <div className="text-xs text-ink-muted mt-0.5">
                   {Math.floor((PACK_USD * CREDITS_PER_USD) / DAILY_MESSAGE_COST)} days of messaging
@@ -160,7 +160,7 @@ export default function CreditsScreen() {
               {status === 'opening' ? 'Opening…'
                 : status === 'verifying' ? 'Confirming…'
                 : status === 'done' ? '✓ Added'
-                : `Get ${(PACK_USD * CREDITS_PER_USD).toLocaleString()} credits`}
+                : `Get ${(PACK_USD * CREDITS_PER_USD).toLocaleString()} coins`}
             </button>
 
             {!configured && (
@@ -171,7 +171,7 @@ export default function CreditsScreen() {
             {error && <p className="mt-3 text-xs text-danger text-center">{error}</p>}
 
             <p className="mt-3 text-[11px] text-ink-muted text-center">
-              Credits buy messaging inside Love meet. They have no cash value and
+              Coins buy messaging inside Love meet. They have no cash value and
               can't be transferred or exchanged.
             </p>
           </div>

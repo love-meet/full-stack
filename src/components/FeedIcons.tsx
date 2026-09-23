@@ -28,6 +28,15 @@ export function HeartIcon({ filled, className }: IconProps) {
   )
 }
 
+/** Reject. A plain cross — not a "no entry", which reads as a punishment. */
+export function CloseIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className} strokeWidth={2.2} aria-hidden>
+      <path d="M6 6 18 18M18 6 6 18" />
+    </svg>
+  )
+}
+
 export function CommentIcon({ className }: IconProps) {
   return (
     <svg {...base} className={className} aria-hidden>

@@ -909,7 +909,7 @@ function OutOfCreditsSheet({ onClose }: { onClose: () => void }) {
       className="fixed inset-0 z-50 bg-black/60 grid place-items-end sm:place-items-center"
       onClick={onClose}
       role="dialog"
-      aria-label="Out of credits"
+      aria-label="Out of coins"
     >
       <motion.div
         initial={{ y: 40, opacity: 0 }}
@@ -921,9 +921,9 @@ function OutOfCreditsSheet({ onClose }: { onClose: () => void }) {
         style={{ paddingBottom: 'calc(1.5rem + var(--lm-bottom-inset))' }}
       >
         <div className="text-4xl mb-3">💬</div>
-        <h2 className="text-lg font-extrabold text-ink">You're out of credits</h2>
+        <h2 className="text-lg font-extrabold text-ink">You're out of coins</h2>
         <p className="mt-2 text-sm text-ink-2">
-          Messaging costs {DAILY_MESSAGE_COST} credits for the whole day — the first
+          Messaging costs {DAILY_MESSAGE_COST} coins for the whole day — the first
           message you send. After that, message as much as you like, in every
           chat, until tomorrow.
         </p>
@@ -931,7 +931,7 @@ function OutOfCreditsSheet({ onClose }: { onClose: () => void }) {
           onClick={() => { onClose(); navigate('/credits') }}
           className="mt-5 w-full rounded-full py-3 bg-gradient-brand text-white font-extrabold text-sm glow-rose"
         >
-          Get credits
+          Get coins
         </button>
         <button
           onClick={onClose}

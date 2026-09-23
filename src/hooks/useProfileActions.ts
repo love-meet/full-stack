@@ -164,15 +164,20 @@ export function useToggleCommentLike(profileId: string) {
 export function useSendProfileGift() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (v: { profileId: string; giftId: string; giftName: string; giftImage?: string | null }) => {
+    mutationFn: async (v: { profileId: string; giftId: string }) => {
+      // Only the id travels. The server reads cost and value from
+      // gift_catalogue; a name or price sent from here would be ignored, and
+      // passing them invites someone to think they matter.
       const { error } = await supabase.rpc('send_profile_gift', {
         p_profile_id: v.profileId,
         p_gift_id: v.giftId,
-        p_gift_name: v.giftName,
-        p_gift_image: v.giftImage ?? null,
       })
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['profile-action-state'] }),
+    onSuccess: () => {
+      // The send moves coins on both sides.
+      qc.invalidateQueries({ queryKey: ['credits'] })
+      qc.invalidateQueries({ queryKey: ['credit-history'] })
+    },
   })
 }

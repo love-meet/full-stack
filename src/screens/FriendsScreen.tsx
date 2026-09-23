@@ -1,30 +1,25 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import TopIcons from '../shell/TopIcons'
-import { useFriends, useFriendsPosts, type Friend } from '../hooks/useFriends'
+import { useFriends, useRemoveFriend, isOnline, type Friend } from '../hooks/useFriends'
+import { useStartDM, isDailyChatLimit } from '../hooks/useStartDM'
+import { ageFrom } from '../hooks/usePeopleFeed'
 import { avatarUrlOr } from '../lib/avatar'
-import { isVideoUrl, compactCount } from '../lib/media'
-import type { FeedPost } from '../hooks/useFeed'
 
 /**
- * Friends — the second tab, where Search used to sit.
+ * Friends (HS-LM-v1 §05).
  *
- * "Friend" means you follow each other: two rows in public.follows pointing
- * back at one another. The tab shows what those people posted, with a strip of
- * their faces across the top to jump into any one of them.
+ * "Everyone you said you were interested in, and everyone who said it about
+ * you. There is nothing else to collect in this app."
  *
- * This is not the public post feed §1 removed — there is no discovery here and
- * no ranking. Nobody appears unless you both chose each other.
- *
- * Search keeps its route (/search); it just no longer owns a tab.
+ * A list of people, not a feed of posts — this is where you decide who to
+ * talk to. Online status appears here and nowhere else, because §05 is
+ * explicit about why: on a friends list it helps you choose, whereas on a
+ * profile or a chat it is just something to watch anxiously.
  */
 export default function FriendsScreen() {
   const friends = useFriends()
-  const posts = useFriendsPosts()
-
   const list = friends.data ?? []
-  const feed = posts.data?.pages.flat() ?? []
-  const noFriends = friends.status === 'success' && list.length === 0
-  const noPosts = posts.status === 'success' && feed.length === 0
 
   return (
     <div className="min-h-screen text-ink pb-24">
@@ -40,140 +35,140 @@ export default function FriendsScreen() {
         </div>
       </header>
 
-      {/* The faces, across the top. Horizontal so it stays one row however
-          many friends you have, and never pushes their posts off screen. */}
-      {list.length > 0 && (
-        <div className="max-w-2xl mx-auto px-4 pt-4">
-          <div className="flex gap-3.5 overflow-x-auto no-scrollbar pb-1">
-            {list.map((f) => <FriendChip key={f.id} friend={f} />)}
-          </div>
-        </div>
-      )}
-
-      <main className="max-w-2xl mx-auto px-4 py-5">
-        {noFriends && (
-          <div className="glass rounded-3xl p-8 text-center">
-            <div className="text-5xl mb-3">🤝</div>
-            <p className="font-semibold mb-1">No friends yet</p>
-            <p className="text-sm text-ink-2 leading-relaxed">
-              Tap <b className="text-ink">+</b> on someone's picture in your{' '}
-              <Link to="/feed" className="text-rose font-semibold hover:underline">feed</Link>{' '}
-              to follow them. When they follow you back, you're friends and
-              their posts show up here.
-            </p>
-          </div>
-        )}
-
-        {!noFriends && noPosts && (
-          <div className="glass rounded-3xl p-8 text-center">
-            <div className="text-4xl mb-3">🌱</div>
-            <p className="font-semibold mb-1">Nothing posted yet</p>
-            <p className="text-sm text-ink-2">
-              Your friends haven't posted anything. Tap one of them above to
-              open their profile.
-            </p>
-          </div>
-        )}
-
-        {posts.status === 'pending' && (
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="rounded-3xl h-72 bg-white/8 animate-pulse" />
+      <main className="max-w-2xl mx-auto px-4 py-4">
+        {friends.status === 'pending' && (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-[4.5rem] rounded-2xl bg-white/8 animate-pulse" />
             ))}
           </div>
         )}
 
-        {posts.status === 'error' && (
+        {friends.status === 'error' && (
           <div className="glass rounded-2xl p-5 text-sm text-danger text-center">
-            {(posts.error as Error).message}
+            {(friends.error as Error).message}
           </div>
         )}
 
-        <div className="space-y-4">
-          {feed.map((p) => <FriendPost key={p.id} post={p} />)}
-        </div>
-
-        {posts.hasNextPage && (
-          <button
-            onClick={() => posts.fetchNextPage()}
-            disabled={posts.isFetchingNextPage}
-            className="mt-5 w-full glass rounded-full py-3 text-sm font-semibold text-ink-2 hover:text-ink"
-          >
-            {posts.isFetchingNextPage ? 'Loading…' : 'Show older'}
-          </button>
+        {friends.status === 'success' && list.length === 0 && (
+          <div className="glass rounded-3xl p-8 text-center">
+            <div className="text-5xl mb-3">🤝</div>
+            <p className="font-semibold mb-1">Nobody yet</p>
+            <p className="text-sm text-ink-2 leading-relaxed">
+              Tap <b className="text-ink">Interested</b> on someone in your{' '}
+              <Link to="/feed" className="text-rose font-semibold hover:underline">feed</Link>.
+              They land here straight away — you don't have to wait for them to
+              choose you back.
+            </p>
+          </div>
         )}
+
+        <ul className="space-y-1.5">
+          {list.map((f) => <FriendRow key={f.id} friend={f} />)}
+        </ul>
       </main>
     </div>
   )
 }
 
-function FriendChip({ friend: f }: { friend: Friend }) {
+function FriendRow({ friend: f }: { friend: Friend }) {
+  const navigate = useNavigate()
+  const startDM = useStartDM()
+  const remove = useRemoveFriend()
+  const [error, setError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
+
   const name = f.display_name ?? f.handle ?? 'Someone'
-  return (
-    <Link to={`/profile/${f.id}`} className="shrink-0 w-16 text-center">
-      <img
-        src={avatarUrlOr(f.avatar_url, f.gender)}
-        alt=""
-        className="w-16 h-16 rounded-full object-cover ring-2 ring-rose/70 p-0.5"
-      />
-      <span className="mt-1 block text-[11px] font-semibold text-ink-2 truncate">{name}</span>
-    </Link>
-  )
-}
+  const age = ageFrom(f.dob)
+  const online = isOnline(f.last_seen_at)
+  // Someone who chose you but has not been chosen back is the one worth
+  // opening — so say so, rather than leaving the list uniform.
+  const theirMove = f.they_said_it && !f.i_said_it
 
-function FriendPost({ post: p }: { post: FeedPost }) {
-  const name = p.author_display_name ?? p.author_handle ?? 'Someone'
+  async function open() {
+    setError(null)
+    if (f.conversation_id) { navigate(`/chat/${f.conversation_id}`); return }
+    try {
+      navigate(`/chat/${await startDM.mutateAsync(f.id)}`)
+    } catch (e) {
+      setError(isDailyChatLimit(e) ? "That's 20 new chats today." : 'Could not open that chat.')
+    }
+  }
+
   return (
-    <article className="glass rounded-3xl overflow-hidden">
-      <header className="flex items-center gap-2.5 px-4 py-3">
-        <Link to={`/profile/${p.author_id}`}>
+    <li className="glass rounded-2xl px-3 py-3">
+      <div className="flex items-center gap-3">
+        <Link to={`/profile/${f.id}`} className="relative shrink-0">
           <img
-            src={avatarUrlOr(p.author_avatar_url, p.author_gender)}
+            src={avatarUrlOr(f.avatar_url, f.gender)}
             alt=""
-            className="w-9 h-9 rounded-full object-cover"
+            className="w-12 h-12 rounded-full object-cover"
           />
+          {online && (
+            <span
+              aria-label="Online"
+              className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-success ring-2 ring-surface-2"
+            />
+          )}
         </Link>
-        <div className="min-w-0 flex-1">
-          <Link to={`/profile/${p.author_id}`} className="block text-sm font-bold truncate">
-            {name}
-          </Link>
-          <span className="block text-[11px] text-ink-muted">
-            {new Date(p.created_at).toLocaleDateString()}
+
+        <button onClick={open} className="flex-1 min-w-0 text-left">
+          <span className="flex items-center gap-1.5">
+            <span className="font-bold text-sm truncate">{name}</span>
+            {age != null && <span className="text-sm text-ink-muted">{age}</span>}
+            {theirMove && (
+              <span className="shrink-0 rounded-full px-1.5 py-0.5 bg-rose/15 text-rose text-[10px] font-bold uppercase tracking-wide">
+                Interested in you
+              </span>
+            )}
           </span>
+          <span className="block text-xs text-ink-muted truncate">
+            {f.status_line || (online ? 'Online now' : [f.city, f.country_name].filter(Boolean).join(', '))}
+          </span>
+        </button>
+
+        <button
+          onClick={open}
+          disabled={startDM.isPending}
+          className="shrink-0 rounded-full px-4 py-2 bg-gradient-brand text-white text-xs font-extrabold disabled:opacity-60"
+        >
+          {startDM.isPending ? '…' : 'Chat'}
+        </button>
+
+        <button
+          onClick={() => setConfirming((c) => !c)}
+          aria-label={`Remove ${name}`}
+          className="shrink-0 w-8 h-8 rounded-full grid place-items-center text-ink-muted hover:text-ink"
+        >
+          ⋯
+        </button>
+      </div>
+
+      {/* Removing someone is quiet and mutual — it takes you off their list
+          too. Worth one confirmation, since there is no undo beyond finding
+          them again. */}
+      {confirming && (
+        <div className="mt-2 pt-2 border-t border-white/8 flex items-center gap-2">
+          <p className="flex-1 text-xs text-ink-muted">
+            Remove {name}? You'll come off each other's lists. They aren't told.
+          </p>
+          <button
+            onClick={() => setConfirming(false)}
+            className="rounded-full px-3 py-1.5 text-xs font-bold text-ink-2"
+          >
+            Keep
+          </button>
+          <button
+            onClick={() => remove.mutate(f.id)}
+            disabled={remove.isPending}
+            className="rounded-full px-3 py-1.5 bg-danger/15 text-danger text-xs font-bold disabled:opacity-60"
+          >
+            {remove.isPending ? '…' : 'Remove'}
+          </button>
         </div>
-      </header>
-
-      <Link to={`/p/${p.id}`} className="block bg-black">
-        {isVideoUrl(p.media_url) || p.kind === 'short_video' ? (
-          <video
-            src={p.media_url}
-            className="w-full max-h-[70vh] object-contain"
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            controls
-          />
-        ) : (
-          <img
-            src={p.media_url}
-            alt={p.alt_text ?? ''}
-            className="w-full max-h-[70vh] object-contain"
-          />
-        )}
-      </Link>
-
-      {p.caption && (
-        <p className="px-4 pt-3 text-sm text-ink-2 whitespace-pre-wrap break-words">{p.caption}</p>
       )}
 
-      <div className="px-4 py-3 flex items-center gap-5 text-[13px] font-bold text-ink-muted">
-        {!p.hide_like_count && <span>♥ {compactCount(p.like_count)}</span>}
-        {!p.comments_disabled && (
-          <Link to={`/p/${p.id}`}>💬 {compactCount(p.comment_count)}</Link>
-        )}
-        {p.gift_count > 0 && <span>🎁 {compactCount(p.gift_count)}</span>}
-      </div>
-    </article>
+      {error && <p className="mt-2 text-xs text-danger">{error}</p>}
+    </li>
   )
 }

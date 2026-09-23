@@ -260,8 +260,10 @@ export default function PostDetailScreen() {
 
       <AnimatePresence>
         {giftOpen && (
+          // §06: a gift goes to a person, not a post — the post-targeted RPC
+          // was free and unpriced, which would be a hole straight through the
+          // rule that a gift must cost coins.
           <GiftSheet
-            postId={post.id}
             recipientId={post.author_id}
             recipientLabel={post.author_handle ?? post.author_display_name ?? 'user'}
             onClose={() => setGiftOpen(false)}

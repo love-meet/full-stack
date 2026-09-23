@@ -96,7 +96,7 @@ const COPY: Record<Kind, { title: string; subtitle: string; sections: Section[] 
         body: `End-to-end encryption for chat. Federated content moderation. Group video. Reach out if any of these sound interesting to work on.`,
       },
       {
-        heading: 'Credits',
+        heading: 'Coins',
         body: `Designed and built by the Love meet team. Love meet is powered by Highscore Tech (highzcore.tech). Bug reports + feature requests: lovemeet@highzcore.tech.`,
       },
     ],
