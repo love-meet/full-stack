@@ -239,7 +239,7 @@ export default function ProfileScreen() {
 
       {/* === Body — details + tabs === */}
       <div className="relative z-[3] bg-surface pt-2">
-        <UserDetails profile={profile} isMe={isMe} />
+        <UserDetails profile={profile} />
         <ProfileTabs userId={profile.id} isMe={isMe} />
       </div>
 
