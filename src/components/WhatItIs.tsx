@@ -169,6 +169,8 @@ export default function WhatItIs() {
           {[
             { src: "/shots/coins.png", alt: "Coins on Love meet" },
             { src: "/shots/gifts.png", alt: "Sending a gift" },
+            { src: "/shots/friends.png", alt: "Two profiles on each other's friends list" },
+            { src: "/shots/draughts.png", alt: "A game of draughts inside a chat" },
           ].map((g) => (
             <motion.img
               key={g.src}

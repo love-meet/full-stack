@@ -200,60 +200,34 @@ export default function LandingScreen() {
         {/* Hero visual */}
         <motion.div
           variants={rise}
-          className="relative order-1 lg:order-2 mx-auto w-full max-w-sm lg:max-w-none"
+          className="relative order-1 lg:order-2 mx-auto w-full lg:max-w-none"
         >
-          <div className="relative aspect-square w-full max-w-[420px] mx-auto lm-float">
-            {/* gradient glow ring behind the photo */}
+          <div className="relative aspect-[3/2] w-full max-w-[560px] mx-auto lm-float">
+            {/* A soft glow behind the artwork rather than a ring around it —
+                the render has no rectangular edge to frame. */}
             <div
               aria-hidden
-              className="absolute -inset-4 rounded-[2rem] opacity-60 blur-2xl"
+              className="absolute inset-6 rounded-full opacity-40 blur-3xl"
               style={{ background: 'linear-gradient(135deg, var(--color-rose), var(--color-magenta) 55%, var(--color-coral))' }}
             />
             <img
-              src="/hero.jpeg"
-              alt="Two people connecting on Love meet"
-              className="relative w-full h-full object-cover rounded-[2rem] border border-white/10 shadow-2xl"
+              src="/shots/together.png"
+              alt="Friends chatting and playing a game together on Love meet"
+              className="relative w-full h-full object-contain drop-shadow-2xl"
             />
 
-            {/* Floating glass chips.
-                These used to read "2,418 new chats today" and "12k+ matches"
-                against 173 real users. Invented traction is the kind of claim
-                an app store pulls a listing over, and it is not needed: what
-                the product actually does is the more interesting thing to say
-                on a dating site, and it is true today. */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7, duration: 0.5 }}
-              className="absolute -left-3 top-8 glass rounded-2xl px-3 py-2 shadow-xl"
-            >
-              <div className="text-[10px] uppercase tracking-wider text-ink-muted font-bold">In every chat</div>
-              <div className="text-sm font-extrabold text-ink">8 games to play</div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.85, duration: 0.5 }}
-              className="absolute -right-2 bottom-10 glass rounded-2xl px-3 py-2 shadow-xl flex items-center gap-2"
-            >
-              <HeartIcon filled className="w-4 h-4 text-rose" />
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-ink-muted font-bold">No subscription</div>
-                <div className="text-sm font-extrabold text-gradient-brand">Free to join</div>
-              </div>
-            </motion.div>
           </div>
         </motion.div>
       </motion.div>
     </section>
 
-    {/* Where to get it. Telegram is live; the phone apps are honestly marked
-        coming soon rather than given store badges that lead nowhere. */}
-    {/* §02, in the order that document sets out: what we do, screenshots of
-        the inside, how it works, the three doors, then the legal footer. */}
+    {/* The doors come straight after the hero. §02 lists them fourth, but
+        that order assumes somebody reads the whole page — anyone already
+        persuaded by the hero should not have to scroll past three sections
+        to act on it. The explanation still follows for everyone else. */}
+    <GetTheApp />
     <WhatItIs />
     <Screenshots />
-    <GetTheApp />
     <HowItWorks />
     <SiteFooter />
 
