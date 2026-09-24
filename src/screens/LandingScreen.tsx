@@ -11,6 +11,8 @@ import WhatItIs from '../components/WhatItIs'
 import Screenshots from '../components/Screenshots'
 import HowItWorks from '../components/HowItWorks'
 import SiteFooter from '../components/SiteFooter'
+import NothingToPerformFor from '../components/NothingToPerformFor'
+import SafeAndYours from '../components/SafeAndYours'
 import StickyJoinBar from '../components/StickyJoinBar'
 import { TelegramLogo } from '../components/BrandIcons'
 import { HeartIcon } from '../components/FeedIcons'
@@ -228,7 +230,13 @@ export default function LandingScreen() {
     <GetTheApp />
     <WhatItIs />
     <Screenshots />
+    {/* §04 — what was deliberately left out. It follows the screenshots on
+        purpose: somebody has just seen a feed of faces and may assume this is
+        another swipe app, and this is the paragraph that says it is not. */}
+    <NothingToPerformFor />
     <HowItWorks />
+    {/* §03 language and the anonymous option, §07 safety. */}
+    <SafeAndYours />
     <SiteFooter />
 
     {/* The door follows you down the page once the hero button scrolls off. */}
