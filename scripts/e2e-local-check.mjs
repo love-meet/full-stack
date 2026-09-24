@@ -314,5 +314,23 @@ const missing = (allP.json || []).filter(p => !queued.has(p.id + '|' + p.avatar_
 ok('NO PICTURE IS ON THE FEED UNREVIEWED', missing.length === 0, missing.length + ' unqueued of ' + ((allP.json || []).length))
 
 
+console.log('\n=== 17. Samuel 0114: withdrawing an invite is not a win ===')
+// The bug: resign_chat_game treated an unaccepted invite like an active game,
+// so cancelling one recorded status=finished with the invitee as winner, and
+// told them it was their turn in a game that never existed.
+let inv = await rpc('create_chat_game', { p_conversation: convId, p_kind: 'nim', p_state: { heaps: [3, 4, 5] } }, alice.token)
+ok('an invite is created', !!inv.json?.id, JSON.stringify(inv.json).slice(0, 70))
+let withdrawn = await rpc('resign_chat_game', { p_game: inv.json?.id }, alice.token)
+ok('WITHDRAWING AN INVITE DECLINES IT, does not finish it', withdrawn.json?.status === 'declined', 'status ' + withdrawn.json?.status)
+ok('AND RECORDS NO WINNER', withdrawn.json?.winner_user_id === null, 'winner ' + JSON.stringify(withdrawn.json?.winner_user_id))
+
+// An accepted game that somebody quits is still a forfeit.
+let real = await rpc('create_chat_game', { p_conversation: convId, p_kind: 'nim', p_state: { heaps: [3, 4, 5] } }, alice.token)
+await rpc('respond_chat_game', { p_game: real.json?.id, p_accept: true }, bob.token)
+let quit = await rpc('resign_chat_game', { p_game: real.json?.id }, alice.token)
+ok('quitting an ACCEPTED game is still a forfeit', quit.json?.status === 'finished', 'status ' + quit.json?.status)
+ok('and the opponent wins it', quit.json?.winner_user_id === bob.id)
+
+
 console.log(`\n${'='.repeat(52)}\n  ${pass} passed, ${fail} failed\n${'='.repeat(52)}`)
 process.exit(fail ? 1 : 0)
