@@ -52,6 +52,17 @@ export const router = createBrowserRouter([
   { path: '/blog', element: <BlogScreen /> },
   { path: '/blog/:slug', element: <ArticleScreen /> },
 
+  // Legal and safety documents — public, and they have to be.
+  //
+  // These were nested inside RequireAppSurface > RequireSession >
+  // RequireProfile, so every link to them from the website footer bounced
+  // back to the landing page. HS-LM-v1 §02 puts them in that footer and §07
+  // calls for "live URLs": a store reviewer opening the child-safety policy
+  // does not have an account, and will not make one.
+  //
+  // LegalScreen carries its own header and back button, so it needs no shell.
+  { path: '/legal/:kind', element: <LegalScreen /> },
+
 
   // Everything below is Telegram-only. The website is a brochure: it describes
   // the app and points at Telegram, it does not run it. A bookmark or a shared
@@ -118,7 +129,6 @@ export const router = createBrowserRouter([
               { path: 'blocked',               element: <BlockedUsersScreen /> },
               { path: 'muted',                 element: <MutedUsersScreen /> },
               { path: 'close-account',         element: <CloseAccountScreen /> },
-              { path: 'legal/:kind',           element: <LegalScreen /> },
               {
                 path: 'admin',
                 element: <AdminLayout />,
