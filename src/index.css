@@ -174,6 +174,23 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ---------------------------------------------------------------------------
+ * Marketing artwork, turned down.
+ *
+ * The renders are lit for a bright feed — saturated neon on a white-ish
+ * backdrop. Dropped straight onto this page they shout over the type, and
+ * two of them sit in the hero where the headline is supposed to be read
+ * first.
+ *
+ * A small desaturation and a touch less brightness settles them into the
+ * palette without draining them. Deliberately restrained: any further and
+ * the pink stops matching the brand pink beside it, which looks like a
+ * mistake rather than a choice.
+ * ------------------------------------------------------------------------ */
+.lm-art {
+  filter: saturate(0.85) brightness(0.92) contrast(0.97);
+}
+
 /* Disable iOS tap highlight, looks cheap. */
 * {
   -webkit-tap-highlight-color: transparent;

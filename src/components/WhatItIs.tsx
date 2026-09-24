@@ -179,7 +179,7 @@ export default function WhatItIs() {
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
-              className="w-full h-auto object-contain"
+              className="lm-art w-full h-auto object-contain"
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
             />
           ))}

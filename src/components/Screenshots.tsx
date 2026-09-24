@@ -80,7 +80,7 @@ function Shot({
         src={src}
         alt={alt}
         loading="lazy"
-        className="w-full h-auto object-contain"
+        className="lm-art w-full h-auto object-contain"
         onError={(e) => {
           const img = e.currentTarget
           img.style.display = 'none'

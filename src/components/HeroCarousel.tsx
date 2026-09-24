@@ -79,7 +79,7 @@ export default function HeroCarousel() {
           renders have no rectangular edge to frame. */}
       <div
         aria-hidden
-        className="absolute inset-6 rounded-full opacity-40 blur-3xl"
+        className="absolute inset-10 rounded-full opacity-25 blur-3xl"
         style={{
           background:
             'linear-gradient(135deg, var(--color-rose), var(--color-magenta) 55%, var(--color-coral))',
@@ -96,7 +96,7 @@ export default function HeroCarousel() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.02 }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute inset-0 w-full h-full object-contain drop-shadow-2xl"
+            className="lm-art absolute inset-0 w-full h-full object-contain drop-shadow-2xl"
             onError={() =>
               setOk((prev) => {
                 const next = [...prev]
