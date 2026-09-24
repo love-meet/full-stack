@@ -13,6 +13,7 @@ import HowItWorks from '../components/HowItWorks'
 import SiteFooter from '../components/SiteFooter'
 import NothingToPerformFor from '../components/NothingToPerformFor'
 import SafeAndYours from '../components/SafeAndYours'
+import HeroCarousel from '../components/HeroCarousel'
 import StickyJoinBar from '../components/StickyJoinBar'
 import { TelegramLogo } from '../components/BrandIcons'
 import { HeartIcon } from '../components/FeedIcons'
@@ -176,8 +177,20 @@ export default function LandingScreen() {
             variants={rise}
             className="mt-4 text-base sm:text-lg text-ink-2 max-w-md mx-auto lg:mx-0 leading-relaxed"
           >
-            Meet people near you, match with someone who gets you, chat, send
-            gifts, and maybe find the one. It only takes a hello.
+            Love meet brings social connections and games together in one
+            place.
+          </motion.p>
+
+          {/* The four verbs, set apart from the sentence. They are the whole
+              product in four words, and buried in a paragraph they read as
+              filler rather than as a promise. */}
+          <motion.p
+            variants={rise}
+            className="mt-3 flex flex-wrap justify-center lg:justify-start gap-x-2 gap-y-1 text-base sm:text-lg font-extrabold"
+          >
+            {["Meet people.", "Chat.", "Play.", "Connect."].map((w, i) => (
+              <span key={w} className={i % 2 === 0 ? "text-ink" : "text-gradient-warm"}>{w}</span>
+            ))}
           </motion.p>
 
           {/* One destination, because there is only one. The app runs in
@@ -204,21 +217,7 @@ export default function LandingScreen() {
           variants={rise}
           className="relative order-1 lg:order-2 mx-auto w-full lg:max-w-none"
         >
-          <div className="relative aspect-[3/2] w-full max-w-[560px] mx-auto lm-float">
-            {/* A soft glow behind the artwork rather than a ring around it —
-                the render has no rectangular edge to frame. */}
-            <div
-              aria-hidden
-              className="absolute inset-6 rounded-full opacity-40 blur-3xl"
-              style={{ background: 'linear-gradient(135deg, var(--color-rose), var(--color-magenta) 55%, var(--color-coral))' }}
-            />
-            <img
-              src="/shots/together.png"
-              alt="Friends chatting and playing a game together on Love meet"
-              className="relative w-full h-full object-contain drop-shadow-2xl"
-            />
-
-          </div>
+          <HeroCarousel />
         </motion.div>
       </motion.div>
     </section>
