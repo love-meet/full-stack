@@ -11,6 +11,7 @@ import WhatItIs from '../components/WhatItIs'
 import Screenshots from '../components/Screenshots'
 import HowItWorks from '../components/HowItWorks'
 import SiteFooter from '../components/SiteFooter'
+import StickyJoinBar from '../components/StickyJoinBar'
 import { TelegramLogo } from '../components/BrandIcons'
 import { HeartIcon } from '../components/FeedIcons'
 
@@ -252,9 +253,12 @@ export default function LandingScreen() {
         the inside, how it works, the three doors, then the legal footer. */}
     <WhatItIs />
     <Screenshots />
-    <HowItWorks />
     <GetTheApp />
+    <HowItWorks />
     <SiteFooter />
+
+    {/* The door follows you down the page once the hero button scrolls off. */}
+    <StickyJoinBar />
 
     {/* Localhost only. Compiled out of production builds entirely. */}
     {IS_DEV && <DevSignIn />}

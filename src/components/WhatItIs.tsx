@@ -1,69 +1,69 @@
 import { motion } from 'framer-motion'
-import {
-  PeopleIcon, ChatIcon, GameIcon, GiftBoxIcon, FriendsIcon, SparkIcon,
-} from './BrandIcons'
+import { PeopleIcon, ChatIcon, GameIcon, SparkIcon } from './BrandIcons'
 
 /**
- * What the app actually is.
+ * What Love meet is — HS-LM-v1 §01, in that document's own shape.
  *
- * The website's whole job is this section. Everything else on the page is
- * atmosphere; this is the part that has to answer "what am I downloading and
- * why" for someone who has never heard of us.
+ * Three pillars, then the three things that keep people here. It had been six
+ * feature cards, and three of them had gone stale against the product:
  *
- * Every claim here is true of the shipped app today. Nothing is aspirational
- * and nothing is a number we cannot stand behind — a dating site that invents
- * its traction is the one thing an app store reliably pulls a listing over.
+ *   "Gifts, free and cosmetic"     — §06 made gifts cost coins.
+ *   "Friends, not just matches"    — friendship comes from Interested now,
+ *                                    not from following; §04 bans following.
+ *   "A feed of people … like them, save them for later"
+ *                                  — §04 leaves three actions and no saving.
  *
- * ASSET SLOT FOR OLIVIA: each card has room for a screenshot above the text
- * (feed · a chat mid-game · credits). Until then the glyph carries it, so
- * nothing looks broken while we wait.
+ * A landing page that describes a product you no longer sell is worse than a
+ * thin one, so this is rebuilt from the document rather than edited.
  */
 
-const FEATURES = [
+const PILLARS = [
+  {
+    Icon: SparkIcon,
+    title: 'Find love',
+    body:
+      'People looking for something serious tell us what they want, and we ' +
+      'put them in front of each other.',
+  },
   {
     Icon: PeopleIcon,
-    title: 'A feed of people',
+    title: 'Meet people',
     body:
-      'One person per screen — their picture, their age, where they are. ' +
-      'Like them, save them for later, or start talking. No swiping through ' +
-      'a deck you cannot get back.',
+      'Not everyone is here for a relationship. Some are here for company, ' +
+      'conversation and a game.',
   },
   {
     Icon: ChatIcon,
-    title: 'Chat that stays yours',
+    title: 'Relationship tips',
     body:
-      'Real-time messages, photos and voice notes. Nobody can message you ' +
-      'out of nowhere for free, so the inbox stays worth opening.',
+      'Advice and open topics people can read and contribute to. The reason ' +
+      'to come back on a day you are not looking for anyone.',
   },
+]
+
+const KEEPERS = [
   {
     Icon: GameIcon,
-    title: 'Eight games, inside the chat',
+    title: 'Games bring people back',
     body:
-      'Draughts, Number Duel, word games and more — played a turn at a time, ' +
-      'right in the conversation. Free to play, always. Far easier than ' +
-      'thinking of something to say.',
+      'A turn taken is a reason to open the app tomorrow, and it costs ' +
+      'nothing to play. Eight of them, inside the chat, a turn at a time — ' +
+      'nobody has to be online at the same moment.',
   },
   {
-    Icon: GiftBoxIcon,
-    title: 'Gifts, free and cosmetic',
+    Icon: ChatIcon,
+    title: 'Good conversation keeps them',
     body:
-      'Send someone a rose because you want to. No price, no cash value, ' +
-      'nothing to cash out. It is a nice thing to send, and that is all it is.',
-  },
-  {
-    Icon: FriendsIcon,
-    title: 'Friends, not just matches',
-    body:
-      'Follow someone; if they follow you back you are friends, and you see ' +
-      'what they post. Only people you both chose — no strangers, no ranking.',
+      'Chat behaves like iMessage, not like a dating-app inbox with a timer ' +
+      'and a nudge. Text, voice notes, photographs, and the games sitting ' +
+      'in the conversation where they belong.',
   },
   {
     Icon: SparkIcon,
-    title: 'Coins, not a subscription',
+    title: 'Something to do on a quiet day',
     body:
-      'The first message you send on any day costs coins; after that, ' +
-      'message as much as you like until tomorrow. A day you do not message ' +
-      'costs nothing, and coins never expire.',
+      'Tips and topics give you a reason to open Love meet on a day when ' +
+      'nobody new has appeared. That is what makes it more than a dating app.',
   },
 ]
 
@@ -82,22 +82,26 @@ export default function WhatItIs() {
           className="text-center"
         >
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-ink">
-            What you get
+            A place to find love, meet people,
+            <br className="hidden sm:block" />{' '}
+            <span className="text-gradient-warm">and get better at both</span>
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-ink-2 max-w-lg mx-auto leading-relaxed">
-            Love meet is a dating app you actually spend time in — not a deck of
-            faces you burn through in five minutes.
+          <p className="mt-3 text-sm sm:text-base text-ink-2 max-w-xl mx-auto leading-relaxed">
+            Not a feed to scroll for hours, and not a swipe game. Somewhere you
+            go to meet one person, and then stay because it is actually
+            enjoyable.
           </p>
         </motion.div>
 
-        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {FEATURES.map((f, i) => (
+        {/* The three pillars. */}
+        <div className="mt-10 grid sm:grid-cols-3 gap-4">
+          {PILLARS.map((f, i) => (
             <motion.div
               key={f.title}
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
-              transition={{ delay: 0.05 * (i % 3) }}
+              transition={{ delay: 0.05 * i }}
               className="glass rounded-3xl p-6"
             >
               <span className="w-12 h-12 rounded-2xl grid place-items-center bg-white/6 text-rose">
@@ -109,18 +113,76 @@ export default function WhatItIs() {
           ))}
         </div>
 
-        {/* The honest small print. A dating app that is vague about money is
-            one people assume is hiding something. */}
-        <motion.p
+        {/* Why anyone stays. */}
+        <motion.h3
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="mt-10 text-center text-xs text-ink-muted max-w-xl mx-auto leading-relaxed"
+          className="mt-16 text-center text-2xl sm:text-3xl font-extrabold tracking-tight text-ink"
         >
-          You must be 18 or over. Coins buy messaging inside Love meet — they
-          have no cash value and cannot be transferred, exchanged or withdrawn.
-          Games are free and pay out nothing.
-        </motion.p>
+          The three things that keep people here
+        </motion.h3>
+
+        <div className="mt-8 grid sm:grid-cols-3 gap-4">
+          {KEEPERS.map((f, i) => (
+            <motion.div
+              key={f.title}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ delay: 0.05 * i }}
+              className="rounded-3xl p-6 border border-white/8"
+            >
+              <span className="text-rose"><f.Icon className="w-6 h-6" /></span>
+              <h4 className="mt-3 font-extrabold text-ink leading-tight">{f.title}</h4>
+              <p className="mt-2 text-sm text-ink-2 leading-relaxed">{f.body}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Coins, stated plainly — §06, and §01's "no money language". */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-12 glass rounded-3xl p-6 sm:p-8 text-center max-w-2xl mx-auto"
+        >
+          <h3 className="font-extrabold text-ink">Free to join. Coins for talking.</h3>
+          <p className="mt-2 text-sm text-ink-2 leading-relaxed">
+            You start with <b className="text-ink">1,000 coins</b> — about ten
+            days of conversation. The first message you send on any day costs
+            100; everything after it that day is free, in every chat. A day you
+            do not message costs nothing, and the games never cost a coin.
+          </p>
+          <p className="mt-3 text-xs text-ink-muted leading-relaxed">
+            You must be 18 or over. Coins buy messaging inside Love meet — they
+            have no cash value and cannot be withdrawn, transferred or
+            exchanged.
+          </p>
+        </motion.div>
+
+        {/* Olivia s coins and gifts renders. Each carries its own title in
+            the artwork, so nothing is captioned here. Missing files simply
+            do not render — this is decoration, and a gap is better than a
+            placeholder pretending to be art. */}
+        <div className="mt-10 grid sm:grid-cols-2 gap-6 items-center max-w-4xl mx-auto">
+          {[
+            { src: "/shots/coins.png", alt: "Coins on Love meet" },
+            { src: "/shots/gifts.png", alt: "Sending a gift" },
+          ].map((g) => (
+            <motion.img
+              key={g.src}
+              src={g.src}
+              alt={g.alt}
+              loading="lazy"
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              className="w-full h-auto object-contain"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
+            />
+          ))}
+        </div>
       </div>
     </section>
   )
